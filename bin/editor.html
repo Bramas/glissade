@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title} — Kino</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --panel: #181a1f;
+      --panel-2: #22252c;
+      --line: #353943;
+      --muted: #949ba8;
+      --accent: #65a7ff;
+      --cut: #ffbd5c;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { color: #f3f5f7; background: #101114; font: 14px/1.4 system-ui, sans-serif; }
+    button { color: inherit; font: inherit; }
+    .app { height: 100%; display: grid; grid-template: 48px 1fr 190px / 210px 1fr; }
+    .toolbar {
+      grid-column: 1 / -1; display: flex; align-items: center; gap: 8px;
+      padding: 0 12px; background: var(--panel); border-bottom: 1px solid var(--line);
+    }
+    .brand { font-weight: 700; letter-spacing: .03em; margin-right: 10px; }
+    .status { margin-left: auto; color: var(--muted); font-size: 12px; }
+    .status.error { color: #ff7d86; }
+    .tool-button {
+      min-width: 34px; height: 32px; padding: 0 10px; border: 1px solid var(--line);
+      border-radius: 6px; background: var(--panel-2); cursor: pointer;
+    }
+    .tool-button:hover { border-color: #59606d; }
+    .sidebar { overflow: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 10px; }
+    .sidebar h2 { margin: 2px 6px 10px; color: var(--muted); font-size: 11px; text-transform: uppercase; }
+    .scene-button {
+      display: block; width: 100%; padding: 9px 10px; margin-bottom: 5px; border: 1px solid transparent;
+      border-radius: 6px; color: #c8cdd5; background: transparent; text-align: left; cursor: pointer;
+    }
+    .scene-button:hover { background: var(--panel-2); }
+    .scene-button.active { color: white; border-color: #3d70ad; background: #243750; }
+    .preview { position: relative; display: grid; place-items: center; min-width: 0; min-height: 0; padding: 22px; }
+    .stage { width: 100%; height: 100%; display: grid; place-items: center; }
+    .stage img { display: block; max-width: 100%; max-height: 100%; filter: drop-shadow(0 12px 28px rgb(0 0 0 / .35)); }
+    .empty { color: var(--muted); }
+    .timeline { grid-column: 1 / -1; background: var(--panel); border-top: 1px solid var(--line); padding: 10px 14px; }
+    .timeline-head { height: 32px; display: flex; align-items: center; gap: 10px; }
+    .timecode { width: 130px; font-variant-numeric: tabular-nums; }
+    .timeline-track { position: relative; height: 112px; margin-top: 6px; border: 1px solid var(--line); border-radius: 6px; background: #121318; overflow: hidden; }
+    .ruler { position: absolute; inset: 0 0 auto; height: 24px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+    .tick { position: absolute; top: 0; height: 100%; padding: 4px; border-left: 1px solid #30343c; }
+    .blocks { position: absolute; inset: 31px 0 29px; }
+    .block { position: absolute; top: 0; height: 45px; min-width: 2px; padding: 6px; overflow: hidden; white-space: nowrap; border: 1px solid #346391; border-radius: 4px; color: #cde5ff; background: #233e59; font-size: 11px; }
+    .cut { position: absolute; inset: 0 auto 0; width: 2px; z-index: 3; background: var(--cut); pointer-events: none; }
+    .cut::before { content: ""; position: absolute; top: 0; left: -4px; border: 5px solid transparent; border-top-color: var(--cut); }
+    .scrubber { position: absolute; inset: auto 0 0; width: 100%; height: 30px; margin: 0; cursor: ew-resize; opacity: .82; }
+    .playhead { position: absolute; top: 0; bottom: 28px; width: 1px; z-index: 4; background: #ff6573; pointer-events: none; }
+    .playhead::before { content: ""; position: absolute; top: 0; left: -4px; border: 5px solid transparent; border-top-color: #ff6573; }
+    .error-overlay { position: absolute; inset: 20px; z-index: 5; overflow: auto; padding: 18px; border: 1px solid #7c343b; border-radius: 8px; color: #ffd7da; background: rgb(46 18 22 / .94); white-space: pre-wrap; }
+    [hidden] { display: none !important; }
+    @media (max-width: 720px) {
+      .app { grid-template-columns: 1fr; grid-template-rows: 48px 1fr 190px; }
+      .sidebar { display: none; }
+      .preview { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="toolbar">
+      <span class="brand">Kino</span>
+      <button class="tool-button" data-action="previous-scene" title="Previous slide">&#8592;</button>
+      <button class="tool-button" data-action="play" title="Play or pause (Space)">&#9654;</button>
+      <button class="tool-button" data-action="next-scene" title="Next slide">&#8594;</button>
+      <button class="tool-button" data-action="previous-frame" title="Previous frame">&#8722;1</button>
+      <button class="tool-button" data-action="next-frame" title="Next frame">+1</button>
+      <button class="tool-button" data-action="fullscreen" title="Fullscreen (F)">Fullscreen</button>
+      <span class="status">Loading…</span>
+    </header>
+    <aside class="sidebar"><h2>Scenes</h2><div class="scene-list"></div></aside>
+    <section class="preview">
+      <div class="stage"><span class="empty">Compiling preview…</span></div>
+      <pre class="error-overlay" hidden></pre>
+    </section>
+    <section class="timeline">
+      <div class="timeline-head">
+        <strong class="scene-title">—</strong>
+        <span class="timecode">00:00.000 / 00:00.000</span>
+      </div>
+      <div class="timeline-track">
+        <div class="ruler"></div>
+        <div class="blocks"></div>
+        <div class="cuts"></div>
+        <div class="playhead"></div>
+        <input class="scrubber" type="range" min="0" max="0" value="0" aria-label="Timeline playhead">
+      </div>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const getManifest = () => ${manifest_source};
+      const liveReload = ${live_reload};
+      const elements = {
+        stage: document.querySelector(".stage"),
+        sceneList: document.querySelector(".scene-list"),
+        sceneTitle: document.querySelector(".scene-title"),
+        status: document.querySelector(".status"),
+        timecode: document.querySelector(".timecode"),
+        ruler: document.querySelector(".ruler"),
+        blocks: document.querySelector(".blocks"),
+        cuts: document.querySelector(".cuts"),
+        playhead: document.querySelector(".playhead"),
+        scrubber: document.querySelector(".scrubber"),
+        play: document.querySelector('[data-action="play"]'),
+        error: document.querySelector(".error-overlay")
+      };
+      let manifest = null;
+      let sceneIndex = 0;
+      let frameIndex = 0;
+      let playing = false;
+      let animationHandle = 0;
+      let nextFrameAt = 0;
+
+      function scene() { return manifest?.scenes[sceneIndex]; }
+      function clamp(value, minimum, maximum) { return Math.max(minimum, Math.min(value, maximum)); }
+      function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
+        const remainder = Math.floor(seconds % 60).toString().padStart(2, "0");
+        const millis = Math.floor((seconds % 1) * 1000).toString().padStart(3, "0");
+        return minutes + ":" + remainder + "." + millis;
+      }
+      function percentage(value, total) { return total > 0 ? value / total * 100 : 0; }
+
+      function renderSceneList() {
+        elements.sceneList.replaceChildren(...manifest.scenes.map((item, index) => {
+          const button = document.createElement("button");
+          button.className = "scene-button" + (index === sceneIndex ? " active" : "");
+          button.textContent = (index + 1) + ". " + item.name;
+          button.addEventListener("click", () => selectScene(index));
+          return button;
+        }));
+      }
+
+      function renderTimeline() {
+        const current = scene();
+        const duration = current.duration || current.frameCount / current.fps;
+        elements.ruler.replaceChildren();
+        const tickCount = Math.max(2, Math.min(10, Math.ceil(duration) + 1));
+        for (let index = 0; index < tickCount; index += 1) {
+          const tick = document.createElement("span");
+          tick.className = "tick";
+          tick.style.left = percentage(index, tickCount - 1) + "%";
+          tick.textContent = (duration * index / (tickCount - 1)).toFixed(1) + "s";
+          elements.ruler.append(tick);
+        }
+        elements.blocks.replaceChildren(...current.blocks.map(block => {
+          const element = document.createElement("div");
+          element.className = "block";
+          element.style.left = percentage(block.start, duration) + "%";
+          element.style.width = percentage(block.duration, duration) + "%";
+          element.textContent = "Block " + block.index;
+          element.title = "Block " + block.index + ": " + block.duration.toFixed(3) + "s";
+          return element;
+        }));
+        elements.cuts.replaceChildren(...current.cuts.map(cut => {
+          const element = document.createElement("span");
+          element.className = "cut";
+          element.style.left = percentage(cut.frame, Math.max(1, current.frameCount - 1)) + "%";
+          element.title = "Cut at frame " + cut.frame;
+          return element;
+        }));
+        elements.scrubber.max = Math.max(0, current.frameCount - 1);
+      }
+
+      function renderFrame() {
+        const current = scene();
+        if (!current || !current.frames.length) return;
+        frameIndex = clamp(frameIndex, 0, current.frameCount - 1);
+        let image = elements.stage.querySelector("img");
+        if (!image) {
+          image = document.createElement("img");
+          image.alt = "Current slide frame";
+          elements.stage.replaceChildren(image);
+        }
+        image.src = current.frames[frameIndex];
+        elements.scrubber.value = frameIndex;
+        elements.playhead.style.left = percentage(frameIndex, Math.max(1, current.frameCount - 1)) + "%";
+        const currentTime = frameIndex / current.fps;
+        elements.timecode.textContent = formatTime(currentTime) + " / " + formatTime(current.duration);
+        elements.status.textContent = "Slide " + (sceneIndex + 1) + " / " + manifest.scenes.length + " · Frame " + (frameIndex + 1) + " / " + current.frameCount;
+        elements.status.classList.remove("error");
+        for (const offset of [1, 2]) {
+          if (current.frames[frameIndex + offset]) new Image().src = current.frames[frameIndex + offset];
+        }
+      }
+
+      function selectScene(index, preserveFrame = false) {
+        pause();
+        sceneIndex = clamp(index, 0, manifest.scenes.length - 1);
+        if (!preserveFrame) frameIndex = 0;
+        elements.sceneTitle.textContent = scene().name;
+        renderSceneList();
+        renderTimeline();
+        renderFrame();
+        if (liveReload) fetch("/select?id=" + encodeURIComponent(scene().id));
+        history.replaceState(null, "", "#scene=" + (sceneIndex + 1) + "&frame=" + frameIndex);
+      }
+
+      function seek(frame) {
+        frameIndex = clamp(frame, 0, scene().frameCount - 1);
+        renderFrame();
+      }
+      function pause() {
+        playing = false;
+        cancelAnimationFrame(animationHandle);
+        elements.play.textContent = "▶";
+      }
+      function play() {
+        if (playing) { pause(); return; }
+        if (frameIndex >= scene().frameCount - 1) frameIndex = 0;
+        playing = true;
+        elements.play.textContent = "❚❚";
+        nextFrameAt = performance.now();
+        animationHandle = requestAnimationFrame(tick);
+      }
+      function tick(now) {
+        if (!playing) return;
+        if (now >= nextFrameAt) {
+          if (frameIndex >= scene().frameCount - 1) { pause(); return; }
+          frameIndex += 1;
+          renderFrame();
+          if (scene().cuts.some(cut => cut.frame === frameIndex)) {
+            pause();
+            return;
+          }
+          nextFrameAt += 1000 / scene().fps;
+        }
+        animationHandle = requestAnimationFrame(tick);
+      }
+      function showError(message) {
+        elements.error.textContent = message;
+        elements.error.hidden = false;
+        elements.status.textContent = "Build failed";
+        elements.status.classList.add("error");
+      }
+      function hideError() { elements.error.hidden = true; }
+
+      async function loadManifest(preservePosition = false) {
+        try {
+          const oldScene = sceneIndex;
+          const oldFrame = frameIndex;
+          manifest = await getManifest();
+          hideError();
+          sceneIndex = clamp(oldScene, 0, manifest.scenes.length - 1);
+          frameIndex = preservePosition ? clamp(oldFrame, 0, manifest.scenes[sceneIndex].frameCount - 1) : 0;
+          selectScene(sceneIndex, true);
+        } catch (error) { showError(String(error)); }
+      }
+
+      document.querySelector('[data-action="previous-scene"]').addEventListener("click", () => selectScene(sceneIndex - 1));
+      document.querySelector('[data-action="next-scene"]').addEventListener("click", () => selectScene(sceneIndex + 1));
+      document.querySelector('[data-action="previous-frame"]').addEventListener("click", () => { pause(); seek(frameIndex - 1); });
+      document.querySelector('[data-action="next-frame"]').addEventListener("click", () => { pause(); seek(frameIndex + 1); });
+      document.querySelector('[data-action="fullscreen"]').addEventListener("click", () => document.documentElement.requestFullscreen?.());
+      elements.play.addEventListener("click", play);
+      elements.scrubber.addEventListener("input", event => { pause(); seek(Number(event.target.value)); });
+      document.addEventListener("keydown", event => {
+        if (event.key === " ") { event.preventDefault(); play(); }
+        else if (event.key === "ArrowLeft") selectScene(sceneIndex - 1);
+        else if (event.key === "ArrowRight") selectScene(sceneIndex + 1);
+        else if (event.key === "[") { pause(); seek(frameIndex - 1); }
+        else if (event.key === "]") { pause(); seek(frameIndex + 1); }
+        else if (event.key.toLowerCase() === "f") document.documentElement.requestFullscreen?.();
+      });
+
+      if (liveReload) {
+        const events = new EventSource("/events");
+        events.addEventListener("reload", () => loadManifest(true));
+        events.addEventListener("build-error", event => showError(event.data));
+      }
+      loadManifest();
+    })();
+  </script>
+</body>
+</html>

@@ -1,4 +1,7 @@
 #import "../../lib.typ": *
+#import "@preview/cetz:0.5.1"
+
+
 #import "theme.typ": *
 #set page(width: 128mm, height: 96mm)
 
@@ -6,12 +9,16 @@
 
 #show: theme
 
-#animate(x: 50%)
+#animate(x: 1.0)
 #cut()
-#animate(x: 100%)
+#animate(x: 2)
 
 #context {
-  polygon((0cm, 0cm), (0cm, 5cm), (a("x"), 5cm), (a("x"), 0cm))
+  cetz.canvas({
+  import cetz.draw: *
+    circle((0, 0))
+    line((a("x"), 0), (1, 1))
+  })
 }
 
 #finish()

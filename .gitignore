@@ -4,4 +4,7 @@
 *.mp4
 *.html
 !revealjs.html
+!bin/editor.html
+!bin/present.html
 reveal.js-master/
+__pycache__/

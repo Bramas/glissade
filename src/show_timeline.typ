@@ -1,4 +1,4 @@
-#import "states.typ": begin, timeline
+#import "states.typ": active-slide, begin, timeline
 #import "utils.typ": get_max_block
 
 #let _bar(width, color: none) = box(
@@ -46,7 +46,8 @@
 }
 
 #let show-timeline() = context {
-  if not begin.get() {
-    _show-timeline(timeline.get())
+  let id = active-slide.get()
+  if not begin(id).get() {
+    _show-timeline(timeline(id).get())
   }
 }

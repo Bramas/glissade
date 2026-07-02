@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>${title}</title>
+  <style>
+    :root { color-scheme: dark; background: #0b0c0f; }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { color: white; background: #0b0c0f; font-family: system-ui, sans-serif; }
+    .stage { position: fixed; inset: 0; display: grid; place-items: center; }
+    .stage img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    .controls {
+      position: fixed; right: 18px; bottom: 18px; display: flex; align-items: center;
+      gap: 7px; opacity: .12; transition: opacity .2s; z-index: 3;
+    }
+    .controls:hover, .controls:focus-within { opacity: 1; }
+    button { color: inherit; font: inherit; cursor: pointer; }
+    .control {
+      width: 42px; height: 42px; border: 1px solid rgb(255 255 255 / .2);
+      border-radius: 50%; background: rgb(0 0 0 / .65); font-size: 18px;
+    }
+    .counter { min-width: 62px; text-align: center; font-size: 12px; text-shadow: 0 1px 2px black; }
+    .progress { position: fixed; inset: auto 0 0; height: 3px; background: rgb(255 255 255 / .12); z-index: 4; }
+    .progress span { display: block; width: 0; height: 100%; background: #65a7ff; transition: width .15s; }
+    .overview {
+      position: fixed; inset: 0; z-index: 5; overflow: auto; padding: 54px;
+      background: rgb(12 14 18 / .96); backdrop-filter: blur(12px);
+    }
+    .overview header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    .overview h1 { margin: 0; font-size: 24px; }
+    .overview-close { padding: 9px 14px; border: 1px solid #444b57; border-radius: 7px; background: #242832; }
+    .overview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 22px; }
+    .overview-item { padding: 0; overflow: hidden; border: 2px solid transparent; border-radius: 8px; background: #1a1d23; text-align: left; }
+    .overview-item:hover, .overview-item.active { border-color: #65a7ff; }
+    .overview-item img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: #090a0c; }
+    .overview-item span { display: block; padding: 10px 12px; }
+    .help { position: fixed; left: 14px; bottom: 10px; z-index: 2; color: rgb(255 255 255 / .25); font-size: 11px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="stage"><span>Loading presentation…</span></main>
+  <div class="help">O overview · Space play/pause · F fullscreen</div>
+  <nav class="controls" aria-label="Presentation controls">
+    <button class="control" data-action="previous" aria-label="Previous slide">&#8592;</button>
+    <button class="control" data-action="play" aria-label="Play animation">&#9654;</button>
+    <span class="counter"></span>
+    <button class="control" data-action="next" aria-label="Continue">&#8594;</button>
+    <button class="control" data-action="overview" aria-label="Slide overview">&#9783;</button>
+  </nav>
+  <div class="progress"><span></span></div>
+  <section class="overview" aria-label="Slide overview" hidden>
+    <header><h1>Slides</h1><button class="overview-close">Close</button></header>
+    <div class="overview-grid"></div>
+  </section>
+  <script>
+    (() => {
+      const getManifest = () => ${manifest_source};
+      const stage = document.querySelector(".stage");
+      const counter = document.querySelector(".counter");
+      const progress = document.querySelector(".progress span");
+      const playButton = document.querySelector('[data-action="play"]');
+      const overview = document.querySelector(".overview");
+      const overviewGrid = document.querySelector(".overview-grid");
+      let manifest;
+      let sceneIndex = 0;
+      let frameIndex = 0;
+      let playing = false;
+      let animationHandle = 0;
+      let nextFrameAt = 0;
+
+      function scene() { return manifest.scenes[sceneIndex]; }
+      function clamp(value, minimum, maximum) { return Math.max(minimum, Math.min(value, maximum)); }
+      function render() {
+        const current = scene();
+        frameIndex = clamp(frameIndex, 0, current.frameCount - 1);
+        let image = stage.querySelector("img");
+        if (!image) {
+          image = document.createElement("img");
+          image.alt = current.name;
+          stage.replaceChildren(image);
+        }
+        image.src = current.frames[frameIndex];
+        image.alt = current.name;
+        counter.textContent = (sceneIndex + 1) + " / " + manifest.scenes.length;
+        progress.style.width = ((sceneIndex + 1) / manifest.scenes.length * 100) + "%";
+        history.replaceState(null, "", "#" + (sceneIndex + 1));
+        if (current.frames[frameIndex + 1]) new Image().src = current.frames[frameIndex + 1];
+      }
+      function pause() {
+        playing = false;
+        cancelAnimationFrame(animationHandle);
+        playButton.textContent = "▶";
+      }
+      function selectScene(index) {
+        pause();
+        sceneIndex = clamp(index, 0, manifest.scenes.length - 1);
+        frameIndex = 0;
+        overview.hidden = true;
+        render();
+      }
+      function play() {
+        if (playing) { pause(); return; }
+        if (frameIndex >= scene().frameCount - 1) frameIndex = 0;
+        playing = true;
+        playButton.textContent = "❚❚";
+        nextFrameAt = performance.now();
+        animationHandle = requestAnimationFrame(tick);
+      }
+      function tick(now) {
+        if (!playing) return;
+        if (now >= nextFrameAt) {
+          if (frameIndex >= scene().frameCount - 1) { pause(); return; }
+          frameIndex += 1;
+          render();
+          if (scene().cuts.some(cut => cut.frame === frameIndex)) { pause(); return; }
+          nextFrameAt += 1000 / scene().fps;
+        }
+        animationHandle = requestAnimationFrame(tick);
+      }
+      function continueForward() {
+        if (frameIndex < scene().frameCount - 1) play();
+        else selectScene(sceneIndex + 1);
+      }
+      function toggleOverview() { overview.hidden = !overview.hidden; }
+      function renderOverview() {
+        overviewGrid.replaceChildren(...manifest.scenes.map((item, index) => {
+          const button = document.createElement("button");
+          button.className = "overview-item" + (index === sceneIndex ? " active" : "");
+          const image = document.createElement("img");
+          image.src = item.frames[0];
+          image.alt = "";
+          const label = document.createElement("span");
+          label.textContent = (index + 1) + ". " + item.name;
+          button.append(image, label);
+          button.addEventListener("click", () => selectScene(index));
+          return button;
+        }));
+      }
+
+      document.querySelector('[data-action="previous"]').addEventListener("click", () => selectScene(sceneIndex - 1));
+      document.querySelector('[data-action="next"]').addEventListener("click", continueForward);
+      document.querySelector('[data-action="overview"]').addEventListener("click", toggleOverview);
+      document.querySelector(".overview-close").addEventListener("click", toggleOverview);
+      playButton.addEventListener("click", play);
+      document.addEventListener("keydown", event => {
+        if (event.key === " ") { event.preventDefault(); play(); }
+        else if (["ArrowRight", "PageDown"].includes(event.key)) continueForward();
+        else if (["ArrowLeft", "PageUp"].includes(event.key)) selectScene(sceneIndex - 1);
+        else if (event.key.toLowerCase() === "o") toggleOverview();
+        else if (event.key === "Escape" && !overview.hidden) overview.hidden = true;
+        else if (event.key.toLowerCase() === "f") document.documentElement.requestFullscreen?.();
+        else if (event.key === "Home") selectScene(0);
+        else if (event.key === "End") selectScene(manifest.scenes.length - 1);
+      });
+
+      getManifest().then(value => {
+        manifest = value;
+        const requested = Number(location.hash.slice(1));
+        sceneIndex = requested > 0 ? clamp(requested - 1, 0, manifest.scenes.length - 1) : 0;
+        renderOverview();
+        render();
+      });
+    })();
+  </script>
+</body>
+</html>
