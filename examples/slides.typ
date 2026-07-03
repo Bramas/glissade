@@ -69,7 +69,7 @@
 )[
   #slide-heading[Cetz animations]
 
-  #theorem(title: "A second theorem")[
+  #theorem(title: "A third theorem")[
     This theorem follows the first one even though the previous slide contains
     multiple animation frames.
   ]
@@ -101,5 +101,3 @@
   }
   #finish()
 ]
-
-

@@ -17,7 +17,6 @@
 #let timeline(id) = state(_key(id, "timeline"), (
   "builtin_pause_counter": get_default_dict(),
 ))
-#let rewind-location(id) = state(_key(id, "rewind-location"), none)
 #let frozen-values(id) = state(_key(id, "frozen-values"), ())
 
 #let slide-scope(id) = metadata(("kino_slide_scope": id))

@@ -1,5 +1,5 @@
 #import "states.typ": (
-  active-slide, frozen-values, rewind-location, slide-scope,
+  active-slide, frozen-values, slide-scope,
 )
 #import "primitives.typ": build-timeline
 #import "utils.typ": get_block_duration, get_default_dict, get_scaler
@@ -31,7 +31,7 @@
           } else { start_value_bis = end_value }
         } else { break }
       }
-      return start_value
+      return start_value_bis
     }
     return mapping
   } else {
@@ -52,38 +52,51 @@
   build_mapping(scope.variables, scope.block, name)(scope.time)
 }
 
-#let _frame-preamble(id, frozen-counters, first: false, initial-values: ()) = context {
+/// Returns the one-based logical slide number for the current frame.
+#let slide-number() = {
+  let scopes = query(selector(metadata).before(here())).filter(element => (
+    type(element.value) == dictionary and "kino_animation_scope" in element.value
+  ))
+  assert(scopes.len() > 0, message: "slide-number() must be used inside a Kino slide")
+  scopes.last().value.kino_animation_scope.index
+}
+
+#let _restore-counter(counter, value) = {
+  if type(counter) == dictionary {
+    if "get-inherited-levels" in counter {
+      let inherited = (counter.get-inherited-levels)()
+      let missing = calc.max(0, inherited + 1 - value.len())
+      value = ((0,) * missing) + value
+    }
+    (counter.update)(value)
+  } else {
+    counter.update(value)
+  }
+}
+
+#let _frame-preamble(id, frozen-counters, first: false) = context {
+  let values-input = sys.inputs.at("kino-frozen-values", default: "")
   if frozen-counters.len() > 0 {
     if first {
-      let values-input = sys.inputs.at("kino-frozen-values", default: "")
       if values-input != "" {
         let values = json(bytes(values-input))
         for ((counter, value)) in frozen-counters.zip(values) {
-          if type(counter) == dictionary {
-            (counter.update)(value)
-          } else {
-            counter.update(value)
-          }
-        }
-      } else if initial-values.len() > 0 {
-        for ((counter, value)) in frozen-counters.zip(initial-values) {
-          if type(counter) == dictionary {
-            (counter.update)(value)
-          } else {
-            counter.update(value)
-          }
+          _restore-counter(counter, value)
         }
       }
-      let location = here()
-      rewind-location(id).update(_ => location)
+      metadata(("kino_counter_checkpoint": id))
     } else {
-      let location = rewind-location(id).get()
-      if location != none {
+      let checkpoints = query(selector(metadata).before(here())).filter(element => (
+        type(element.value) == dictionary
+          and element.value.at("kino_counter_checkpoint", default: none) == id
+      ))
+      if checkpoints.len() > 0 {
+        let location = checkpoints.first().location()
         for counter in frozen-counters {
           if type(counter) == dictionary {
-            (counter.update)((counter.at)(selector(location)))
+            _restore-counter(counter, (counter.at)(selector(location)))
           } else {
-            counter.update(counter.at(selector(location)))
+            _restore-counter(counter, counter.at(selector(location)))
           }
         }
       }
@@ -110,15 +123,15 @@
   ))
 }
 
-#let slideshow(body, id, variables, frozen-counters: ()) = context {
+#let slideshow(body, id, index, variables, frozen-counters: ()) = {
   let max_block = calc.max(..variables.values().join().keys().map(int))
-  let initial-values = frozen-counters.map(counter => (counter.get)())
   for b in range(1, max_block + 2) {
     page(_frame([
       #active-slide.update(_ => id)
       #slide-scope(id)
-      #metadata(("kino_animation_scope": (variables: variables, block: b, time: 0)))
-      #_frame-preamble(id, frozen-counters, first: b == 1, initial-values: initial-values)
+      #metadata(("kino_animation_scope": (variables: variables, block: b, time: 0, index: index)))
+      #metadata(("kino_new_frame": true))
+      #_frame-preamble(id, frozen-counters, first: b == 1)
       #body
     ]))
   }
@@ -186,7 +199,7 @@
     #if collector != none { box(width: 0pt, height: 0pt, hide(collector)) }
     #active-slide.update(_ => id)
     #slide-scope(id)
-    #metadata(("kino_animation_scope": (variables: variables, block: 1, time: 0)))
+    #metadata(("kino_animation_scope": (variables: variables, block: 1, time: 0, index: index)))
     #body
   ]))
 }
@@ -212,10 +225,8 @@
   if int(sys.inputs.at("query", default: 0)) == 1 {
     fake(body, fps, id, index, title, frozen-counters, variables, cut_blocks, loop_blocks, collector: collector)
   } else if fps == 0 {
-    slideshow(body, id, variables, frozen-counters: frozen-counters)
+    slideshow(body, id, index, variables, frozen-counters: frozen-counters)
   } else {
-    context {
-      let initial-values = frozen-counters.map(counter => (counter.get)())
       let max_block = calc.max(..variables.values().join().keys().map(int))
       let effective-cuts = cut_blocks
       if not max_block in effective-cuts {
@@ -230,7 +241,8 @@
         let frames = int(calc.round(fps * duration))
         local_frames += frames
 
-        for frame in range(frames) {
+        let rendered-frames = if b == max_block { frames + 1 } else { frames }
+        for frame in range(rendered-frames) {
           let new_time = (duration * frame) / frames
           page(_frame([
             #if b == 1 and frame == 0 and collector != none {
@@ -239,8 +251,9 @@
             #active-slide.update(_ => id)
             #slide-scope(id)
             #metadata(("kino_frame": frame, "kino_slide": id))
-            #metadata(("kino_animation_scope": (variables: variables, block: b, time: new_time)))
-            #_frame-preamble(id, frozen-counters, first: b == 1 and frame == 0, initial-values: initial-values)
+            #metadata(("kino_animation_scope": (variables: variables, block: b, time: new_time, index: index)))
+            #metadata(("kino_new_frame": true))
+            #_frame-preamble(id, frozen-counters, first: b == 1 and frame == 0)
             #body
           ]))
         }
@@ -261,14 +274,6 @@
           segment += 1
         }
       }
-      page(_frame([
-        #active-slide.update(_ => id)
-        #slide-scope(id)
-        #metadata(("kino_animation_scope": (variables: variables, block: max_block + 1, time: 0)))
-        #_frame-preamble(id, frozen-counters, initial-values: initial-values)
-        #body
-      ]))
-    }
   }
 }
 
@@ -316,7 +321,7 @@
 
 /// Renders all collected slides. Use as `#show: deck.with(fps: 6)` to set the
 /// default frame rate used by an ordinary `typst compile`.
-#let deck(body, fps: 5) = context {
+#let deck(body, fps: 5) = {
   let definitions = _collect-slides(body)
   definitions = definitions.enumerate().map(((offset, item)) => {
     item.id = if item.id == auto { str(offset + 1) } else { str(item.id) }

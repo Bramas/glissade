@@ -8,3 +8,4 @@
 !bin/present.html
 reveal.js-master/
 __pycache__/
+.DS_Store
