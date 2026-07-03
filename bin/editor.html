@@ -18,7 +18,7 @@
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
     body { color: #f3f5f7; background: #101114; font: 14px/1.4 system-ui, sans-serif; }
     button { color: inherit; font: inherit; }
-    .app { height: 100%; display: grid; grid-template: 48px 1fr 190px / 210px 1fr; }
+    .app { height: 100%; display: grid; grid-template: 48px minmax(0, 1fr) 190px / 210px minmax(0, 1fr); }
     .toolbar {
       grid-column: 1 / -1; display: flex; align-items: center; gap: 8px;
       padding: 0 12px; background: var(--panel); border-bottom: 1px solid var(--line);
@@ -39,9 +39,10 @@
     }
     .scene-button:hover { background: var(--panel-2); }
     .scene-button.active { color: white; border-color: #3d70ad; background: #243750; }
-    .preview { position: relative; display: grid; place-items: center; min-width: 0; min-height: 0; padding: 22px; }
-    .stage { width: 100%; height: 100%; display: grid; place-items: center; }
-    .stage img { display: block; max-width: 100%; max-height: 100%; filter: drop-shadow(0 12px 28px rgb(0 0 0 / .35)); }
+    .preview { position: relative; min-width: 0; min-height: 0; padding: 22px; overflow: hidden; }
+    .stage { width: 100%; height: 100%; display: flex; overflow: auto; }
+    .stage img { display: block; flex: none; margin: auto; filter: drop-shadow(0 12px 28px rgb(0 0 0 / .35)); }
+    .zoom-value { min-width: 48px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
     .empty { color: var(--muted); }
     .timeline { grid-column: 1 / -1; background: var(--panel); border-top: 1px solid var(--line); padding: 10px 14px; }
     .timeline-head { height: 32px; display: flex; align-items: center; gap: 10px; }
@@ -74,6 +75,10 @@
       <button class="tool-button" data-action="next-scene" title="Next slide">&#8594;</button>
       <button class="tool-button" data-action="previous-frame" title="Previous frame">&#8722;1</button>
       <button class="tool-button" data-action="next-frame" title="Next frame">+1</button>
+      <button class="tool-button" data-action="zoom-out" title="Zoom out (Ctrl/⌘ −)">&#8722;</button>
+      <span class="zoom-value">100%</span>
+      <button class="tool-button" data-action="zoom-in" title="Zoom in (Ctrl/⌘ +)">+</button>
+      <button class="tool-button" data-action="zoom-fit" title="Fit slide (Ctrl/⌘ 0)">Fit</button>
       <button class="tool-button" data-action="fullscreen" title="Fullscreen (F)">Fullscreen</button>
       <span class="status">Loading…</span>
     </header>
@@ -112,6 +117,7 @@
         playhead: document.querySelector(".playhead"),
         scrubber: document.querySelector(".scrubber"),
         play: document.querySelector('[data-action="play"]'),
+        zoomValue: document.querySelector(".zoom-value"),
         error: document.querySelector(".error-overlay")
       };
       let manifest = null;
@@ -120,6 +126,7 @@
       let playing = false;
       let animationHandle = 0;
       let nextFrameAt = 0;
+      let zoom = 1;
 
       function scene() { return manifest?.scenes[sceneIndex]; }
       function clamp(value, minimum, maximum) { return Math.max(minimum, Math.min(value, maximum)); }
@@ -130,6 +137,21 @@
         return minutes + ":" + remainder + "." + millis;
       }
       function percentage(value, total) { return total > 0 ? value / total * 100 : 0; }
+
+      function updateZoom() {
+        const image = elements.stage.querySelector("img");
+        if (!image || !image.naturalWidth || !image.naturalHeight) return;
+        const bounds = elements.stage.getBoundingClientRect();
+        const fit = Math.min(bounds.width / image.naturalWidth, bounds.height / image.naturalHeight);
+        image.style.width = Math.max(1, image.naturalWidth * fit * zoom) + "px";
+        image.style.height = Math.max(1, image.naturalHeight * fit * zoom) + "px";
+        elements.zoomValue.textContent = Math.round(zoom * 100) + "%";
+      }
+
+      function setZoom(value) {
+        zoom = clamp(value, .25, 4);
+        updateZoom();
+      }
 
       function renderSceneList() {
         elements.sceneList.replaceChildren(...manifest.scenes.map((item, index) => {
@@ -180,6 +202,7 @@
         if (!image) {
           image = document.createElement("img");
           image.alt = "Current slide frame";
+          image.addEventListener("load", updateZoom);
           elements.stage.replaceChildren(image);
         }
         image.src = current.frames[frameIndex];
@@ -261,6 +284,9 @@
       document.querySelector('[data-action="next-scene"]').addEventListener("click", () => selectScene(sceneIndex + 1));
       document.querySelector('[data-action="previous-frame"]').addEventListener("click", () => { pause(); seek(frameIndex - 1); });
       document.querySelector('[data-action="next-frame"]').addEventListener("click", () => { pause(); seek(frameIndex + 1); });
+      document.querySelector('[data-action="zoom-out"]').addEventListener("click", () => setZoom(zoom / 1.2));
+      document.querySelector('[data-action="zoom-in"]').addEventListener("click", () => setZoom(zoom * 1.2));
+      document.querySelector('[data-action="zoom-fit"]').addEventListener("click", () => setZoom(1));
       document.querySelector('[data-action="fullscreen"]').addEventListener("click", () => document.documentElement.requestFullscreen?.());
       elements.play.addEventListener("click", play);
       elements.scrubber.addEventListener("input", event => { pause(); seek(Number(event.target.value)); });
@@ -270,8 +296,13 @@
         else if (event.key === "ArrowRight") selectScene(sceneIndex + 1);
         else if (event.key === "[") { pause(); seek(frameIndex - 1); }
         else if (event.key === "]") { pause(); seek(frameIndex + 1); }
+        else if ((event.ctrlKey || event.metaKey) && event.key === "0") { event.preventDefault(); setZoom(1); }
+        else if ((event.ctrlKey || event.metaKey) && (event.key === "+" || event.key === "=")) { event.preventDefault(); setZoom(zoom * 1.2); }
+        else if ((event.ctrlKey || event.metaKey) && event.key === "-") { event.preventDefault(); setZoom(zoom / 1.2); }
         else if (event.key.toLowerCase() === "f") document.documentElement.requestFullscreen?.();
       });
+
+      new ResizeObserver(updateZoom).observe(elements.stage);
 
       if (liveReload) {
         const events = new EventSource("/events");
