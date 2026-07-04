@@ -14,7 +14,7 @@
 #let slide-heading(title) = text(size: 36pt, weight: "bold", fill: accent, title)
 
 // Apply the deck after global page/text configuration and shared definitions.
-#show: deck.with(fps: 6)
+#show: deck.with(fps: 2)
 
 #slide(
   id: "moving-line",
@@ -70,14 +70,13 @@
   #slide-heading[Cetz animations]
 
   #theorem(title: "A third theorem")[
-    This theorem follows the first one even though the previous slide contains
-    multiple animation frames.
+    Here is a Cetz animation.
   ]
 
 
 
   #init(n: 4.0)
-  #animate(n: 10.0)
+  #animate(n: 10.0, duration:2)
 
   #context {
     cetz.canvas({
@@ -97,6 +96,30 @@
         let y = 100pt * calc.sin(angle)
         circle((x, y), radius: 10pt, fill: accent)
       }
+    })
+  }
+  #finish()
+]
+
+#slide(
+  id: "matching-formula",
+  title: "Matching formula parts",
+)[
+  #slide-heading[Formula parts move into place]
+
+  // I would like that part(a) and part(b) are
+  // correctly translated in the animation, the remaining should be fadeout -> fadein
+  #init(formula-state: formula[
+    $a = part(a, key: "a") = part(b, key: "b")$
+  ])
+  #animate(formula-state: formula[
+   $a = part(a, key: "a") = part(b, key: "b") / (1+c)$
+  ])
+
+  $a = a = b / (1+c)$
+  #context {
+    cetz.canvas(background: white, {
+      kino-content((0, 0), a("formula-state"), id: "main-formula")
     })
   }
   #finish()
