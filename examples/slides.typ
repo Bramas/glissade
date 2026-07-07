@@ -160,9 +160,9 @@
   #meanwhile(draw-state2: [
     #cetz.canvas({
       import cetz.draw: *
-      content((0pt, 40pt), text(stroke:red.darken(70%), red)[*HELLO*],)
+      content((0pt, 0pt), text(stroke:red.darken(70%), red, 64pt)[*HELLO !*])
     })
-  ])
+  ], duration:3)
 
   #context {
     align(center, kino-morph(a("draw-state"), id: "circle-create", effect: "draw-border-then-fill"))

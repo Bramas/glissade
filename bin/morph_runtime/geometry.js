@@ -297,15 +297,24 @@
     svg.setAttribute("class", "kino-stage-frame kino-stage-overlay kino-stage-overlay-draw");
     svg.setAttribute("viewBox", "0 0 " + size.width + " " + size.height);
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-    const borderProgress = smoothRate(clamp(progress / 0.65, 0, 1));
-    const fillProgress = smoothRate(clamp((progress - 0.65) / 0.35, 0, 1));
-    const temporaryStrokeFade = smoothRate(clamp((progress - 0.72) / 0.28, 0, 1));
-
     for (const plan of plans) {
       const group = document.createElementNS(SVG_NS, "g");
       group.setAttribute("data-kino-generated-draw", plan.rootId);
-      for (const pathPlan of plan.paths) {
+      // Match Manim Write's default submobject timing. Its lag ratio describes
+      // the delay as a fraction of one path's duration; the whole sequence is
+      // then normalized back into the animation's [0, 1] interval.
+      const lagRatio = plan.paths.length > 1
+        ? Math.min(4 / plan.paths.length, 0.2)
+        : 0;
+      const fullLength = 1 + (plan.paths.length - 1) * lagRatio;
+      for (const [pathIndex, pathPlan] of plan.paths.entries()) {
+        const pathProgress = clamp(progress * fullLength - pathIndex * lagRatio, 0, 1);
+        const borderProgress = smoothRate(clamp(pathProgress / 0.5, 0, 1));
+        const fillProgress = smoothRate(clamp((pathProgress - 0.5) / 0.5, 0, 1));
+        const temporaryStrokeFade = fillProgress;
+
         const fill = document.createElementNS(SVG_NS, "path");
+        fill.setAttribute("data-kino-draw-path", String(pathIndex));
         fill.setAttribute("d", pathPlan.d);
         if (pathPlan.transform) fill.setAttribute("transform", pathPlan.transform);
         fill.setAttribute("fill", interpolateColor({ ...pathPlan.fillEnd, a: 0 }, pathPlan.fillEnd, fillProgress));
@@ -316,6 +325,7 @@
         group.appendChild(fill);
 
         const stroke = document.createElementNS(SVG_NS, "path");
+        stroke.setAttribute("data-kino-draw-path", String(pathIndex));
         stroke.setAttribute("d", pathPlan.d);
         if (pathPlan.transform) stroke.setAttribute("transform", pathPlan.transform);
         stroke.setAttribute("fill", "none");
