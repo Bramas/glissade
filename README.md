@@ -69,11 +69,11 @@ wraps content that should be animated from one keyframe to the next, and
 `part(...)` marks sub-parts of a formula that should be matched explicitly.
 
 ```typ
-#init(formula-state: $a = part(a, key: "a") = part(b, key: "b")$)
-#animate(formula-state: $b = part(a, key: "a") = part(b, key: "b") / (1+c)$)
+#init(formula-state: $a = part(a) = part(b)$)
+#animate(formula-state: $b = part(a) = part(b) / (1+c)$)
 
 #context [
-  #kino-morph("formula-state", id: "main-formula")
+  #kino-morph("formula-state")
 ]
 ```
 
@@ -81,8 +81,8 @@ Matched parts use a smooth, Manim-like default easing in the browser runtime.
 Unmatched leftovers fall back to a light fade instead of a full geometric
 match, which avoids bold-looking duplicate glyphs during overlap.
 
-For shapes that should be introduced from nothing, `kino-morph(...)` also
-accepts an explicit effect flag:
+For shapes that should be introduced from nothing, attach a morph effect to
+the creating transition:
 
 ```typ
 #create(shape-state: [
@@ -94,9 +94,16 @@ accepts an explicit effect flag:
 )
 
 #context {
-  align(center, kino-morph("shape-state", id: "shape-create"))
+  align(center, kino-morph("shape-state"))
 }
 ```
+
+`kino-morph` uses the state name as its ID by default. Pass an explicit `id`
+only when rendering the same state more than once on a slide.
+
+Likewise, `part(...)` derives its key from the rendered formula fragment. An
+explicit `key` is only needed to distinguish repeated identical fragments or
+to intentionally match differently written fragments across states.
 
 The `draw-border-then-fill` effect is implemented in JavaScript from the final
 SVG path data, so it works on ordinary vector shapes without extra Typst-side

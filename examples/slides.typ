@@ -112,11 +112,11 @@
 )[
   #slide-heading[Formula parts move into place]
 
-  #init(formula-state: $a = part(a, key: "a") = part(b, key: "b")$)
-  #animate(formula-state: $b = part(a, key: "a") = part(b, key: "b") / (1+c)$)
+  #init(formula-state: $part(a) = "out" = part(a, key: "a_2") = part(b)$)
+  #animate(formula-state: $1 / part(a) = "out" = part(a, key: "a_2") = part(b) / (1+c)$)
  
   #context [
-    #kino-morph("formula-state", id: "main-formula")
+    #kino-morph("formula-state")
   ]
   #finish()
 ]
@@ -141,7 +141,7 @@
   ])
 
   #context {
-    align(center, kino-morph("shape-state", id: "shape-morph"))
+    align(center, kino-morph("shape-state"))
   }
   #finish()
 ]
@@ -167,8 +167,9 @@
   ], block:1, duration:3, morph-effect: "draw-border-then-fill")
 
   #context {
-    align(center, kino-morph("draw-state", id: "circle-create"))
-    align(center, kino-morph("draw-state2", id: "text-create"))
+    align(center, kino-morph("draw-state"))
+    align(center, kino-morph("draw-state2"))
+    align(center, kino-morph("draw-state2", id: "draw-state2-copy"))
   }
   #finish()
 ]

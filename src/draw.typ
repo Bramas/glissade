@@ -129,7 +129,7 @@
   } else {
     value
   }
-  let effective-id = if id == auto { none } else { str(id) }
+  let effective-id = if id == auto { name } else { str(id) }
   let effect = animation-effect(name)
   let effective-effect = if effect == none { none } else { str(effect) }
   metadata((
