@@ -178,7 +178,7 @@
           "loop": b in loop_blocks,
         ),
       ))
-      total_frames += frames
+      total_frames += local_frames
       local_frames = 0
       segment += 1
     }
@@ -269,7 +269,7 @@
               "loop": b in loop_blocks,
             ),
           ))
-          total_frames += frames
+          total_frames += local_frames
           local_frames = 0
           segment += 1
         }

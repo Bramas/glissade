@@ -143,7 +143,7 @@
     return [...root.querySelectorAll("path")].filter(path => {
       const fill = path.getAttribute("fill");
       const stroke = path.getAttribute("stroke");
-      return fill !== "none" || stroke !== "none";
+      return fill !== "none" || (stroke !== null && stroke !== "none");
     });
   }
 
@@ -190,41 +190,75 @@
   }
 
   function planDrawPath(path) {
-    const fillEnd = parseColor(path.getAttribute("fill"));
-    const strokeEnd = parseColor(path.getAttribute("stroke"));
-    const strokeWidthEnd = parseNumeric(path.getAttribute("stroke-width"), 0);
+    return planDrawElement(path, path);
+  }
+
+  function paintAttribute(element, referencedPath, name) {
+    return element.getAttribute(name) ?? referencedPath.getAttribute(name);
+  }
+
+  function drawElementTransform(element) {
+    const matrix = element.getCTM();
+    if (!matrix || element.localName !== "use") return matrix;
+    const x = parseNumeric(element.getAttribute("x"), 0);
+    const y = parseNumeric(element.getAttribute("y"), 0);
+    return {
+      a: matrix.a,
+      b: matrix.b,
+      c: matrix.c,
+      d: matrix.d,
+      e: matrix.e + matrix.a * x + matrix.c * y,
+      f: matrix.f + matrix.b * x + matrix.d * y,
+    };
+  }
+
+  function planDrawElement(element, referencedPath) {
+    const fillEnd = parseColor(paintAttribute(element, referencedPath, "fill"));
+    const strokeEnd = parseColor(paintAttribute(element, referencedPath, "stroke"));
+    const strokeWidthEnd = parseNumeric(paintAttribute(element, referencedPath, "stroke-width"), 0);
     const drawStroke = colorVisible(strokeEnd)
       ? strokeEnd
       : colorVisible(fillEnd)
         ? fillEnd
         : { r: 255, g: 255, b: 255, a: 1 };
     return {
-      d: path.getAttribute("d") || "",
-      transform: matrixToAttribute(path.getCTM()),
-      length: Math.max(pathLength(path), 1),
-      fillRule: path.getAttribute("fill-rule") || "nonzero",
-      lineCap: path.getAttribute("stroke-linecap") || "round",
-      lineJoin: path.getAttribute("stroke-linejoin") || "round",
-      miterLimit: path.getAttribute("stroke-miterlimit") || "4",
+      d: referencedPath.getAttribute("d") || "",
+      transform: matrixToAttribute(drawElementTransform(element)),
+      length: Math.max(pathLength(referencedPath), 1),
+      fillRule: paintAttribute(element, referencedPath, "fill-rule") || "nonzero",
+      lineCap: paintAttribute(element, referencedPath, "stroke-linecap") || "round",
+      lineJoin: paintAttribute(element, referencedPath, "stroke-linejoin") || "round",
+      miterLimit: paintAttribute(element, referencedPath, "stroke-miterlimit") || "4",
       fillEnd,
       strokeEnd,
       drawStroke,
       strokeWidthEnd,
       drawStrokeWidth: strokeWidthEnd > 0 ? strokeWidthEnd : 1.5,
-      opacityEnd: parseNumeric(path.getAttribute("opacity"), 1),
-      fillOpacityEnd: parseNumeric(path.getAttribute("fill-opacity"), 1),
-      strokeOpacityEnd: parseNumeric(path.getAttribute("stroke-opacity"), 1),
+      opacityEnd: parseNumeric(paintAttribute(element, referencedPath, "opacity"), 1),
+      fillOpacityEnd: parseNumeric(paintAttribute(element, referencedPath, "fill-opacity"), 1),
+      strokeOpacityEnd: parseNumeric(paintAttribute(element, referencedPath, "stroke-opacity"), 1),
     };
+  }
+
+  function referencedPathForUse(use, root) {
+    const href = use.getAttribute("href") || use.getAttribute("xlink:href") || "";
+    if (!href.startsWith("#")) return null;
+    const target = root.ownerDocument.querySelector("#" + CSS.escape(href.slice(1)));
+    if (target?.localName === "path") return target;
+    return target?.querySelector("path") || null;
   }
 
   function planDrawIn(planId, endRoot) {
     if (!endRoot) return null;
-    if (elementHasVisibleUses(endRoot)) return null;
     const endPaths = collectRenderablePaths(endRoot);
-    if (endPaths.length === 0) return null;
+    const usePlans = [...endRoot.querySelectorAll("use")].flatMap(use => {
+      const referencedPath = referencedPathForUse(use, endRoot);
+      return referencedPath ? [planDrawElement(use, referencedPath)] : [];
+    });
+    if (endPaths.length === 0 && usePlans.length === 0) return null;
     return {
       rootId: planId,
-      paths: endPaths.map(planDrawPath),
+      paths: [...endPaths.map(planDrawPath), ...usePlans],
     };
   }
 
@@ -264,7 +298,7 @@
     svg.setAttribute("viewBox", "0 0 " + size.width + " " + size.height);
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     const borderProgress = smoothRate(clamp(progress / 0.65, 0, 1));
-    const fillProgress = smoothRate(clamp((progress - 0.2) / 0.8, 0, 1));
+    const fillProgress = smoothRate(clamp((progress - 0.65) / 0.35, 0, 1));
     const temporaryStrokeFade = smoothRate(clamp((progress - 0.72) / 0.28, 0, 1));
 
     for (const plan of plans) {

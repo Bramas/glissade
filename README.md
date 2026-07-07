@@ -102,6 +102,20 @@ The `draw-border-then-fill` effect is implemented in JavaScript from the final
 SVG path data, so it works on ordinary vector shapes without extra Typst-side
 geometry annotations.
 
+### Inspecting an exact runtime frame
+
+The runtime inspector renders a logical frame without using the presentation
+playback controls and writes the composed result as a standalone SVG:
+
+```sh
+uv run bin/inspect_runtime.py examples/slides.html \
+  --scene shape-create --frame 5 --output /tmp/shape-create-05.svg
+```
+
+The command uses the same browser runtime as the presentation and prints a
+JSON summary of the generated geometry/draw layers. Frame and scene indexes are
+zero-based; a scene ID can be used instead of its index.
+
 ## Quick start
 
 Create a file `slides.typ` with the following content:

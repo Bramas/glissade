@@ -177,12 +177,63 @@
         else if (event.key === "End") selectScene(manifest.scenes.length - 1);
       });
 
+      let resolveDebugReady;
+      const debugReady = new Promise(resolve => { resolveDebugReady = resolve; });
+      globalThis.KinoDebug = {
+        ready: debugReady,
+        async renderFrame(sceneReference, requestedFrame) {
+          await debugReady;
+          const requestedScene = typeof sceneReference === "number"
+            ? manifest.scenes[sceneReference]
+            : manifest.scenes.find(item => item.id === sceneReference);
+          if (!requestedScene) throw new Error("Unknown scene: " + sceneReference);
+          const exactFrame = clamp(Number(requestedFrame) || 0, 0, requestedScene.frameCount - 1);
+          pause();
+          await stageRenderer.render(requestedScene, exactFrame);
+          const layers = [...stage.querySelectorAll(".kino-stage-frame")];
+          return {
+            scene: requestedScene.id,
+            frame: exactFrame,
+            layers: layers.map(layer => ({
+              classes: [...layer.classList],
+              paths: layer.querySelectorAll("path").length,
+              generated: [...layer.querySelectorAll("[data-kino-generated-draw], [data-kino-generated-morph]")]
+                .map(item => item.getAttribute("data-kino-generated-draw") || item.getAttribute("data-kino-generated-morph")),
+            })),
+          };
+        },
+        serializeFrame() {
+          const stack = stage.querySelector(".kino-stage-stack");
+          if (!stack) throw new Error("No rendered frame");
+          const width = stack.dataset.kinoWidth;
+          const height = stack.dataset.kinoHeight;
+          const output = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          output.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+          output.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+          output.setAttribute("viewBox", "0 0 " + width + " " + height);
+          output.setAttribute("width", width);
+          output.setAttribute("height", height);
+          for (const layer of stack.querySelectorAll(":scope > .kino-stage-frame")) {
+            const clone = layer.cloneNode(true);
+            clone.setAttribute("x", "0");
+            clone.setAttribute("y", "0");
+            clone.setAttribute("width", "100%");
+            clone.setAttribute("height", "100%");
+            output.appendChild(clone);
+          }
+          return new XMLSerializer().serializeToString(output);
+        },
+      };
+
       getManifest().then(value => {
         manifest = value;
         const requested = Number(location.hash.slice(1));
         sceneIndex = requested > 0 ? clamp(requested - 1, 0, manifest.scenes.length - 1) : 0;
         renderOverview();
-        render().catch(console.error);
+        resolveDebugReady();
+        if (new URLSearchParams(location.search).get("kino-debug") !== "1") {
+          render().catch(console.error);
+        }
       });
     })();
   </script>
