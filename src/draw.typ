@@ -1,5 +1,3 @@
-#import "@preview/cetz:0.5.1": draw
-
 #let _formula-interpolate(from, to, progress) = (
   kino-type: "formula-transition",
   from: from,
@@ -133,22 +131,4 @@
     id: effective-id,
   ))
   _wrap-morph(body)
-}
-
-/// Draws a formula transition inside a Cetz canvas. Shows discrete frames:
-/// early frames display the source formula, final frame shows the target formula.
-/// `id` must be unique if a transition is drawn more than once on a page.
-#let kino-content(
-  position,
-  value,
-  id: auto,
-  map: (:),
-  foreground: black,
-  background: white,
-) = {
-  draw.content(
-    position,
-    kino-morph(value),
-    anchor: "base-west",
-  )
 }

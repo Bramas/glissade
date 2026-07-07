@@ -76,14 +76,28 @@ def _previous_content_sibling(parent: ET.Element, marker: ET.Element) -> ET.Elem
 def _remove_old_formula_ids(root: ET.Element) -> None:
     for element in root.iter():
         element_id = element.get("id")
-        if element_id and element_id.startswith(PART_ID_PREFIX):
+        if element_id and (element_id.startswith(PART_ID_PREFIX) or element_id.startswith(MORPH_ID_PREFIX)):
             del element.attrib["id"]
+        for attribute in (
+            "data-kino-morph",
+            "data-kino-morph-id",
+            "data-kino-morph-svg-id",
+            "data-kino-morph-name",
+            "data-kino-morph-index",
+            "data-kino-part",
+            "data-kino-part-id",
+            "data-kino-part-key",
+            "data-kino-state",
+            "data-kino-parent-morph",
+        ):
+            if attribute in element.attrib:
+                del element.attrib[attribute]
 
 
 def tag_svg_groups(
     svg_content: str,
-    part_ids: list[str] | None = None,
-    morph_ids: list[str] | None = None,
+    part_specs: list[dict[str, str]] | None = None,
+    morph_specs: list[dict[str, str]] | None = None,
 ) -> str:
     """Add IDs only to groups explicitly marked by Kino formula sentinels."""
     root = ET.fromstring(svg_content)
@@ -140,19 +154,32 @@ def tag_svg_groups(
         open_start = None
 
     for index, (target, start_marker, end_marker, parent) in enumerate(tagged_targets):
-        if part_ids is not None and index < len(part_ids):
-            target.set("id", part_ids[index])
+        if part_specs is not None and index < len(part_specs):
+            part = part_specs[index]
+            target.set("id", part["id"])
+            target.set("data-kino-part", "true")
+            target.set("data-kino-part-id", part["id"])
+            target.set("data-kino-part-key", part["key"])
+            target.set("data-kino-state", part["state"])
+            morph_name = part.get("morph")
+            if morph_name is not None:
+                target.set("data-kino-parent-morph", morph_name)
         else:
             target.set("id", f"{PART_ID_PREFIX}{index}")
         parent.remove(start_marker)
         parent.remove(end_marker)
 
     for index, (target, start_marker, end_marker, parent) in enumerate(morph_targets):
-        if morph_ids is not None and index < len(morph_ids):
-            target.set("id", morph_ids[index])
+        if morph_specs is not None and index < len(morph_specs):
+            morph = morph_specs[index]
+            target.set("id", morph["id"])
+            target.set("data-kino-morph-id", morph["name"])
+            target.set("data-kino-morph-svg-id", morph["id"])
+            target.set("data-kino-morph-name", morph["name"])
         else:
             target.set("id", f"{MORPH_ID_PREFIX}{index}")
         target.set("data-kino-morph", "true")
+        target.set("data-kino-morph-index", str(index))
         parent.remove(start_marker)
         parent.remove(end_marker)
 

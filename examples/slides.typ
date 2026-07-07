@@ -122,3 +122,28 @@
   ]
   #finish()
 ]
+
+#slide(
+  id: "shape-morph",
+  title: "Morph arbitrary shapes",
+)[
+  #slide-heading[Circle to square]
+
+  #init(shape-state: [
+    #cetz.canvas({
+      import cetz.draw: *
+      circle((0pt, 0pt), radius: 65pt, fill: blue)
+    })
+  ])
+  #animate(shape-state: [
+    #cetz.canvas({
+      import cetz.draw: *
+      rect((-65pt, -65pt), (65pt, 65pt), fill: red)
+    })
+  ])
+
+  #context {
+    align(center, kino-morph(a("shape-state"), id: "shape-morph"))
+  }
+  #finish()
+]

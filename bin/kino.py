@@ -428,13 +428,17 @@ def _sanitize_formula_part_token(value):
     return token or "part"
 
 
-def _dedupe_formula_part_ids(part_ids):
+def _dedupe_formula_parts(parts):
     counts = {}
     deduped = []
-    for part_id in part_ids:
+    for part in parts:
+        part = dict(part)
+        part_id = part["id"]
         count = counts.get(part_id, 0)
         counts[part_id] = count + 1
-        deduped.append(part_id if count == 0 else f"{part_id}-{count + 1}")
+        if count > 0:
+            part["id"] = f"{part_id}-{count + 1}"
+        deduped.append(part)
     return deduped
 
 
@@ -581,9 +585,9 @@ def _extract_slide_morph_ids(metadata):
     return morph_ids
 
 
-def _frame_formula_part_ids(variables, blocks, frame_index):
+def _frame_formula_parts(variables, blocks, frame_index):
     block, time_value = _frame_block_and_time(blocks, frame_index)
-    part_ids = []
+    parts_for_frame = []
     for name, name_dict in variables.items():
         if name == "builtin_pause_counter":
             continue
@@ -593,10 +597,12 @@ def _frame_formula_part_ids(variables, blocks, frame_index):
             continue
         for part in parts:
             key = part.get("key", "part")
-            part_ids.append(
-                f"{svg_tagger.PART_ID_PREFIX}{_sanitize_formula_part_token(name)}-{_sanitize_formula_part_token(key)}"
-            )
-    return _dedupe_formula_part_ids(part_ids)
+            parts_for_frame.append({
+                "id": f"{svg_tagger.PART_ID_PREFIX}{_sanitize_formula_part_token(name)}-{_sanitize_formula_part_token(key)}",
+                "state": str(name),
+                "key": str(key),
+            })
+    return _dedupe_formula_parts(parts_for_frame)
 
 def compile_svg_project(args, output_directory, selected_ids=None, log=None):
     """Compile slide definitions from one Typst document to SVG frames."""
@@ -661,28 +667,33 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
         for frame_index, frame_path in enumerate(paths):
             try:
                 content = frame_path.read_text(encoding='utf-8')
-                part_ids = _frame_formula_part_ids(
+                part_specs = _frame_formula_parts(
                     slide_variables.get(slide_id, {}),
                     timeline.get("blocks", []),
                     frame_index,
                 )
-                morph_ids = [item for item in slide_morph_ids.get(slide_id, []) if item is not None]
-                morph_ids = [
-                    item if item.startswith(svg_tagger.MORPH_ID_PREFIX)
-                    else f"{svg_tagger.MORPH_ID_PREFIX}{_sanitize_formula_part_token(item)}"
-                    for item in morph_ids
+                morph_specs = [
+                    {
+                        "id": item if item.startswith(svg_tagger.MORPH_ID_PREFIX)
+                        else f"{svg_tagger.MORPH_ID_PREFIX}{_sanitize_formula_part_token(item)}",
+                        "name": item.removeprefix(svg_tagger.MORPH_ID_PREFIX) if item.startswith(svg_tagger.MORPH_ID_PREFIX) else str(item),
+                    }
+                    for item in slide_morph_ids.get(slide_id, [])
+                    if item is not None
                 ]
-                if morph_ids:
-                    expanded_part_ids = []
-                    for morph_id in morph_ids:
-                        morph_suffix = morph_id.removeprefix(svg_tagger.MORPH_ID_PREFIX)
-                        for part_id in part_ids:
-                            part_suffix = part_id.removeprefix(svg_tagger.PART_ID_PREFIX)
-                            expanded_part_ids.append(
-                                f"{svg_tagger.PART_ID_PREFIX}{morph_suffix}-{part_suffix}"
-                            )
-                    part_ids = expanded_part_ids
-                tagged = svg_tagger.tag_svg_groups(content, part_ids=part_ids, morph_ids=morph_ids)
+                if morph_specs:
+                    expanded_parts = []
+                    for morph in morph_specs:
+                        morph_suffix = morph["id"].removeprefix(svg_tagger.MORPH_ID_PREFIX)
+                        for part in part_specs:
+                            expanded_parts.append({
+                                "id": f"{svg_tagger.PART_ID_PREFIX}{morph_suffix}-{part['id'].removeprefix(svg_tagger.PART_ID_PREFIX)}",
+                                "state": part["state"],
+                                "key": part["key"],
+                                "morph": morph["name"],
+                            })
+                    part_specs = expanded_parts
+                tagged = svg_tagger.tag_svg_groups(content, part_specs=part_specs, morph_specs=morph_specs)
                 frame_path.write_text(tagged, encoding='utf-8')
             except Exception as e:
                 log(f"Warning: Could not tag {frame_path.name}: {e}")
