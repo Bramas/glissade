@@ -1,6 +1,15 @@
 /// Linear transition
 #let linear(t) = t
 
+/// Manim-like smooth transition based on a normalized sigmoid.
+#let smooth(t, inflection: 10) = {
+  let sigmoid = x => 1 / (1 + calc.exp(-x))
+  let start = sigmoid(-inflection / 2)
+  let end = sigmoid(inflection / 2)
+  let value = sigmoid(inflection * (t - 0.5))
+  calc.clamp((value - start) / (end - start), 0, 1)
+}
+
 /// Quadratic transition (power of two)
 #let quad(t) = calc.pow(t, 2)
 
@@ -31,6 +40,8 @@
 #let get_transition(tr) = {
   if tr == "linear" {
     return linear
+  } else if tr == "smooth" {
+    return smooth
   } else if tr == "sin" {
     return sin
   } else if tr == "quad" {

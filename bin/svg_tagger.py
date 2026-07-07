@@ -73,6 +73,33 @@ def _previous_content_sibling(parent: ET.Element, marker: ET.Element) -> ET.Elem
     return None
 
 
+def _previous_group_sibling(parent: ET.Element, marker: ET.Element) -> ET.Element | None:
+    children = list(parent)
+    marker_index = children.index(marker)
+    for sibling in reversed(children[:marker_index]):
+        if _marker_kind(sibling) is not None:
+            continue
+        if _local_name(sibling.tag) == "g":
+            return sibling
+    return None
+
+
+def _between_marker_target(parent: ET.Element, start_marker: ET.Element, end_marker: ET.Element) -> ET.Element | None:
+    children = list(parent)
+    start_index = children.index(start_marker)
+    end_index = children.index(end_marker)
+    if end_index <= start_index:
+        return None
+    candidates = [
+        child for child in children[start_index + 1:end_index]
+        if _local_name(child.tag) == "g" and _marker_kind(child) is None
+    ]
+    for candidate in candidates:
+        if _has_visible_content(candidate):
+            return candidate
+    return candidates[0] if candidates else None
+
+
 def _remove_old_formula_ids(root: ET.Element) -> None:
     for element in root.iter():
         element_id = element.get("id")
@@ -83,6 +110,7 @@ def _remove_old_formula_ids(root: ET.Element) -> None:
             "data-kino-morph-id",
             "data-kino-morph-svg-id",
             "data-kino-morph-name",
+            "data-kino-morph-effect",
             "data-kino-morph-index",
             "data-kino-part",
             "data-kino-part-id",
@@ -133,7 +161,9 @@ def tag_svg_groups(
             if start_parent is not parent:
                 open_morph_start = None
                 continue
-            target = _previous_content_sibling(parent, element)
+            target = _between_marker_target(parent, start_marker, element)
+            if target is None:
+                target = _previous_group_sibling(parent, element)
             if target is not None:
                 morph_targets.append((target, start_marker, element, parent))
             open_morph_start = None
@@ -176,6 +206,8 @@ def tag_svg_groups(
             target.set("data-kino-morph-id", morph["name"])
             target.set("data-kino-morph-svg-id", morph["id"])
             target.set("data-kino-morph-name", morph["name"])
+            if morph.get("effect") is not None:
+                target.set("data-kino-morph-effect", morph["effect"])
         else:
             target.set("id", f"{MORPH_ID_PREFIX}{index}")
         target.set("data-kino-morph", "true")

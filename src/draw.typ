@@ -118,7 +118,7 @@
 
 /// Renders a semantic Kino value as ordinary Typst content.
 /// Formula states render their currently visible formula body.
-#let kino-morph(value, id: auto) = {
+#let kino-morph(value, id: auto, effect: auto) = {
   let visible = _formula-frame(value)
   let body = if type(visible) == dictionary and visible.at("kino-type", default: none) == "formula" {
     visible.body
@@ -126,9 +126,11 @@
     value
   }
   let effective-id = if id == auto { none } else { str(id) }
+  let effective-effect = if effect == auto { none } else { str(effect) }
   metadata((
     kino-morph-root: true,
     id: effective-id,
+    effect: effective-effect,
   ))
   _wrap-morph(body)
 }

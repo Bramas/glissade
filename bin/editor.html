@@ -41,7 +41,31 @@
     .scene-button.active { color: white; border-color: #3d70ad; background: #243750; }
     .preview { position: relative; min-width: 0; min-height: 0; padding: 22px; overflow: hidden; }
     .stage { width: 100%; height: 100%; display: flex; overflow: auto; }
-    .stage img { display: block; flex: none; margin: auto; filter: drop-shadow(0 12px 28px rgb(0 0 0 / .35)); }
+    .kino-stage-stack {
+      position: relative;
+      flex: none;
+      margin: auto;
+      filter: drop-shadow(0 12px 28px rgb(0 0 0 / .35));
+    }
+    .kino-stage-frame {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .kino-stage-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .kino-measure-sandbox {
+      position: absolute;
+      inset: 0;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+      visibility: hidden;
+      pointer-events: none;
+    }
     .zoom-value { min-width: 48px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
     .empty { color: var(--muted); }
     .timeline { grid-column: 1 / -1; background: var(--panel); border-top: 1px solid var(--line); padding: 10px 14px; }
@@ -100,6 +124,7 @@
     </section>
   </main>
   <script>
+    ${morph_runtime_source}
     (() => {
       const getManifest = () => ${manifest_source};
       const liveReload = ${live_reload};
@@ -118,6 +143,7 @@
         zoomValue: document.querySelector(".zoom-value"),
         error: document.querySelector(".error-overlay")
       };
+      const stageRenderer = KinoMorphRuntime.createStageRenderer(elements.stage);
       let manifest = null;
       let sceneIndex = 0;
       let frameIndex = 0;
@@ -138,12 +164,15 @@
       function percentage(value, total) { return total > 0 ? value / total * 100 : 0; }
 
       function updateZoom() {
-        const image = elements.stage.querySelector("img");
-        if (!image || !image.naturalWidth || !image.naturalHeight) return;
+        const stack = elements.stage.querySelector(".kino-stage-stack");
+        if (!stack) return;
+        const width = Number(stack.dataset.kinoWidth || 0);
+        const height = Number(stack.dataset.kinoHeight || 0);
+        if (!width || !height) return;
         const bounds = elements.stage.getBoundingClientRect();
-        const fit = Math.min(bounds.width / image.naturalWidth, bounds.height / image.naturalHeight);
-        image.style.width = Math.max(1, image.naturalWidth * fit * zoom) + "px";
-        image.style.height = Math.max(1, image.naturalHeight * fit * zoom) + "px";
+        const fit = Math.min(bounds.width / width, bounds.height / height);
+        stack.style.width = Math.max(1, width * fit * zoom) + "px";
+        stack.style.height = Math.max(1, height * fit * zoom) + "px";
         elements.zoomValue.textContent = Math.round(zoom * 100) + "%";
       }
 
@@ -192,25 +221,19 @@
         }));
       }
 
-      function renderFrame() {
+      async function renderFrame() {
         const current = scene();
         if (!current || !current.frames.length) return;
         frameIndex = clamp(frameIndex, 0, current.frameCount - 1);
-        let image = elements.stage.querySelector("img");
-        if (!image) {
-          image = document.createElement("img");
-          image.alt = "Current slide frame";
-          image.addEventListener("load", updateZoom);
-          elements.stage.replaceChildren(image);
-        }
-        image.src = current.frames[frameIndex];
+        await stageRenderer.render(current, frameIndex);
+        updateZoom();
         elements.playhead.style.left = percentage(frameIndex, Math.max(1, current.frameCount - 1)) + "%";
         const currentTime = frameIndex / current.fps;
         elements.timecode.textContent = formatTime(currentTime) + " / " + formatTime(current.duration);
         elements.status.textContent = "Slide " + (sceneIndex + 1) + " / " + manifest.scenes.length + " · Frame " + (frameIndex + 1) + " / " + current.frameCount;
         elements.status.classList.remove("error");
         for (const offset of [1, 2]) {
-          if (current.frames[frameIndex + offset]) new Image().src = current.frames[frameIndex + offset];
+          stageRenderer.prefetch(current, frameIndex + offset);
         }
       }
 
@@ -221,14 +244,14 @@
         elements.sceneTitle.textContent = scene().name;
         renderSceneList();
         renderTimeline();
-        renderFrame();
+        renderFrame().catch(showError);
         if (liveReload) fetch("/select?id=" + encodeURIComponent(scene().id));
         history.replaceState(null, "", "#scene=" + (sceneIndex + 1) + "&frame=" + frameIndex);
       }
 
       function seek(frame) {
         frameIndex = clamp(frame, 0, scene().frameCount - 1);
-        renderFrame();
+        renderFrame().catch(showError);
       }
       function seekTimeline(clientX) {
         const bounds = elements.timelineTrack.getBoundingClientRect();

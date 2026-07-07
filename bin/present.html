@@ -10,7 +10,33 @@
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
     body { color: white; background: #0b0c0f; font-family: system-ui, sans-serif; }
     .stage { position: fixed; inset: 0; display: grid; place-items: center; }
-    .stage img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    .stage > :not(.kino-measure-sandbox) { grid-area: 1 / 1; }
+    .kino-stage-stack {
+      position: relative;
+      width: min(100vw, calc(100vh * 4 / 3));
+      height: min(100vh, calc(100vw * 3 / 4));
+      max-width: 100vw;
+      max-height: 100vh;
+    }
+    .kino-stage-frame {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .kino-stage-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .kino-measure-sandbox {
+      position: absolute;
+      inset: 0;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+      visibility: hidden;
+      pointer-events: none;
+    }
     .controls {
       position: fixed; right: 18px; bottom: 18px; display: flex; align-items: center;
       gap: 7px; opacity: .12; transition: opacity .2s; z-index: 3;
@@ -56,6 +82,7 @@
     <div class="overview-grid"></div>
   </section>
   <script>
+    ${morph_runtime_source}
     (() => {
       const getManifest = () => ${manifest_source};
       const stage = document.querySelector(".stage");
@@ -64,6 +91,7 @@
       const playButton = document.querySelector('[data-action="play"]');
       const overview = document.querySelector(".overview");
       const overviewGrid = document.querySelector(".overview-grid");
+      const stageRenderer = KinoMorphRuntime.createStageRenderer(stage);
       let manifest;
       let sceneIndex = 0;
       let frameIndex = 0;
@@ -73,21 +101,14 @@
 
       function scene() { return manifest.scenes[sceneIndex]; }
       function clamp(value, minimum, maximum) { return Math.max(minimum, Math.min(value, maximum)); }
-      function render() {
+      async function render() {
         const current = scene();
         frameIndex = clamp(frameIndex, 0, current.frameCount - 1);
-        let image = stage.querySelector("img");
-        if (!image) {
-          image = document.createElement("img");
-          image.alt = current.name;
-          stage.replaceChildren(image);
-        }
-        image.src = current.frames[frameIndex];
-        image.alt = current.name;
+        await stageRenderer.render(current, frameIndex);
         counter.textContent = (sceneIndex + 1) + " / " + manifest.scenes.length;
         progress.style.width = ((sceneIndex + 1) / manifest.scenes.length * 100) + "%";
         history.replaceState(null, "", "#" + (sceneIndex + 1));
-        if (current.frames[frameIndex + 1]) new Image().src = current.frames[frameIndex + 1];
+        stageRenderer.prefetch(current, frameIndex + 1);
       }
       function pause() {
         playing = false;
@@ -99,7 +120,7 @@
         sceneIndex = clamp(index, 0, manifest.scenes.length - 1);
         frameIndex = 0;
         overview.hidden = true;
-        render();
+        render().catch(console.error);
       }
       function play() {
         if (playing) { pause(); return; }
@@ -114,7 +135,7 @@
         if (now >= nextFrameAt) {
           if (frameIndex >= scene().frameCount - 1) { pause(); return; }
           frameIndex += 1;
-          render();
+          render().catch(console.error);
           if (scene().cuts.some(cut => cut.frame === frameIndex)) { pause(); return; }
           nextFrameAt += 1000 / scene().fps;
         }
@@ -161,7 +182,7 @@
         const requested = Number(location.hash.slice(1));
         sceneIndex = requested > 0 ? clamp(requested - 1, 0, manifest.scenes.length - 1) : 0;
         renderOverview();
-        render();
+        render().catch(console.error);
       });
     })();
   </script>

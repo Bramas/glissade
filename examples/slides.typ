@@ -14,7 +14,7 @@
 #let slide-heading(title) = text(size: 36pt, weight: "bold", fill: accent, title)
 
 // Apply the deck after global page/text configuration and shared definitions.
-#show: deck.with(fps: 2)
+#show: deck.with(fps: 1)
 
 #slide(
   id: "moving-line",
@@ -110,15 +110,10 @@
   #slide-heading[Formula parts move into place]
 
   #init(formula-state: $a = part(a, key: "a") = part(b, key: "b")$)
-  #animate(formula-state: $a = part(a, key: "a") = part(b, key: "b") / (1+c)$)
+  #animate(formula-state: $b = part(a, key: "a") = part(b, key: "b") / (1+c)$)
  
   #context [
     #kino-morph(a("formula-state"), id: "main-formula")
-
-    #cetz.canvas(background: white, {
-      import cetz.draw: *
-      content((0, 0), kino-morph(a("formula-state"), id: "main-formula-cetz"))
-    })
   ]
   #finish()
 ]
@@ -144,6 +139,35 @@
 
   #context {
     align(center, kino-morph(a("shape-state"), id: "shape-morph"))
+  }
+  #finish()
+]
+
+#slide(
+  id: "shape-create",
+  title: "Draw shapes into view",
+)[
+  #slide-heading[Draw border then fill]
+
+  #init(draw-state: [])
+  #animate(draw-state: [
+    #cetz.canvas({
+      import cetz.draw: *
+      circle((0pt, 0pt), radius: 70pt, fill: green, stroke: 3pt + green.darken(70%))
+    })
+  ])
+
+  #init(draw-state2: [])
+  #animate(draw-state2: [
+    #cetz.canvas({
+      import cetz.draw: *
+      content((0pt, 40pt), text(stroke:red.darken(70%), red)[*HELLO*],)
+    })
+  ])
+
+  #context {
+    align(center, kino-morph(a("draw-state"), id: "shape-create", effect: "draw-border-then-fill"))
+    align(center, kino-morph(a("draw-state2"), id: "shape-create", effect: "draw-border-then-fill"))
   }
   #finish()
 ]

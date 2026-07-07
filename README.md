@@ -62,6 +62,46 @@ when selected, keeping the preview responsive without serving outdated frames.
 The dev server logs source changes, discovered slides, per-slide compilation
 times, on-demand cache rebuilds, and compilation failures to the terminal.
 
+## Morphing and Drawing
+
+Kino can also animate inline SVG content in the browser. `kino-morph(...)`
+wraps content that should be animated from one keyframe to the next, and
+`part(...)` marks sub-parts of a formula that should be matched explicitly.
+
+```typ
+#init(formula-state: $a = part(a, key: "a") = part(b, key: "b")$)
+#animate(formula-state: $b = part(a, key: "a") = part(b, key: "b") / (1+c)$)
+
+#context [
+  #kino-morph(a("formula-state"), id: "main-formula")
+]
+```
+
+Matched parts use a smooth, Manim-like default easing in the browser runtime.
+Unmatched leftovers fall back to a light fade instead of a full geometric
+match, which avoids bold-looking duplicate glyphs during overlap.
+
+For shapes that should be introduced from nothing, `kino-morph(...)` also
+accepts an explicit effect flag:
+
+```typ
+#init(shape-state: [])
+#animate(shape-state: [
+  #cetz.canvas({
+    import cetz.draw: *
+    circle((0pt, 0pt), radius: 65pt, fill: blue)
+  })
+])
+
+#context {
+  align(center, kino-morph(a("shape-state"), id: "shape-create", effect: "draw-border-then-fill"))
+}
+```
+
+The `draw-border-then-fill` effect is implemented in JavaScript from the final
+SVG path data, so it works on ordinary vector shapes without extra Typst-side
+geometry annotations.
+
 ## Quick start
 
 Create a file `slides.typ` with the following content:
@@ -92,6 +132,10 @@ Create a file `slides.typ` with the following content:
   #finish()
 ]
 ```
+
+Plain Typst value animations now use `smooth` as their default transition.
+You can still override any animation with another transition such as
+`transition: "linear"` or `transition: "sin"`.
 
 Kino compiles each logical slide independently and caches it by its stable
 `id`. During live preview, only the selected slide is expanded into SVG frames.

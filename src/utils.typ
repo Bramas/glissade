@@ -20,7 +20,7 @@
 
 // default dictionnary for timelines
 #let get_default_dict(type: 0%) = {
-  ("0": ((get_zero(type), 0, 0, 0, "linear"),))
+  ("0": ((get_zero(type), 0, 0, 0, "smooth"),))
 }
 
 // get maximum block in a timeline

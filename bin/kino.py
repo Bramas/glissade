@@ -569,20 +569,24 @@ def _extract_slide_variables(metadata):
     return variables
 
 
-def _extract_slide_morph_ids(metadata):
-    morph_ids = {}
+def _extract_slide_morph_specs(metadata):
+    morph_specs = {}
     pending_slide_id = None
     for item in metadata:
         if "kino_slide_scope" in item:
             pending_slide_id = str(item["kino_slide_scope"])
-            morph_ids.setdefault(pending_slide_id, [])
+            morph_specs.setdefault(pending_slide_id, [])
             continue
         if pending_slide_id is None:
             continue
         if item.get("kino-morph-root"):
             morph_id = item.get("id")
-            morph_ids[pending_slide_id].append(None if morph_id is None else str(morph_id))
-    return morph_ids
+            morph_effect = item.get("effect")
+            morph_specs[pending_slide_id].append({
+                "id": None if morph_id is None else str(morph_id),
+                "effect": None if morph_effect is None else str(morph_effect),
+            })
+    return morph_specs
 
 
 def _frame_formula_parts(variables, blocks, frame_index):
@@ -603,6 +607,25 @@ def _frame_formula_parts(variables, blocks, frame_index):
                 "key": str(key),
             })
     return _dedupe_formula_parts(parts_for_frame)
+
+
+def _scene_keyframes(blocks, frame_count):
+    last_frame = max(0, int(frame_count) - 1)
+    anchors = {0, last_frame}
+    for block in blocks:
+        anchors.add(max(0, min(last_frame, int(block.get("start_frame", 0)))))
+        anchors.add(max(0, min(last_frame, int(block.get("end_frame", last_frame)))))
+    return sorted(anchors)
+
+
+def _read_morph_runtime_source():
+    runtime_dir = Path(__file__).parent / "morph_runtime"
+    parts = [
+        runtime_dir / "core.js",
+        runtime_dir / "geometry.js",
+        runtime_dir / "renderer.js",
+    ]
+    return "\n".join(path.read_text(encoding="utf-8") for path in parts)
 
 def compile_svg_project(args, output_directory, selected_ids=None, log=None):
     """Compile slide definitions from one Typst document to SVG frames."""
@@ -630,7 +653,7 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
     )
     metadata = json.loads(query.stdout)
     slide_variables = _extract_slide_variables(metadata)
-    slide_morph_ids = _extract_slide_morph_ids(metadata)
+    slide_morph_specs = _extract_slide_morph_specs(metadata)
     timelines = [item["kino_timeline"] for item in metadata if "kino_timeline" in item]
     log(f"Discovered {len(timelines)} slide(s) in {time.perf_counter() - query_started:.2f}s")
     slide_ids = [str(timeline["id"]) for timeline in timelines]
@@ -672,15 +695,17 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
                     timeline.get("blocks", []),
                     frame_index,
                 )
-                morph_specs = [
-                    {
-                        "id": item if item.startswith(svg_tagger.MORPH_ID_PREFIX)
-                        else f"{svg_tagger.MORPH_ID_PREFIX}{_sanitize_formula_part_token(item)}",
-                        "name": item.removeprefix(svg_tagger.MORPH_ID_PREFIX) if item.startswith(svg_tagger.MORPH_ID_PREFIX) else str(item),
-                    }
-                    for item in slide_morph_ids.get(slide_id, [])
-                    if item is not None
-                ]
+                morph_specs = []
+                for item in slide_morph_specs.get(slide_id, []):
+                    morph_id = item.get("id")
+                    if morph_id is None:
+                        continue
+                    morph_specs.append({
+                        "id": morph_id if morph_id.startswith(svg_tagger.MORPH_ID_PREFIX)
+                        else f"{svg_tagger.MORPH_ID_PREFIX}{_sanitize_formula_part_token(morph_id)}",
+                        "name": morph_id.removeprefix(svg_tagger.MORPH_ID_PREFIX) if morph_id.startswith(svg_tagger.MORPH_ID_PREFIX) else str(morph_id),
+                        "effect": item.get("effect"),
+                    })
                 if morph_specs:
                     expanded_parts = []
                     for morph in morph_specs:
@@ -726,16 +751,22 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
             "frames": frames,
             "blocks": blocks,
             "cuts": cuts,
+            "keyframes": _scene_keyframes(
+                blocks,
+                len(frames) if should_compile else timeline.get("frames", 0),
+            ),
         })
     return manifest
 
 def render_editor_template(template_path, title, manifest_source, live_reload):
+    runtime_source = _read_morph_runtime_source()
     with open(template_path, "r") as template_file:
         template = Template(template_file.read())
     return template.substitute({
         "title": title,
         "manifest_source": manifest_source,
         "live_reload": "true" if live_reload else "false",
+        "morph_runtime_source": runtime_source,
     })
 
 def handle_html(args):

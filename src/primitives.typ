@@ -9,7 +9,7 @@
   hold: 0,
   duration: 1,
   dwell: 0,
-  transition: "linear",
+  transition: "smooth",
   ..args,
 ) = _operation("animate", fields: (
   block: block, hold: hold, duration: duration, dwell: dwell,
@@ -20,7 +20,7 @@
   hold: 0,
   duration: 1,
   dwell: 0,
-  transition: "linear",
+  transition: "smooth",
   ..args,
 ) = _operation("meanwhile", fields: (
   hold: hold, duration: duration, dwell: dwell,
@@ -31,7 +31,7 @@
   hold: 0,
   duration: 1,
   dwell: 0,
-  transition: "linear",
+  transition: "smooth",
   ..args,
 ) = _operation("then", fields: (
   hold: hold, duration: duration, dwell: dwell,
