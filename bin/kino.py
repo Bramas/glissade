@@ -667,6 +667,7 @@ def _read_morph_runtime_source():
     runtime_dir = Path(__file__).parent / "morph_runtime"
     parts = [
         runtime_dir / "core.js",
+        runtime_dir / "path_alignment.js",
         runtime_dir / "geometry.js",
         runtime_dir / "renderer.js",
     ]

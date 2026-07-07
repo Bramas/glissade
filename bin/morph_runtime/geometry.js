@@ -6,6 +6,8 @@
     lerp,
     smoothRate,
     formatNumber,
+    alignCubicPaths,
+    interpolateAlignedPath,
   } = runtime;
 
   const SAMPLE_COUNT_MIN = 24;
@@ -251,6 +253,12 @@
     const endPoints = samplePath(endPath, count, endTransform);
     const startData = startPath.getAttribute("d") || "";
     const endData = endPath.getAttribute("d") || "";
+    const alignedPathPlan = alignCubicPaths(
+      startData,
+      startTransform,
+      endData,
+      endTransform,
+    );
     const directPathPlan = planCompatiblePathData(
       startData,
       endData,
@@ -259,6 +267,7 @@
       && endElement.localName === "use"
       && tokenizePathData(startData).length === tokenizePathData(endData).length;
     return {
+      alignedPathPlan,
       directPathPlan,
       affinePathData: !directPathPlan && sameGlyphCandidate ? startData : null,
       startTransform,
@@ -382,7 +391,9 @@
       group.setAttribute("data-kino-generated-morph", plan.rootId);
       for (const pathPlan of plan.paths) {
         const path = document.createElementNS(SVG_NS, "path");
-        if (pathPlan.directPathPlan || pathPlan.affinePathData) {
+        if (pathPlan.alignedPathPlan) {
+          path.setAttribute("d", interpolateAlignedPath(pathPlan.alignedPathPlan, progress));
+        } else if (pathPlan.directPathPlan || pathPlan.affinePathData) {
           path.setAttribute("d", pathPlan.directPathPlan
             ? interpolatePathData(pathPlan.directPathPlan, progress)
             : pathPlan.affinePathData);
