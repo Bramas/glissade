@@ -107,7 +107,7 @@
 // A logical animation frame must always produce exactly one physical page.
 // Without this unbreakable container, tall content can spill into a second SVG
 // and make the player alternate between fragments of the same frame.
-#let _frame(body) = block(width: 100%, height: 100%, clip: true, body)
+#let _frame(body) = block(width: 100%, height: 100%, body)
 
 // Register a slide's animation operations exactly once before rendering its
 // frames. Keeping this probe out of the page flow avoids repeated timeline
