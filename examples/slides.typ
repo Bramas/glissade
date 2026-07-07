@@ -31,6 +31,9 @@
   #animate(x: 10.0)
 
   #context {
+    [
+      value of x: #a("x")
+    ]
     align(center, line(length: a("x") * 8mm, stroke: 3pt + accent))
   }
   #finish()
@@ -113,7 +116,7 @@
   #animate(formula-state: $b = part(a, key: "a") = part(b, key: "b") / (1+c)$)
  
   #context [
-    #kino-morph(a("formula-state"), id: "main-formula")
+    #kino-morph("formula-state", id: "main-formula")
   ]
   #finish()
 ]
@@ -138,7 +141,7 @@
   ])
 
   #context {
-    align(center, kino-morph(a("shape-state"), id: "shape-morph"))
+    align(center, kino-morph("shape-state", id: "shape-morph"))
   }
   #finish()
 ]
@@ -149,24 +152,24 @@
 )[
   #slide-heading[Draw border then fill]
 
-  #init(draw-state: [])
-  #init(draw-state2: [])
-  #animate(draw-state: [
-    #cetz.canvas({
-      import cetz.draw: *
-      circle((0pt, 0pt), radius: 70pt, fill: green, stroke: 3pt + green.darken(70%))
-    })
-  ])
-  #meanwhile(draw-state2: [
+
+  #create(draw-state2: [
     #cetz.canvas({
       import cetz.draw: *
       content((0pt, 0pt), text(stroke:red.darken(70%), red, 64pt)[*HELLO !*])
     })
-  ], duration:3)
+  ], duration:3, morph-effect: "draw-border-then-fill")
+
+  #create(draw-state: [
+    #cetz.canvas({
+      import cetz.draw: *
+      circle((0pt, 0pt), radius: 70pt, fill: green, stroke: 3pt + green.darken(70%))
+    })
+  ], morph-effect: "draw-border-then-fill")
 
   #context {
-    align(center, kino-morph(a("draw-state"), id: "circle-create", effect: "draw-border-then-fill"))
-    align(center, kino-morph(a("draw-state2"), id: "text-create", effect: "draw-border-then-fill"))
+    align(center, kino-morph("draw-state", id: "circle-create"))
+    align(center, kino-morph("draw-state2", id: "text-create"))
   }
   #finish()
 ]

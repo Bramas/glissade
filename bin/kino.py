@@ -510,7 +510,8 @@ def _resolve_timeline_value(name_dict, block, time_value):
         return start_value
 
     current_start = start_value
-    for end_value, hold, duration, dwell, transition in name_dict[str(block)]:
+    for entry in name_dict[str(block)]:
+        end_value, hold, duration, dwell, transition = entry[:5]
         if hold > time_value:
             break
         if time_value < hold + duration + dwell:
@@ -554,6 +555,19 @@ def _frame_block_and_time(blocks, frame_index):
     return 1, 0.0
 
 
+def _transition_effect_for_frame(name_dict, block, time_value):
+    active = None
+    for entry in name_dict.get(str(block), []):
+        if len(entry) < 6:
+            continue
+        _, hold, duration, dwell, _, effect = entry
+        if hold <= time_value:
+            active = effect
+            if time_value <= hold + duration + dwell:
+                break
+    return active
+
+
 def _extract_slide_variables(metadata):
     variables = {}
     pending_slide_id = None
@@ -584,6 +598,7 @@ def _extract_slide_morph_specs(metadata):
             morph_effect = item.get("effect")
             morph_specs[pending_slide_id].append({
                 "id": None if morph_id is None else str(morph_id),
+                "state": item.get("state"),
                 "effect": None if morph_effect is None else str(morph_effect),
             })
     return morph_specs
@@ -696,15 +711,26 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
                     frame_index,
                 )
                 morph_specs = []
+                frame_block, frame_time = _frame_block_and_time(
+                    timeline.get("blocks", []), frame_index
+                )
                 for item in slide_morph_specs.get(slide_id, []):
                     morph_id = item.get("id")
                     if morph_id is None:
                         continue
+                    state = item.get("state")
+                    effect = item.get("effect")
+                    if state is not None:
+                        effect = _transition_effect_for_frame(
+                            slide_variables.get(slide_id, {}).get(str(state), {}),
+                            frame_block,
+                            frame_time,
+                        )
                     morph_specs.append({
                         "id": morph_id if morph_id.startswith(svg_tagger.MORPH_ID_PREFIX)
                         else f"{svg_tagger.MORPH_ID_PREFIX}{_sanitize_formula_part_token(morph_id)}",
                         "name": morph_id.removeprefix(svg_tagger.MORPH_ID_PREFIX) if morph_id.startswith(svg_tagger.MORPH_ID_PREFIX) else str(morph_id),
-                        "effect": item.get("effect"),
+                        "effect": effect,
                     })
                 if morph_specs:
                     expanded_parts = []

@@ -16,13 +16,13 @@
   while not str(start) in name_dict.keys() {
     start -= 1
   }
-  let (start_value, _, _, _, _) = name_dict.at(str(start)).at(-1)
+  let (start_value, _, _, _, _, _) = name_dict.at(str(start)).at(-1)
   let scaler = get_scaler(name_dict.at("0").at(0).at(0))
 
   if str(end) in name_dict.keys() {
     let mapping(time) = {
       let start_value_bis = start_value
-      for (end_value, hold, duration, dwell, trans) in name_dict.at(str(end)) {
+      for (end_value, hold, duration, dwell, trans, _) in name_dict.at(str(end)) {
         if hold <= time {
           if time < hold + duration + dwell {
             trans = get_transition(trans)
@@ -37,6 +37,25 @@
   } else {
     return _ => start_value
   }
+}
+
+/// Returns the morph effect attached to the active transition for a state.
+#let animation-effect(name) = {
+  let scopes = query(selector(metadata).before(here())).filter(element => (
+    type(element.value) == dictionary and "kino_animation_scope" in element.value
+  ))
+  assert(scopes.len() > 0, message: "animation-effect() must be evaluated inside a Kino slide frame")
+  let scope = scopes.last().value.kino_animation_scope
+  let name-dict = scope.variables.at(name, default: (:))
+  let entries = name-dict.at(str(scope.block), default: ())
+  let active = none
+  for (_, hold, duration, dwell, _, effect) in entries {
+    if hold <= scope.time {
+      active = effect
+      if scope.time <= hold + duration + dwell { break }
+    }
+  }
+  active
 }
 
 /// Evaluates an animation variable in context.

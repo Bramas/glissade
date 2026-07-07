@@ -20,7 +20,7 @@
 
 // default dictionnary for timelines
 #let get_default_dict(type: 0%) = {
-  ("0": ((get_zero(type), 0, 0, 0, "smooth"),))
+  ("0": ((get_zero(type), 0, 0, 0, "smooth", none),))
 }
 
 // get maximum block in a timeline
@@ -38,7 +38,7 @@
       .map(pair => {
         let (b, l) = pair
         if b != str(block) { 0 } else {
-          let (_, ho, du, dw, _) = l.at(-1)
+          let (_, ho, du, dw, _, _) = l.at(-1)
           ho + du + dw
         }
       }),

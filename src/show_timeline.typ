@@ -31,7 +31,7 @@
               let total = 0
               let res = ()
               for e in name_dict.at(str(b), default: ()) {
-                let (v, ho, du, dw, t) = e
+                let (v, ho, du, dw, t, effect) = e
                 res += (
                   [#_bar(ho - total)#_bar(du, color: blue)#_bar(dw)],
                 )

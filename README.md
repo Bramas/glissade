@@ -73,7 +73,7 @@ wraps content that should be animated from one keyframe to the next, and
 #animate(formula-state: $b = part(a, key: "a") = part(b, key: "b") / (1+c)$)
 
 #context [
-  #kino-morph(a("formula-state"), id: "main-formula")
+  #kino-morph("formula-state", id: "main-formula")
 ]
 ```
 
@@ -85,16 +85,16 @@ For shapes that should be introduced from nothing, `kino-morph(...)` also
 accepts an explicit effect flag:
 
 ```typ
-#init(shape-state: [])
-#animate(shape-state: [
+#create(shape-state: [
   #cetz.canvas({
     import cetz.draw: *
     circle((0pt, 0pt), radius: 65pt, fill: blue)
-  })
-])
+  }),
+  morph-effect: "draw-border-then-fill",
+)
 
 #context {
-  align(center, kino-morph(a("shape-state"), id: "shape-create", effect: "draw-border-then-fill"))
+  align(center, kino-morph("shape-state", id: "shape-create"))
 }
 ```
 

@@ -1,3 +1,5 @@
+#import "animation.typ": a, animation-effect
+
 #let _formula-interpolate(from, to, progress) = (
   kino-type: "formula-transition",
   from: from,
@@ -118,7 +120,9 @@
 
 /// Renders a semantic Kino value as ordinary Typst content.
 /// Formula states render their currently visible formula body.
-#let kino-morph(value, id: auto, effect: auto) = {
+#let kino-morph(name, id: auto) = {
+  assert(type(name) == str, message: "kino-morph expects an animation state name")
+  let value = a(name)
   let visible = _formula-frame(value)
   let body = if type(visible) == dictionary and visible.at("kino-type", default: none) == "formula" {
     visible.body
@@ -126,10 +130,12 @@
     value
   }
   let effective-id = if id == auto { none } else { str(id) }
-  let effective-effect = if effect == auto { none } else { str(effect) }
+  let effect = animation-effect(name)
+  let effective-effect = if effect == none { none } else { str(effect) }
   metadata((
     kino-morph-root: true,
     id: effective-id,
+    state: name,
     effect: effective-effect,
   ))
   _wrap-morph(body)

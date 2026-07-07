@@ -10,10 +10,11 @@
   duration: 1,
   dwell: 0,
   transition: "smooth",
+  morph-effect: none,
   ..args,
 ) = _operation("animate", fields: (
-  block: block, hold: hold, duration: duration, dwell: dwell,
-  transition: transition, args: args.named(),
+    block: block, hold: hold, duration: duration, dwell: dwell,
+    transition: transition, morph-effect: morph-effect, args: args.named(),
 ))
 
 #let meanwhile(
@@ -21,10 +22,11 @@
   duration: 1,
   dwell: 0,
   transition: "smooth",
+  morph-effect: none,
   ..args,
 ) = _operation("meanwhile", fields: (
-  hold: hold, duration: duration, dwell: dwell,
-  transition: transition, args: args.named(),
+    hold: hold, duration: duration, dwell: dwell,
+    transition: transition, morph-effect: morph-effect, args: args.named(),
 ))
 
 #let then(
@@ -32,11 +34,41 @@
   duration: 1,
   dwell: 0,
   transition: "smooth",
+  morph-effect: none,
   ..args,
 ) = _operation("then", fields: (
-  hold: hold, duration: duration, dwell: dwell,
-  transition: transition, args: args.named(),
+    hold: hold, duration: duration, dwell: dwell,
+    transition: transition, morph-effect: morph-effect, args: args.named(),
 ))
+
+/// Introduces content from an empty state using a morph effect.
+#let create(
+  block: -1,
+  hold: 0,
+  duration: 1,
+  dwell: 0,
+  transition: "smooth",
+  morph-effect: "draw-border-then-fill",
+  ..args,
+) = {
+  let values = args.named()
+  assert(values.len() > 0, message: "create requires at least one named state")
+  for (name, value) in values {
+    assert(type(value) == content, message: "create currently supports content states only")
+  }
+  let initial = (:)
+  for name in values.keys() { initial.insert(name, []) }
+  _operation("init", fields: (args: initial))
+  _operation("animate", fields: (
+    block: block,
+    hold: hold,
+    duration: duration,
+    dwell: dwell,
+    transition: transition,
+    morph-effect: morph-effect,
+    args: values,
+  ))
+}
 
 #let wait(block: -1, duration: 1) = _operation("wait", fields: (
   block: block, duration: duration,
@@ -58,14 +90,14 @@
   }
 }
 
-#let _add(timeline, block, args, hold, duration, dwell, transition, mode) = {
+#let _add(timeline, block, args, hold, duration, dwell, transition, morph-effect, mode) = {
   let shift = if mode == "append" { get_block_duration(timeline, block) } else { 0 }
   for (name, value) in args {
     let name-dict = timeline.at(name, default: get_default_dict(type: value))
     let block-list = name-dict.at(str(block), default: ())
     if name in timeline { check_types((name-dict.at("0").at(0).at(0), value)) }
     if mode == "place" { assert(block-list.len() == 0, message: "collision in block " + str(block)) }
-    block-list.push((value, hold + shift, duration, dwell, transition))
+    block-list.push((value, hold + shift, duration, dwell, transition, morph-effect))
     name-dict.insert(str(block), block-list)
     timeline.insert(name, name-dict)
   }
@@ -81,17 +113,17 @@
   for operation in _collect-operations(body) {
     let kind = operation.kind
     if kind == "init" {
-      timeline = _add(timeline, 0, operation.args, 0, 1, 0, "linear", "append")
+      timeline = _add(timeline, 0, operation.args, 0, 1, 0, "linear", none, "append")
     } else if kind == "animate" {
       let block = if operation.block < 0 { maximum } else { operation.block }
       current = block
-      timeline = _add(timeline, block, operation.args, operation.hold, operation.duration, operation.dwell, operation.transition, "append")
+      timeline = _add(timeline, block, operation.args, operation.hold, operation.duration, operation.dwell, operation.transition, operation.morph-effect, "append")
       maximum = if operation.block < 0 { maximum + 1 } else { maximum }
     } else if kind in ("meanwhile", "then") {
-      timeline = _add(timeline, current, operation.args, operation.hold, operation.duration, operation.dwell, operation.transition, if kind == "meanwhile" { "place" } else { "append" })
+      timeline = _add(timeline, current, operation.args, operation.hold, operation.duration, operation.dwell, operation.transition, operation.morph-effect, if kind == "meanwhile" { "place" } else { "append" })
     } else if kind == "wait" {
       let block = if operation.block < 0 { current } else { operation.block }
-      timeline = _add(timeline, block, (builtin_pause_counter: 0%), 0, operation.duration, 0, "linear", "append")
+      timeline = _add(timeline, block, (builtin_pause_counter: 0%), 0, operation.duration, 0, "linear", none, "append")
     } else if kind == "cut" {
       cuts.push(current)
       if operation.loop { loops.push(current) }
