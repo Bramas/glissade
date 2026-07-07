@@ -303,8 +303,17 @@
     if (startEntries.length === 0 || startEntries.length !== endEntries.length) return null;
     return {
       rootId: planId,
+      insertionTransform: parentInverseTransform(startRoot),
       paths: startEntries.map((entry, index) => planPathPair(entry, endEntries[index])),
     };
+  }
+
+  function parentInverseTransform(root) {
+    try {
+      return matrixToAttribute(root.parentElement?.getCTM?.()?.inverse());
+    } catch {
+      return null;
+    }
   }
 
   function planDrawPath(path) {
@@ -376,6 +385,7 @@
     if (endPaths.length === 0 && usePlans.length === 0) return null;
     return {
       rootId: planId,
+      insertionTransform: parentInverseTransform(endRoot),
       paths: [...endPaths.map(planDrawPath), ...usePlans],
     };
   }
@@ -389,6 +399,9 @@
     for (const plan of plans) {
       const group = document.createElementNS(SVG_NS, "g");
       group.setAttribute("data-kino-generated-morph", plan.rootId);
+      if (plan.insertionTransform) {
+        group.setAttribute("data-kino-insertion-transform", plan.insertionTransform);
+      }
       for (const pathPlan of plan.paths) {
         const path = document.createElementNS(SVG_NS, "path");
         if (pathPlan.alignedPathPlan) {
@@ -433,6 +446,9 @@
       const planProgress = progressForPlan ? progressForPlan(plan, progress) : progress;
       const group = document.createElementNS(SVG_NS, "g");
       group.setAttribute("data-kino-generated-draw", plan.rootId);
+      if (plan.insertionTransform) {
+        group.setAttribute("data-kino-insertion-transform", plan.insertionTransform);
+      }
       // Match Manim Write's default submobject timing. Its lag ratio describes
       // the delay as a fraction of one path's duration; the whole sequence is
       // then normalized back into the animation's [0, 1] interval.

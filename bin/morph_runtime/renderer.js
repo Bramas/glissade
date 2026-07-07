@@ -165,6 +165,22 @@
     }
   }
 
+  function insertRootOverlayGroups(baseSvg, overlay, generatedAttribute) {
+    let inserted = 0;
+    for (const group of [...overlay.querySelectorAll("[" + generatedAttribute + "]")]) {
+      const rootId = group.getAttribute(generatedAttribute);
+      if (!rootId || rootId.includes("::")) continue;
+      const target = baseSvg.querySelector(morphSelector(rootId));
+      if (!target?.parentNode) continue;
+      const transform = group.getAttribute("data-kino-insertion-transform");
+      group.removeAttribute("data-kino-insertion-transform");
+      if (transform) group.setAttribute("transform", transform);
+      target.parentNode.insertBefore(group, target);
+      inserted += 1;
+    }
+    return inserted;
+  }
+
   function splitFadeOpacities(progress) {
     const overlap = 0.08;
     const startEnd = 0.5 + overlap / 2;
@@ -433,7 +449,12 @@
           if (plan.geometryPlans.length > 0) {
             const geometryOverlay = makeGeometryOverlay(size, plan.geometryPlans, segment.progress);
             if (geometryOverlay) {
-              stack.appendChild(geometryOverlay);
+              const inserted = insertRootOverlayGroups(
+                baseSvg,
+                geometryOverlay,
+                "data-kino-generated-morph",
+              );
+              if (inserted < plan.geometryPlans.length) stack.appendChild(geometryOverlay);
             }
           }
           if (plan.drawPlans.length > 0) {
@@ -449,7 +470,12 @@
               ),
             );
             if (drawOverlay) {
-              stack.appendChild(drawOverlay);
+              const inserted = insertRootOverlayGroups(
+                baseSvg,
+                drawOverlay,
+                "data-kino-generated-draw",
+              );
+              if (inserted < plan.drawPlans.length) stack.appendChild(drawOverlay);
             }
           }
           for (const partPlan of plan.partPlans) {
