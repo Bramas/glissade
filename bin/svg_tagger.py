@@ -215,11 +215,6 @@ def tag_svg_groups(
         parent.remove(start_marker)
         parent.remove(end_marker)
 
-    if tagged_targets:
-        print(f"Tagged {len(tagged_targets)} formula parts with explicit marker IDs", file=sys.stderr)
-    if morph_targets:
-        print(f"Tagged {len(morph_targets)} morph container(s)", file=sys.stderr)
-
     return ET.tostring(root, encoding="unicode")
 
 
@@ -246,6 +241,5 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 

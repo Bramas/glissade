@@ -12,6 +12,5 @@
 // #then(z: 3)
 // #meanwhile(y: 2)
 
-//#show-timeline()
 
 #finish()

@@ -6,7 +6,6 @@
 import argparse
 import functools
 import json
-import sys
 import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -37,12 +36,10 @@ def main():
     errors = []
     try:
         with sync_playwright() as playwright:
-            print("Launching Chromium...", file=sys.stderr)
             browser = playwright.chromium.launch(headless=True)
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
             page = browser.new_page()
-            print("Loading presentation...", file=sys.stderr)
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.goto(
                 f"http://127.0.0.1:{server.server_port}/{html.name}?kino-debug=1",
@@ -50,7 +47,6 @@ def main():
                 timeout=10_000,
             )
             page.evaluate("KinoDebug.ready")
-            print(f"Rendering {scene!r} frame {args.frame}...", file=sys.stderr)
             report = page.evaluate(
                 "([scene, frame]) => KinoDebug.renderFrame(scene, frame)",
                 [scene, args.frame],

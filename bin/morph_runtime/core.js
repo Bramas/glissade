@@ -25,6 +25,26 @@
     return Number(value.toFixed(4));
   }
 
+  function matrixToAttribute(matrix) {
+    if (!matrix) return null;
+    return "matrix(" + [
+      matrix.a,
+      matrix.b,
+      matrix.c,
+      matrix.d,
+      matrix.e,
+      matrix.f,
+    ].map(formatNumber).join(" ") + ")";
+  }
+
+  function inverseParentTransform(element) {
+    try {
+      return matrixToAttribute(element?.parentElement?.getCTM?.()?.inverse());
+    } catch {
+      return null;
+    }
+  }
+
   function parseSvgMarkup(text) {
     const document = new DOMParser().parseFromString(text, "image/svg+xml");
     const svg = document.documentElement;
@@ -178,6 +198,8 @@
     lerp,
     smoothRate,
     formatNumber,
+    matrixToAttribute,
+    inverseParentTransform,
     parseSvgMarkup,
     decodeDataUri,
     intrinsicSize,

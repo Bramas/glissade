@@ -1,5 +1,5 @@
 #import "states.typ": (
-  active-slide, frozen-values, slide-scope,
+  active-slide, slide-scope,
 )
 #import "primitives.typ": build-timeline
 #import "utils.typ": get_block_duration, get_default_dict, get_scaler
@@ -128,21 +128,7 @@
 // and make the player alternate between fragments of the same frame.
 #let _frame(body) = block(width: 100%, height: 100%, body)
 
-// Register a slide's animation operations exactly once before rendering its
-// frames. Keeping this probe out of the page flow avoids repeated timeline
-// updates and lets a normal `typst compile` converge for every slide.
-#let _probe(id, body, frozen-counters) = context {
-  let values = frozen-counters.map(counter => (counter.get)())
-  frozen-values(id).update(_ => values)
-  hide(box(
-    width: 0pt,
-    height: 0pt,
-    clip: true,
-    [#active-slide.update(_ => id)#body],
-  ))
-}
-
-#let slideshow(body, id, index, variables, frozen-counters: ()) = {
+#let _render-slideshow(body, id, index, variables, frozen-counters: ()) = {
   let max_block = calc.max(..variables.values().join().keys().map(int))
   for b in range(1, max_block + 2) {
     page(_frame([
@@ -156,7 +142,7 @@
   }
 }
 
-#let fake(body, fps, id, index, title, frozen-counters, variables, cut_blocks, loop_blocks, collector: none) = context {
+#let _render-query-document(body, fps, id, index, title, frozen-counters, variables, cut_blocks, loop_blocks) = context {
   let max_block = calc.max(..variables.values().join().keys().map(int))
   let effective-cuts = cut_blocks
   if not max_block in effective-cuts {
@@ -215,7 +201,6 @@
     ),
   ))
   page(_frame([
-    #if collector != none { box(width: 0pt, height: 0pt, hide(collector)) }
     #active-slide.update(_ => id)
     #slide-scope(id)
     #metadata(("kino_animation_scope": (variables: variables, block: 1, time: 0, index: index)))
@@ -231,7 +216,6 @@
   index: 1,
   title: none,
   frozen-counters: (),
-  collector: none,
   /// Frames per second of animation. Overrides command line parameters.
   /// -> int
   fps: -1,
@@ -242,9 +226,9 @@
   let cut_blocks = built.cuts
   let loop_blocks = built.loops
   if int(sys.inputs.at("query", default: 0)) == 1 {
-    fake(body, fps, id, index, title, frozen-counters, variables, cut_blocks, loop_blocks, collector: collector)
+    _render-query-document(body, fps, id, index, title, frozen-counters, variables, cut_blocks, loop_blocks)
   } else if fps == 0 {
-    slideshow(body, id, index, variables, frozen-counters: frozen-counters)
+    _render-slideshow(body, id, index, variables, frozen-counters: frozen-counters)
   } else {
       let max_block = calc.max(..variables.values().join().keys().map(int))
       let effective-cuts = cut_blocks
@@ -264,9 +248,6 @@
         for frame in range(rendered-frames) {
           let new_time = (duration * frame) / frames
           page(_frame([
-            #if b == 1 and frame == 0 and collector != none {
-              box(width: 0pt, height: 0pt, hide(collector))
-            }
             #active-slide.update(_ => id)
             #slide-scope(id)
             #metadata(("kino_frame": frame, "kino_slide": id))
@@ -368,14 +349,8 @@
   }
   definitions = normalized
 
-  // Phase one is embedded invisibly into the first rendered page so timeline
-  // registration cannot create a leading blank page.
-  let registrations = none
-
-  // Phase two: render from the now-complete slide-local timelines.
   let selected = sys.inputs.at("kino-slide", default: "")
   let effective-fps = int(sys.inputs.at("fps", default: str(fps)))
-  let emitted = false
   for (offset, item) in definitions.enumerate() {
     let index = offset + 1
     if selected == "" or selected == item.id or selected == str(index) {
@@ -385,10 +360,8 @@
         index: index,
         title: item.title,
         frozen-counters: item.frozen-counters,
-        collector: if emitted { none } else { registrations },
         fps: if item.fps < 0 { effective-fps } else { item.fps },
       )
-      emitted = true
     }
   }
 }

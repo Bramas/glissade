@@ -5,6 +5,7 @@
     parseSvgMarkup,
     decodeDataUri,
     intrinsicSize,
+    inverseParentTransform,
     safeBBox,
     safeGlobalBBox,
     interpolateRect,
@@ -179,16 +180,6 @@
       inserted += 1;
     }
     return inserted;
-  }
-
-  function inverseParentTransform(root) {
-    try {
-      const matrix = root.parentElement?.getCTM?.()?.inverse();
-      if (!matrix) return null;
-      return "matrix(" + [matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f].join(" ") + ")";
-    } catch {
-      return null;
-    }
   }
 
   function ensureRootComposite(baseSvg, plan, rootId) {
@@ -504,20 +495,6 @@
         if (token !== this.renderToken) return this.currentSize;
         if (plan.allMatches.length > 0) {
           hideMorphRoots(baseSvg, plan.allMatches);
-          for (const partPlan of plan.partPlans) {
-            const rootMatch = plan.allMatches.find(match => match.rootId === partPlan.rootId);
-            if (!rootMatch) continue;
-            const hiddenIds = [];
-            for (const fallback of partPlan.fallbacks) {
-              hiddenIds.push(fallback.startId);
-            }
-            for (const geometryPlan of partPlan.geometryPlans) {
-              const partKey = geometryPlan.rootId.split("::").at(-1);
-              const partInfo = rootMatch.startRoot.parts.get(partKey);
-              if (partInfo) hiddenIds.push(partInfo.elementId);
-            }
-            hideElementsById(baseSvg, hiddenIds);
-          }
           if (plan.geometryPlans.length > 0) {
             const geometryOverlay = makeGeometryOverlay(size, plan.geometryPlans, segment.progress);
             if (geometryOverlay) {

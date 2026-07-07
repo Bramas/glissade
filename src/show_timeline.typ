@@ -1,4 +1,3 @@
-#import "states.typ": active-slide, begin, timeline
 #import "utils.typ": get_max_block
 
 #let _bar(width, color: none) = box(
@@ -31,7 +30,7 @@
               let total = 0
               let res = ()
               for e in name_dict.at(str(b), default: ()) {
-                let (v, ho, du, dw, t, effect) = e
+                let (_, ho, du, dw, _, _) = e
                 res += (
                   [#_bar(ho - total)#_bar(du, color: blue)#_bar(dw)],
                 )
@@ -43,11 +42,4 @@
       })
       .join(),
   )
-}
-
-#let show-timeline() = context {
-  let id = active-slide.get()
-  if not begin(id).get() {
-    _show-timeline(timeline(id).get())
-  }
 }

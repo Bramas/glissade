@@ -6,6 +6,8 @@
     lerp,
     smoothRate,
     formatNumber,
+    matrixToAttribute,
+    inverseParentTransform,
     alignCubicPaths,
     interpolateAlignedPath,
   } = runtime;
@@ -67,18 +69,6 @@
     return color.a > 0.0001;
   }
 
-  function matrixToAttribute(matrix) {
-    if (!matrix) return null;
-    return "matrix(" + [
-      formatNumber(matrix.a),
-      formatNumber(matrix.b),
-      formatNumber(matrix.c),
-      formatNumber(matrix.d),
-      formatNumber(matrix.e),
-      formatNumber(matrix.f),
-    ].join(" ") + ")";
-  }
-
   function pathLength(path) {
     try {
       return path.getTotalLength();
@@ -136,86 +126,6 @@
     return points;
   }
 
-  function tokenizePathData(data) {
-    return data.match(/[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g) || [];
-  }
-
-  function planCompatiblePathData(startData, endData) {
-    const startTokens = tokenizePathData(startData);
-    const endTokens = tokenizePathData(endData);
-    if (startTokens.length === 0 || startTokens.length !== endTokens.length) return null;
-    const commands = [];
-    const startNumbers = [];
-    const endNumbers = [];
-    for (let index = 0; index < startTokens.length; index += 1) {
-      const startCommand = /^[a-zA-Z]$/.test(startTokens[index]);
-      const endCommand = /^[a-zA-Z]$/.test(endTokens[index]);
-      if (startCommand || endCommand) {
-        if (!startCommand || !endCommand || startTokens[index] !== endTokens[index]) return null;
-        commands.push({ index, value: startTokens[index] });
-      } else {
-        startNumbers.push(parseNumeric(startTokens[index]));
-        endNumbers.push(parseNumeric(endTokens[index]));
-      }
-    }
-    return { tokenCount: startTokens.length, commands, startNumbers, endNumbers };
-  }
-
-  function interpolatePathData(plan, progress) {
-    const commandByIndex = new Map(plan.commands.map(item => [item.index, item.value]));
-    const tokens = [];
-    let numberIndex = 0;
-    for (let index = 0; index < plan.tokenCount; index += 1) {
-      const command = commandByIndex.get(index);
-      if (command) {
-        tokens.push(command);
-      } else {
-        tokens.push(String(formatNumber(lerp(
-          plan.startNumbers[numberIndex],
-          plan.endNumbers[numberIndex],
-          progress,
-        ))));
-        numberIndex += 1;
-      }
-    }
-    return tokens.join(" ");
-  }
-
-  function interpolateMatrix(start, end, progress) {
-    if (!start || !end) return null;
-    return {
-      a: lerp(start.a, end.a, progress),
-      b: lerp(start.b, end.b, progress),
-      c: lerp(start.c, end.c, progress),
-      d: lerp(start.d, end.d, progress),
-      e: lerp(start.e, end.e, progress),
-      f: lerp(start.f, end.f, progress),
-    };
-  }
-
-  function boundsForPoints(points) {
-    const xs = points.map(point => point.x);
-    const ys = points.map(point => point.y);
-    const x = Math.min(...xs);
-    const y = Math.min(...ys);
-    return {
-      x,
-      y,
-      width: Math.max(...xs) - x,
-      height: Math.max(...ys) - y,
-    };
-  }
-
-  function transformToBounds(startTransform, startBounds, endBounds) {
-    if (!startTransform || startBounds.width <= 0 || startBounds.height <= 0) return null;
-    const scaleX = endBounds.width / startBounds.width;
-    const scaleY = endBounds.height / startBounds.height;
-    const translateX = endBounds.x - startBounds.x * scaleX;
-    const translateY = endBounds.y - startBounds.y * scaleY;
-    const boundsTransform = new DOMMatrix([scaleX, 0, 0, scaleY, translateX, translateY]);
-    return boundsTransform.multiply(startTransform);
-  }
-
   function collectRenderablePaths(root) {
     return [...root.querySelectorAll("path")].filter(path => {
       const fill = path.getAttribute("fill");
@@ -259,21 +169,8 @@
       endData,
       endTransform,
     );
-    const directPathPlan = planCompatiblePathData(
-      startData,
-      endData,
-    );
-    const sameGlyphCandidate = startElement.localName === "use"
-      && endElement.localName === "use"
-      && tokenizePathData(startData).length === tokenizePathData(endData).length;
     return {
       alignedPathPlan,
-      directPathPlan,
-      affinePathData: !directPathPlan && sameGlyphCandidate ? startData : null,
-      startTransform,
-      endTransform: !directPathPlan && sameGlyphCandidate
-        ? transformToBounds(startTransform, boundsForPoints(startPoints), boundsForPoints(endPoints))
-        : endTransform,
       startPoints,
       endPoints,
       closed: isClosedPath(startPath) || isClosedPath(endPath),
@@ -303,17 +200,9 @@
     if (startEntries.length === 0 || startEntries.length !== endEntries.length) return null;
     return {
       rootId: planId,
-      insertionTransform: parentInverseTransform(startRoot),
+      insertionTransform: inverseParentTransform(startRoot),
       paths: startEntries.map((entry, index) => planPathPair(entry, endEntries[index])),
     };
-  }
-
-  function parentInverseTransform(root) {
-    try {
-      return matrixToAttribute(root.parentElement?.getCTM?.()?.inverse());
-    } catch {
-      return null;
-    }
   }
 
   function planDrawPath(path) {
@@ -385,7 +274,7 @@
     if (endPaths.length === 0 && usePlans.length === 0) return null;
     return {
       rootId: planId,
-      insertionTransform: parentInverseTransform(endRoot),
+      insertionTransform: inverseParentTransform(endRoot),
       paths: [...endPaths.map(planDrawPath), ...usePlans],
     };
   }
@@ -406,16 +295,6 @@
         const path = document.createElementNS(SVG_NS, "path");
         if (pathPlan.alignedPathPlan) {
           path.setAttribute("d", interpolateAlignedPath(pathPlan.alignedPathPlan, progress));
-        } else if (pathPlan.directPathPlan || pathPlan.affinePathData) {
-          path.setAttribute("d", pathPlan.directPathPlan
-            ? interpolatePathData(pathPlan.directPathPlan, progress)
-            : pathPlan.affinePathData);
-          const transform = matrixToAttribute(interpolateMatrix(
-            pathPlan.startTransform,
-            pathPlan.endTransform,
-            progress,
-          ));
-          if (transform) path.setAttribute("transform", transform);
         } else {
           path.setAttribute("d", pointsToPathData(interpolatePoints(pathPlan.startPoints, pathPlan.endPoints, progress), pathPlan.closed));
         }

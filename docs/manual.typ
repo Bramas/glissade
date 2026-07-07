@@ -1,7 +1,7 @@
 #import "@preview/tidy:0.4.3"
 #import "@preview/codly:1.3.0": *
 #import "template.typ": *
-#import "../lib.typ": _show-timeline
+#import "../src/show_timeline.typ": _show-timeline
 #show: codly-init.with()
 
 #let colors = tidy.styles.default.colors
@@ -90,17 +90,17 @@
 
   Behind the scenes, the system converts each call to an animation primitive into a timeline.
   This timeline describes the value of animation variables at each time step of the animation.
-  You can visualize the current timeline using `show-timeline()`:
+  The internal timeline can be visualized as follows:
 
   #let var = (
     "x": (
-      "0": ((0, 0, 0, 0, 0),),
-      "1": ((0, 0, 1, 0, 0),),
-      "2": ((0, 1, 1.3, .3, 0),),
+      "0": ((0, 0, 0, 0, 0, none),),
+      "1": ((0, 0, 1, 0, 0, none),),
+      "2": ((0, 1, 1.3, .3, 0, none),),
     ),
     "y": (
-      "0": ((0, 0, 0, 0, 0),),
-      "1": ((0, .5, 2, 0, 0),),
+      "0": ((0, 0, 0, 0, 0, none),),
+      "1": ((0, .5, 2, 0, 0, none),),
     ),
   )
 
