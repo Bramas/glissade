@@ -175,6 +175,13 @@ Examples:
     )
 
     html_parser.add_argument(
+        "--embed-frames",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="embed SVG frames as base64 in HTML (default: True, set to False for external files)"
+    )
+
+    html_parser.add_argument(
         "--template",
         type=str,
         default="bin/present.html",
@@ -462,6 +469,24 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
             )
 
         paths = sorted(output_directory.glob(f"{prefix}-frame-*.svg"), key=frame_number)
+        
+        # Tag SVG groups with formula part IDs
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("svg_tagger", Path(__file__).parent / "svg_tagger.py")
+            if spec and spec.loader:
+                svg_tagger = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(svg_tagger)
+                for frame_path in paths:
+                    try:
+                        content = frame_path.read_text(encoding='utf-8')
+                        tagged = svg_tagger.tag_svg_groups(content)
+                        frame_path.write_text(tagged, encoding='utf-8')
+                    except Exception as e:
+                        log(f"Warning: Could not tag {frame_path.name}: {e}")
+        except Exception as e:
+            log(f"Note: SVG tagging skipped: {e}")
+        
         expected_frames = int(timeline.get("frames", len(paths)))
         if should_compile and len(paths) > expected_frames:
             extra_paths = paths[:-expected_frames]
@@ -505,17 +530,41 @@ def render_editor_template(template_path, title, manifest_source, live_reload):
 def handle_html(args):
     """Generate a standalone, dependency-free SVG presentation."""
     root_path, _ = os.path.splitext(args.input)
+    output_dir = Path(root_path).parent
+    frames_dir = output_dir / "frames"
+    
     try:
         with tempfile.TemporaryDirectory() as temporary_directory:
             manifest = compile_svg_project(args, temporary_directory)
-            for scene in manifest["scenes"]:
-                embedded_frames = []
-                for frame_url in scene["frames"]:
-                    frame_name = urlparse(frame_url).path.removeprefix("/frames/")
-                    frame_path = Path(temporary_directory) / frame_name
-                    encoded = base64.b64encode(frame_path.read_bytes()).decode("ascii")
-                    embedded_frames.append("data:image/svg+xml;base64," + encoded)
-                scene["frames"] = embedded_frames
+            
+            if args.embed_frames:
+                # Embed frames as base64
+                for scene in manifest["scenes"]:
+                    embedded_frames = []
+                    for frame_url in scene["frames"]:
+                        frame_name = urlparse(frame_url).path.removeprefix("/frames/")
+                        frame_path = Path(temporary_directory) / frame_name
+                        encoded = base64.b64encode(frame_path.read_bytes()).decode("ascii")
+                        embedded_frames.append("data:image/svg+xml;base64," + encoded)
+                    scene["frames"] = embedded_frames
+            else:
+                # Copy SVG files to frames directory
+                frames_dir.mkdir(parents=True, exist_ok=True)
+                for stale_frame in frames_dir.glob("slide-*-frame-*.svg"):
+                    stale_frame.unlink()
+                
+                for scene in manifest["scenes"]:
+                    external_frames = []
+                    for frame_url in scene["frames"]:
+                        frame_name = urlparse(frame_url).path.removeprefix("/frames/")
+                        frame_path = Path(temporary_directory) / frame_name
+                        dest_path = frames_dir / frame_name
+                        # Copy SVG file
+                        dest_path.write_bytes(frame_path.read_bytes())
+                        # Use relative path from HTML file location
+                        external_frames.append(f"frames/{frame_name}")
+                    scene["frames"] = external_frames
+            
             manifest_source = "Promise.resolve(" + json.dumps(manifest, separators=(",", ":")) + ")"
             result = render_editor_template(
                 args.template,
@@ -523,8 +572,13 @@ def handle_html(args):
                 manifest_source,
                 False,
             )
-            with open(f"{root_path}.html", "w") as output_file:
+            output_html = f"{root_path}.html"
+            with open(output_html, "w") as output_file:
                 output_file.write(result)
+            
+            if not args.embed_frames:
+                print(f"HTML: {output_html}")
+                print(f"SVGs: {frames_dir}/")
     except subprocess.TimeoutExpired:
         print(f"Timeout after {args.timeout} seconds.\nhint: timeout can be increased using the --timeout option.")
         return 124

@@ -101,20 +101,22 @@
   #finish()
 ]
 
+#import "@preview/mannot:0.4.0": *
+
 #slide(
   id: "matching-formula",
   title: "Matching formula parts",
 )[
   #slide-heading[Formula parts move into place]
 
-  // I would like that part(a) and part(b) are
-  // correctly translated in the animation, the remaining should be fadeout -> fadein
   #init(formula-state: formula[
     $a = part(a, key: "a") = part(b, key: "b")$
   ])
   #animate(formula-state: formula[
    $a = part(a, key: "a") = part(b, key: "b") / (1+c)$
   ])
+ 
+  $a = a = markhl(b, #red, stroke: #2pt, radius: #2pt, outset: #1pt) / (1+c)$
 
   $a = a = b / (1+c)$
   #context {
