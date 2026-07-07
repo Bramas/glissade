@@ -8,7 +8,9 @@
 from string import Template
 import argparse
 import base64
+import importlib.util
 import json
+import math
 import mimetypes
 import os
 import re
@@ -23,6 +25,13 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
+
+_SVG_TAGGER_SPEC = importlib.util.spec_from_file_location("svg_tagger", Path(__file__).parent / "svg_tagger.py")
+if _SVG_TAGGER_SPEC and _SVG_TAGGER_SPEC.loader:
+    svg_tagger = importlib.util.module_from_spec(_SVG_TAGGER_SPEC)
+    _SVG_TAGGER_SPEC.loader.exec_module(svg_tagger)
+else:
+    raise ImportError("Could not load svg_tagger.py")
 
 def assert_installed(program: str):
     if shutil.which(program) is None:
@@ -413,6 +422,182 @@ def frame_number(path):
     match = re.search(r"frame-(\d+)\.svg$", str(path))
     return int(match.group(1)) if match else -1
 
+
+def _sanitize_formula_part_token(value):
+    token = re.sub(r"[^a-zA-Z0-9_-]+", "-", str(value)).strip("-_")
+    return token or "part"
+
+
+def _dedupe_formula_part_ids(part_ids):
+    counts = {}
+    deduped = []
+    for part_id in part_ids:
+        count = counts.get(part_id, 0)
+        counts[part_id] = count + 1
+        deduped.append(part_id if count == 0 else f"{part_id}-{count + 1}")
+    return deduped
+
+
+def _transition_function(name):
+    if name == "quad":
+        return lambda t: t ** 2
+    if name == "cubic":
+        return lambda t: t ** 3
+    if name == "quart":
+        return lambda t: t ** 4
+    if name == "sin":
+        return lambda t: 1 - math.cos(t * math.pi / 2)
+    if name == "circ":
+        return math.sqrt
+    return lambda t: t
+
+
+def _visible_formula_value(value):
+    if not isinstance(value, dict):
+        return None
+    kind = value.get("kino-type")
+    if kind == "formula-transition":
+        return value.get("from") if value.get("progress", 0) < 1 else value.get("to")
+    if kind == "formula":
+        return value
+    return None
+
+
+def _collect_formula_parts_from_content(content):
+    if not isinstance(content, dict):
+        return []
+    if (
+        content.get("func") == "metadata"
+        and isinstance(content.get("value"), dict)
+        and content["value"].get("kino-formula-part")
+    ):
+        key = content["value"].get("key", "part")
+        body = content["value"].get("body")
+        return [{"key": key, "body": body}]
+
+    parts = []
+    for field in (
+        "children", "child", "body", "base", "num", "denom",
+        "t", "b", "tl", "tr", "bl", "br", "sub", "sup",
+    ):
+        value = content.get(field)
+        if isinstance(value, list):
+            for item in value:
+                parts.extend(_collect_formula_parts_from_content(item))
+        elif isinstance(value, dict):
+            parts.extend(_collect_formula_parts_from_content(value))
+    return parts
+
+
+def _formula_parts_for_value(value):
+    formula = _visible_formula_value(value)
+    if formula is not None:
+        return formula.get("parts", [])
+    return _collect_formula_parts_from_content(value)
+
+
+def _resolve_timeline_value(name_dict, block, time_value):
+    start = block - 1
+    while str(start) not in name_dict:
+        start -= 1
+    start_value = name_dict[str(start)][-1][0]
+
+    if str(block) not in name_dict:
+        return start_value
+
+    current_start = start_value
+    for end_value, hold, duration, dwell, transition in name_dict[str(block)]:
+        if hold > time_value:
+            break
+        if time_value < hold + duration + dwell:
+            if (
+                isinstance(current_start, dict)
+                and isinstance(end_value, dict)
+                and current_start.get("kino-type") == "formula"
+                and end_value.get("kino-type") == "formula"
+            ):
+                if duration == 0:
+                    progress = 1
+                else:
+                    progress = min(1, max(0, (time_value - hold) / duration))
+                return {
+                    "kino-type": "formula-transition",
+                    "from": current_start,
+                    "to": end_value,
+                    "progress": _transition_function(transition)(progress),
+                }
+            if duration == 0 or time_value >= hold + duration:
+                return end_value
+            return current_start
+        current_start = end_value
+    return current_start
+
+
+def _frame_block_and_time(blocks, frame_index):
+    for block in blocks:
+        start_frame = int(block.get("start_frame", 0))
+        end_frame = int(block.get("end_frame", start_frame))
+        if start_frame <= frame_index <= end_frame:
+            block_frame_count = end_frame - start_frame
+            if block_frame_count <= 0:
+                return int(block["index"]), float(block.get("duration", 0))
+            offset = frame_index - start_frame
+            duration = float(block.get("duration", 0))
+            return int(block["index"]), duration * offset / block_frame_count
+    if blocks:
+        last = blocks[-1]
+        return int(last["index"]), float(last.get("duration", 0))
+    return 1, 0.0
+
+
+def _extract_slide_variables(metadata):
+    variables = {}
+    pending_slide_id = None
+    for item in metadata:
+        if "kino_slide_scope" in item:
+            pending_slide_id = str(item["kino_slide_scope"])
+            continue
+        if pending_slide_id is None:
+            continue
+        if "kino_animation_scope" in item and pending_slide_id not in variables:
+            variables[pending_slide_id] = item["kino_animation_scope"].get("variables", {})
+            pending_slide_id = None
+    return variables
+
+
+def _extract_slide_morph_ids(metadata):
+    morph_ids = {}
+    pending_slide_id = None
+    for item in metadata:
+        if "kino_slide_scope" in item:
+            pending_slide_id = str(item["kino_slide_scope"])
+            morph_ids.setdefault(pending_slide_id, [])
+            continue
+        if pending_slide_id is None:
+            continue
+        if item.get("kino-morph-root"):
+            morph_id = item.get("id")
+            morph_ids[pending_slide_id].append(None if morph_id is None else str(morph_id))
+    return morph_ids
+
+
+def _frame_formula_part_ids(variables, blocks, frame_index):
+    block, time_value = _frame_block_and_time(blocks, frame_index)
+    part_ids = []
+    for name, name_dict in variables.items():
+        if name == "builtin_pause_counter":
+            continue
+        value = _resolve_timeline_value(name_dict, block, time_value)
+        parts = _formula_parts_for_value(value)
+        if not parts:
+            continue
+        for part in parts:
+            key = part.get("key", "part")
+            part_ids.append(
+                f"{svg_tagger.PART_ID_PREFIX}{_sanitize_formula_part_token(name)}-{_sanitize_formula_part_token(key)}"
+            )
+    return _dedupe_formula_part_ids(part_ids)
+
 def compile_svg_project(args, output_directory, selected_ids=None, log=None):
     """Compile slide definitions from one Typst document to SVG frames."""
     log = log or (lambda message: None)
@@ -438,6 +623,8 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
         capture_output=True,
     )
     metadata = json.loads(query.stdout)
+    slide_variables = _extract_slide_variables(metadata)
+    slide_morph_ids = _extract_slide_morph_ids(metadata)
     timelines = [item["kino_timeline"] for item in metadata if "kino_timeline" in item]
     log(f"Discovered {len(timelines)} slide(s) in {time.perf_counter() - query_started:.2f}s")
     slide_ids = [str(timeline["id"]) for timeline in timelines]
@@ -469,23 +656,36 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
             )
 
         paths = sorted(output_directory.glob(f"{prefix}-frame-*.svg"), key=frame_number)
-        
-        # Tag SVG groups with formula part IDs
-        try:
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("svg_tagger", Path(__file__).parent / "svg_tagger.py")
-            if spec and spec.loader:
-                svg_tagger = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(svg_tagger)
-                for frame_path in paths:
-                    try:
-                        content = frame_path.read_text(encoding='utf-8')
-                        tagged = svg_tagger.tag_svg_groups(content)
-                        frame_path.write_text(tagged, encoding='utf-8')
-                    except Exception as e:
-                        log(f"Warning: Could not tag {frame_path.name}: {e}")
-        except Exception as e:
-            log(f"Note: SVG tagging skipped: {e}")
+
+        # Tag SVG groups with formula part IDs.
+        for frame_index, frame_path in enumerate(paths):
+            try:
+                content = frame_path.read_text(encoding='utf-8')
+                part_ids = _frame_formula_part_ids(
+                    slide_variables.get(slide_id, {}),
+                    timeline.get("blocks", []),
+                    frame_index,
+                )
+                morph_ids = [item for item in slide_morph_ids.get(slide_id, []) if item is not None]
+                morph_ids = [
+                    item if item.startswith(svg_tagger.MORPH_ID_PREFIX)
+                    else f"{svg_tagger.MORPH_ID_PREFIX}{_sanitize_formula_part_token(item)}"
+                    for item in morph_ids
+                ]
+                if morph_ids:
+                    expanded_part_ids = []
+                    for morph_id in morph_ids:
+                        morph_suffix = morph_id.removeprefix(svg_tagger.MORPH_ID_PREFIX)
+                        for part_id in part_ids:
+                            part_suffix = part_id.removeprefix(svg_tagger.PART_ID_PREFIX)
+                            expanded_part_ids.append(
+                                f"{svg_tagger.PART_ID_PREFIX}{morph_suffix}-{part_suffix}"
+                            )
+                    part_ids = expanded_part_ids
+                tagged = svg_tagger.tag_svg_groups(content, part_ids=part_ids, morph_ids=morph_ids)
+                frame_path.write_text(tagged, encoding='utf-8')
+            except Exception as e:
+                log(f"Warning: Could not tag {frame_path.name}: {e}")
         
         expected_frames = int(timeline.get("frames", len(paths)))
         if should_compile and len(paths) > expected_frames:

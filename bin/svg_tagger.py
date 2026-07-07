@@ -8,7 +8,10 @@ import xml.etree.ElementTree as ET
 
 START_FILL = "#ff4fd8"
 END_FILL = "#00d5ff"
+MORPH_START_FILL = "#19c37d"
+MORPH_END_FILL = "#ff8a00"
 PART_ID_PREFIX = "formula-part-"
+MORPH_ID_PREFIX = "kino-morph-"
 SVG_NS = "http://www.w3.org/2000/svg"
 XLINK_NS = "http://www.w3.org/1999/xlink"
 H5_NS = "http://www.w3.org/1999/xhtml"
@@ -40,6 +43,10 @@ def _marker_kind(group: ET.Element) -> str | None:
         return "start"
     if fill == END_FILL:
         return "end"
+    if fill == MORPH_START_FILL:
+        return "morph-start"
+    if fill == MORPH_END_FILL:
+        return "morph-end"
     return None
 
 
@@ -48,7 +55,7 @@ def _has_visible_content(element: ET.Element) -> bool:
         name = _local_name(node.tag)
         if name == "use":
             return True
-        if name == "path" and node.get("fill") not in {START_FILL, END_FILL}:
+        if name == "path" and node.get("fill") not in {START_FILL, END_FILL, MORPH_START_FILL, MORPH_END_FILL}:
             return True
     return False
 
@@ -73,14 +80,20 @@ def _remove_old_formula_ids(root: ET.Element) -> None:
             del element.attrib["id"]
 
 
-def tag_svg_groups(svg_content: str) -> str:
+def tag_svg_groups(
+    svg_content: str,
+    part_ids: list[str] | None = None,
+    morph_ids: list[str] | None = None,
+) -> str:
     """Add IDs only to groups explicitly marked by Kino formula sentinels."""
     root = ET.fromstring(svg_content)
     parent_map = {child: parent for parent in root.iter() for child in parent}
     _remove_old_formula_ids(root)
 
     tagged_targets = []
+    morph_targets = []
     open_start = None
+    open_morph_start = None
 
     for element in root.iter():
         kind = _marker_kind(element)
@@ -91,8 +104,25 @@ def tag_svg_groups(svg_content: str) -> str:
         if parent is None:
             continue
 
+        if kind == "morph-start":
+            open_morph_start = (element, parent)
+            continue
+
         if kind == "start":
             open_start = (element, parent)
+            continue
+
+        if kind == "morph-end":
+            if open_morph_start is None:
+                continue
+            start_marker, start_parent = open_morph_start
+            if start_parent is not parent:
+                open_morph_start = None
+                continue
+            target = _previous_content_sibling(parent, element)
+            if target is not None:
+                morph_targets.append((target, start_marker, element, parent))
+            open_morph_start = None
             continue
 
         if open_start is None:
@@ -110,12 +140,26 @@ def tag_svg_groups(svg_content: str) -> str:
         open_start = None
 
     for index, (target, start_marker, end_marker, parent) in enumerate(tagged_targets):
-        target.set("id", f"{PART_ID_PREFIX}{index}")
+        if part_ids is not None and index < len(part_ids):
+            target.set("id", part_ids[index])
+        else:
+            target.set("id", f"{PART_ID_PREFIX}{index}")
+        parent.remove(start_marker)
+        parent.remove(end_marker)
+
+    for index, (target, start_marker, end_marker, parent) in enumerate(morph_targets):
+        if morph_ids is not None and index < len(morph_ids):
+            target.set("id", morph_ids[index])
+        else:
+            target.set("id", f"{MORPH_ID_PREFIX}{index}")
+        target.set("data-kino-morph", "true")
         parent.remove(start_marker)
         parent.remove(end_marker)
 
     if tagged_targets:
         print(f"Tagged {len(tagged_targets)} formula parts with explicit marker IDs", file=sys.stderr)
+    if morph_targets:
+        print(f"Tagged {len(morph_targets)} morph container(s)", file=sys.stderr)
 
     return ET.tostring(root, encoding="unicode")
 

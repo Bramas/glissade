@@ -109,20 +109,16 @@
 )[
   #slide-heading[Formula parts move into place]
 
-  #init(formula-state: formula[
-    $a = part(a, key: "a") = part(b, key: "b")$
-  ])
-  #animate(formula-state: formula[
-   $a = part(a, key: "a") = part(b, key: "b") / (1+c)$
-  ])
+  #init(formula-state: $a = part(a, key: "a") = part(b, key: "b")$)
+  #animate(formula-state: $a = part(a, key: "a") = part(b, key: "b") / (1+c)$)
  
-  $a = a = markhl(b, #red, stroke: #2pt, radius: #2pt, outset: #1pt) / (1+c)$
+  #context [
+    #kino-morph(a("formula-state"), id: "main-formula")
 
-  $a = a = b / (1+c)$
-  #context {
-    cetz.canvas(background: white, {
-      kino-content((0, 0), a("formula-state"), id: "main-formula")
+    #cetz.canvas(background: white, {
+      import cetz.draw: *
+      content((0, 0), kino-morph(a("formula-state"), id: "main-formula-cetz"))
     })
-  }
+  ]
   #finish()
 ]

@@ -4,6 +4,8 @@
     0
   } else if type(ty) == float {
     0.0
+  } else if type(ty) == content {
+    ty
   } else if type(ty) in (angle, length, ratio) {
     ty * 0%
   } else if type(ty) == array {
@@ -83,6 +85,8 @@
     return scale_value
   } else if type(ty) == int {
     return (start, end, t) => calc.floor(scale_value(start, end, t))
+  } else if type(ty) == content {
+    return (start, end, t) => if t < 1 { start } else { end }
   } else if type(ty) == array {
     let scalers = ty.map(get_scaler)
     return (start, end, t) => scalers
