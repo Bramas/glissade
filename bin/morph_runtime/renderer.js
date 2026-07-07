@@ -181,6 +181,70 @@
     return inserted;
   }
 
+  function inverseParentTransform(root) {
+    try {
+      const matrix = root.parentElement?.getCTM?.()?.inverse();
+      if (!matrix) return null;
+      return "matrix(" + [matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f].join(" ") + ")";
+    } catch {
+      return null;
+    }
+  }
+
+  function ensureRootComposite(baseSvg, plan, rootId) {
+    const selector = '[data-kino-composite-root="' + CSS.escape(rootId) + '"]';
+    const existing = baseSvg.querySelector(selector);
+    if (existing) return existing;
+    const target = baseSvg.querySelector(morphSelector(rootId));
+    if (!target?.parentNode) return null;
+    const composite = document.createElementNS(SVG_NS, "g");
+    composite.setAttribute("data-kino-composite-root", rootId);
+    const transform = plan.compositeTransforms.get(rootId);
+    if (transform) composite.setAttribute("transform", transform);
+    target.parentNode.insertBefore(composite, target);
+    return composite;
+  }
+
+  function appendGeneratedLayer(composite, overlay) {
+    for (const group of [...overlay.children]) {
+      group.removeAttribute?.("data-kino-insertion-transform");
+      group.removeAttribute?.("transform");
+      composite.appendChild(group);
+    }
+  }
+
+  let compositeLayerIndex = 0;
+  function namespaceSvgIds(svg) {
+    const prefix = "kino-composite-" + compositeLayerIndex++ + "-";
+    const replacements = new Map();
+    for (const element of svg.querySelectorAll("[id]")) {
+      const oldId = element.id;
+      const newId = prefix + oldId;
+      replacements.set(oldId, newId);
+      element.id = newId;
+    }
+    for (const element of svg.querySelectorAll("*")) {
+      for (const attribute of [...element.attributes]) {
+        let value = attribute.value;
+        for (const [oldId, newId] of replacements) {
+          if (value === "#" + oldId) value = "#" + newId;
+          value = value.replaceAll("url(#" + oldId + ")", "url(#" + newId + ")");
+        }
+        if (value !== attribute.value) element.setAttribute(attribute.name, value);
+      }
+    }
+  }
+
+  function appendSvgLayer(composite, svg, size) {
+    namespaceSvgIds(svg);
+    svg.removeAttribute("class");
+    svg.setAttribute("x", "0");
+    svg.setAttribute("y", "0");
+    svg.setAttribute("width", String(size.width));
+    svg.setAttribute("height", String(size.height));
+    composite.appendChild(svg);
+  }
+
   function splitFadeOpacities(progress) {
     const overlap = 0.08;
     const startEnd = 0.5 + overlap / 2;
@@ -333,11 +397,18 @@
           const drawPlans = [];
           const fallbackMatches = [];
           const partPlans = [];
+          const compositeTransforms = new Map();
           for (const match of matches) {
+            const startRootElement = startSvg.querySelector(morphSelector(match.rootId));
+            const endRootElement = endSvg.querySelector(morphSelector(match.rootId));
+            compositeTransforms.set(
+              match.rootId,
+              inverseParentTransform(startRootElement || endRootElement),
+            );
             const plan = rootPlanForMatch(
               match,
-              startSvg.querySelector(morphSelector(match.rootId)),
-              endSvg.querySelector(morphSelector(match.rootId)),
+              startRootElement,
+              endRootElement,
             );
             if (plan.rootGeometryPlan) {
               geometryPlans.push(plan.rootGeometryPlan);
@@ -384,6 +455,7 @@
             enteringFallbacks,
             leavingFallbacks,
             partPlans,
+            compositeTransforms,
             allMatches: matches,
           };
         })());
@@ -479,10 +551,12 @@
             }
           }
           for (const partPlan of plan.partPlans) {
+            const composite = ensureRootComposite(baseSvg, plan, partPlan.rootId);
             if (partPlan.geometryPlans.length > 0) {
               const geometryOverlay = makeGeometryOverlay(size, partPlan.geometryPlans, segment.progress);
               if (geometryOverlay) {
-                stack.appendChild(geometryOverlay);
+                if (composite) appendGeneratedLayer(composite, geometryOverlay);
+                else stack.appendChild(geometryOverlay);
               }
             }
             if (partPlan.fallbacks.length > 0) {
@@ -503,17 +577,23 @@
                   );
                 }
               }
-              stack.append(startOverlay);
+              if (composite) appendSvgLayer(composite, startOverlay, size);
+              else stack.append(startOverlay);
             }
           }
           if (plan.fallbackMatches.length > 0) {
-            const allowedRootIds = new Set(plan.fallbackMatches.map(match => match.rootId));
-            const startOverlay = prepareOverlaySvg(await this.store.instantiate(scene.frames[segment.startFrame]), allowedRootIds);
-            const endOverlay = prepareOverlaySvg(await this.store.instantiate(scene.frames[segment.endFrame]), allowedRootIds);
-            startOverlay.classList.add("kino-stage-overlay", "kino-stage-overlay-start");
-            endOverlay.classList.add("kino-stage-overlay", "kino-stage-overlay-end");
-
             for (const match of plan.fallbackMatches) {
+              const allowedRootIds = new Set([match.rootId]);
+              const startOverlay = prepareOverlaySvg(
+                await this.store.instantiate(scene.frames[segment.startFrame]),
+                allowedRootIds,
+              );
+              const endOverlay = prepareOverlaySvg(
+                await this.store.instantiate(scene.frames[segment.endFrame]),
+                allowedRootIds,
+              );
+              startOverlay.classList.add("kino-stage-overlay", "kino-stage-overlay-start");
+              endOverlay.classList.add("kino-stage-overlay", "kino-stage-overlay-end");
               hideElementsById(startOverlay, match.matchedPartIds || []);
               hideElementsById(endOverlay, match.matchedPartIds || []);
               const startRoot = startOverlay.querySelector(morphSelector(match.rootId));
@@ -539,9 +619,17 @@
                   fallbackOpacity.end,
                 );
               }
+              const hasMatchedParts = match.matchedPartIds && match.matchedPartIds.length > 0;
+              const composite = hasMatchedParts
+                ? ensureRootComposite(baseSvg, plan, match.rootId)
+                : null;
+              if (composite) {
+                appendSvgLayer(composite, startOverlay, size);
+                appendSvgLayer(composite, endOverlay, size);
+              } else {
+                stack.append(startOverlay, endOverlay);
+              }
             }
-
-            stack.append(startOverlay, endOverlay);
           }
           if (plan.enteringFallbacks.length > 0) {
             const allowedRootIds = new Set(plan.enteringFallbacks.map(match => match.rootId));
