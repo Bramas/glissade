@@ -9,6 +9,7 @@
     interpolateRect,
     rectTransform,
     morphSelector,
+    smoothRate,
     sceneKeyframes,
     segmentForFrame,
     planGeometryMorph,
@@ -175,6 +176,22 @@
   function rootHasRenderableContent(root) {
     if (!root) return false;
     return root.querySelector("path, use") !== null;
+  }
+
+  function drawProgressForRoot(scene, rootId, frameIndex, fallback) {
+    const animations = (scene.morphAnimations || [])
+      .filter(item => item.id === rootId && isDrawEffect(item.effect))
+      .sort((left, right) => left.start_frame - right.start_frame);
+    if (animations.length === 0) return fallback;
+    const active = animations.find(item => (
+      frameIndex >= item.start_frame && frameIndex <= item.end_frame
+    ));
+    if (active) {
+      const span = active.end_frame - active.start_frame;
+      const linear = span > 0 ? (frameIndex - active.start_frame) / span : 1;
+      return smoothRate(linear);
+    }
+    return frameIndex < animations[0].start_frame ? 0 : 1;
   }
 
   function rootPlanForMatch(match, startRootElement, endRootElement) {
@@ -418,7 +435,17 @@
             }
           }
           if (plan.drawPlans.length > 0) {
-            const drawOverlay = makeDrawOverlay(size, plan.drawPlans, segment.progress);
+            const drawOverlay = makeDrawOverlay(
+              size,
+              plan.drawPlans,
+              segment.progress,
+              (drawPlan, fallback) => drawProgressForRoot(
+                scene,
+                drawPlan.rootId,
+                frameIndex,
+                fallback,
+              ),
+            );
             if (drawOverlay) {
               stack.appendChild(drawOverlay);
             }

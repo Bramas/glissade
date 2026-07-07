@@ -291,13 +291,14 @@
     return svg;
   }
 
-  function makeDrawOverlay(size, plans, progress) {
+  function makeDrawOverlay(size, plans, progress, progressForPlan = null) {
     if (plans.length === 0) return null;
     const svg = document.createElementNS(SVG_NS, "svg");
     svg.setAttribute("class", "kino-stage-frame kino-stage-overlay kino-stage-overlay-draw");
     svg.setAttribute("viewBox", "0 0 " + size.width + " " + size.height);
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     for (const plan of plans) {
+      const planProgress = progressForPlan ? progressForPlan(plan, progress) : progress;
       const group = document.createElementNS(SVG_NS, "g");
       group.setAttribute("data-kino-generated-draw", plan.rootId);
       // Match Manim Write's default submobject timing. Its lag ratio describes
@@ -308,7 +309,7 @@
         : 0;
       const fullLength = 1 + (plan.paths.length - 1) * lagRatio;
       for (const [pathIndex, pathPlan] of plan.paths.entries()) {
-        const pathProgress = clamp(progress * fullLength - pathIndex * lagRatio, 0, 1);
+        const pathProgress = clamp(planProgress * fullLength - pathIndex * lagRatio, 0, 1);
         const borderProgress = smoothRate(clamp(pathProgress / 0.5, 0, 1));
         const fillProgress = smoothRate(clamp((pathProgress - 0.5) / 0.5, 0, 1));
         const temporaryStrokeFade = fillProgress;

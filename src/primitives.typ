@@ -115,10 +115,21 @@
     if kind == "init" {
       timeline = _add(timeline, 0, operation.args, 0, 1, 0, "linear", none, "append")
     } else if kind == "animate" {
-      let block = if operation.block < 0 { maximum } else { operation.block }
+      let implicit-block = operation.block < 0
+      let block = if implicit-block { maximum } else { operation.block }
       current = block
-      timeline = _add(timeline, block, operation.args, operation.hold, operation.duration, operation.dwell, operation.transition, operation.morph-effect, "append")
-      maximum = if operation.block < 0 { maximum + 1 } else { maximum }
+      timeline = _add(
+        timeline,
+        block,
+        operation.args,
+        operation.hold,
+        operation.duration,
+        operation.dwell,
+        operation.transition,
+        operation.morph-effect,
+        if implicit-block { "append" } else { "place" },
+      )
+      maximum = if implicit-block { maximum + 1 } else { maximum }
     } else if kind in ("meanwhile", "then") {
       timeline = _add(timeline, current, operation.args, operation.hold, operation.duration, operation.dwell, operation.transition, operation.morph-effect, if kind == "meanwhile" { "place" } else { "append" })
     } else if kind == "wait" {

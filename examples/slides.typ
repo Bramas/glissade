@@ -152,20 +152,19 @@
 )[
   #slide-heading[Draw border then fill]
 
+  #create(draw-state: [
+    #cetz.canvas({
+      import cetz.draw: *
+      circle((0pt, 0pt), radius: 70pt, fill: green, stroke: 3pt + green.darken(70%))
+    })
+  ], block:1, morph-effect: "draw-border-then-fill")
 
   #create(draw-state2: [
     #cetz.canvas({
       import cetz.draw: *
       content((0pt, 0pt), text(stroke:red.darken(70%), red, 64pt)[*HELLO !*])
     })
-  ], duration:3, morph-effect: "draw-border-then-fill")
-
-  #create(draw-state: [
-    #cetz.canvas({
-      import cetz.draw: *
-      circle((0pt, 0pt), radius: 70pt, fill: green, stroke: 3pt + green.darken(70%))
-    })
-  ], morph-effect: "draw-border-then-fill")
+  ], block:1, duration:3, morph-effect: "draw-border-then-fill")
 
   #context {
     align(center, kino-morph("draw-state", id: "circle-create"))

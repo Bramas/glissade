@@ -568,6 +568,36 @@ def _transition_effect_for_frame(name_dict, block, time_value):
     return active
 
 
+def _morph_animations(morph_specs, variables, blocks, fps):
+    block_by_index = {int(block["index"]): block for block in blocks}
+    animations = []
+    for morph in morph_specs:
+        state = morph.get("state")
+        morph_id = morph.get("id")
+        if state is None or morph_id is None:
+            continue
+        for block_key, entries in variables.get(str(state), {}).items():
+            if not str(block_key).isdigit() or int(block_key) == 0:
+                continue
+            block = block_by_index.get(int(block_key))
+            if block is None:
+                continue
+            for entry in entries:
+                if len(entry) < 6 or entry[5] is None:
+                    continue
+                _, hold, duration, _, _, effect = entry
+                start_frame = int(block["start_frame"]) + int(round(fps * hold))
+                end_frame = start_frame + int(round(fps * duration))
+                animations.append({
+                    "id": str(morph_id).removeprefix(svg_tagger.MORPH_ID_PREFIX),
+                    "state": str(state),
+                    "effect": str(effect),
+                    "start_frame": start_frame,
+                    "end_frame": end_frame,
+                })
+    return animations
+
+
 def _extract_slide_variables(metadata):
     variables = {}
     pending_slide_id = None
@@ -780,6 +810,12 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
             "keyframes": _scene_keyframes(
                 blocks,
                 len(frames) if should_compile else timeline.get("frames", 0),
+            ),
+            "morphAnimations": _morph_animations(
+                slide_morph_specs.get(slide_id, []),
+                slide_variables.get(slide_id, {}),
+                blocks,
+                timeline.get("fps", args.fps),
             ),
         })
     return manifest
