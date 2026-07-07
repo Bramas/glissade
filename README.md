@@ -136,7 +136,7 @@ Create a file `slides.typ` with the following content:
 // Used by a standard `typst compile slides.typ`.
 #show: deck.with(fps: 6)
 
-#slide(id: "hello", title: "Hello Kino")[
+#slide(title: "Hello Kino")[
   #init(width: 1cm)
   #animate(width: 8cm)
   #cut()
@@ -148,7 +148,7 @@ Create a file `slides.typ` with the following content:
   #finish()
 ]
 
-#slide(id: "goodbye", title: "Shared definitions")[
+#slide(title: "Shared definitions")[
   The second slide can use #text(fill: shared-color)[global definitions].
   #finish()
 ]
@@ -158,11 +158,14 @@ Plain Typst value animations now use `smooth` as their default transition.
 You can still override any animation with another transition such as
 `transition: "linear"` or `transition: "sin"`.
 
-Kino compiles each logical slide independently and caches it by its stable
-`id`. During live preview, only the selected slide is expanded into SVG frames.
+Kino compiles each logical slide independently and caches it by ID. A slide
+with title `"Hello Kino"` receives the generated ID `hello-kino`; repeated
+titles receive suffixes such as `hello-kino-2`. Untitled slides use `slide-1`,
+`slide-2`, and so on. Set an explicit `id` when links must remain stable after
+renaming a title. During live preview, only the selected slide is expanded into SVG frames.
 Place the `deck` show rule after global page/text configuration and shared
 definitions. Its `fps` value is the default for a standard Typst PDF build;
-individual `slide` calls can override it with their own `fps` argument ( `#slide(id: "special", fps: 12)[...]` ).
+individual `slide` calls can override it with their own `fps` argument (`#slide(fps: 12)[...]`).
 
 Packages whose counters occur inside animated content can opt into counter
 freezing. For example, with Theorion:

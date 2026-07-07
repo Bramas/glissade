@@ -17,7 +17,6 @@
 #show: deck.with(fps: 1)
 
 #slide(
-  id: "moving-line",
   title: "A global theorem counter",
   frozen-counters: (theorem-counter,),
 )[
@@ -40,7 +39,6 @@
 ]
 
 #slide(
-  id: "shrinking-circle",
   title: "Shared definitions",
   frozen-counters: (theorem-counter,),
 )[
@@ -61,12 +59,7 @@
 ]
 
 
-
-
-
-
 #slide(
-  id: "shrinking-circle-2",
   title: "Shared definitions 2",
   frozen-counters: (theorem-counter,),
 )[
@@ -107,22 +100,24 @@
 #import "@preview/mannot:0.4.0": *
 
 #slide(
-  id: "matching-formula",
   title: "Matching formula parts",
 )[
   #slide-heading[Formula parts move into place]
 
-  #init(formula-state: $part(a) = "out" = part(a, key: "a_2") = part(b)$)
+  We can write formulas indicating where are specific parts of the formula. Then, the formula can be animated and the parts will move into place:
+
+  #create(formula-state: $part(a) = "out" = part(a, key: "a_2") = part(b)$)
   #animate(formula-state: $1 / part(a) = "out" = part(a, key: "a_2") = part(b) / (1+c)$)
  
-  #context [
+  #align(center, context [
     #kino-morph("formula-state")
-  ]
+  ])
+
+  In the formula above, "= out =" is not a marked part so it will fade out and in during the animation. $a$ and $b$ are marked parts so they will move into place.
   #finish()
 ]
 
 #slide(
-  id: "shape-morph",
   title: "Morph arbitrary shapes",
 )[
   #slide-heading[Circle to square]
@@ -139,15 +134,29 @@
       rect((-65pt, -65pt), (65pt, 65pt), fill: red)
     })
   ])
+  #init(x: 0.0)
+  #animate(x: 4, duration: 2)
+  #init(sc: 1.0)
+  #animate(sc: 2.0, duration: 2, block:2)
 
   #context {
-    align(center, kino-morph("shape-state"))
+    cetz.canvas({
+      import cetz.draw: *
+      content((0,0), kino-morph("shape-state"))
+
+      if a("x") > 0 {
+        group({
+          scale(a("sc"))
+          translate((a("x"), -a("x")))
+          rect((-65pt, -65pt), (65pt, 65pt), fill: red)
+        })
+      }
+    })
   }
   #finish()
 ]
 
 #slide(
-  id: "shape-create",
   title: "Draw shapes into view",
 )[
   #slide-heading[Draw border then fill]

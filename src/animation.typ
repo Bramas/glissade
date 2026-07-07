@@ -338,16 +338,35 @@
   }
 }
 
+#let _generated-slide-id(item, index) = {
+  if item.id != auto {
+    str(item.id)
+  } else if type(item.title) == str {
+    let slug = lower(item.title).replace(regex("[^a-z0-9]+"), "-").trim("-")
+    if slug == "" { "slide-" + str(index) } else { slug }
+  } else {
+    "slide-" + str(index)
+  }
+}
+
 /// Renders all collected slides. Use as `#show: deck.with(fps: 6)` to set the
 /// default frame rate used by an ordinary `typst compile`.
 #let deck(body, fps: 5) = {
   let definitions = _collect-slides(body)
-  definitions = definitions.enumerate().map(((offset, item)) => {
-    item.id = if item.id == auto { str(offset + 1) } else { str(item.id) }
-    item
-  })
-  let ids = definitions.map(item => item.id)
-  assert(ids.dedup().len() == ids.len(), message: "duplicate Kino slide id")
+  let normalized = ()
+  let used-ids = (:)
+  for (offset, item) in definitions.enumerate() {
+    let base = _generated-slide-id(item, offset + 1)
+    let occurrences = used-ids.at(base, default: 0)
+    if item.id != auto {
+      assert(occurrences == 0, message: "duplicate Kino slide id: " + base)
+    }
+    occurrences += 1
+    used-ids.insert(base, occurrences)
+    item.id = if occurrences == 1 { base } else { base + "-" + str(occurrences) }
+    normalized.push(item)
+  }
+  definitions = normalized
 
   // Phase one is embedded invisibly into the first rendered page so timeline
   // registration cannot create a leading blank page.

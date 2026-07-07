@@ -97,6 +97,22 @@
     }
   }
 
+  function safeGlobalBBox(element) {
+    try {
+      const box = element.getBBox();
+      const matrix = element.getCTM?.();
+      if (!matrix) return { x: box.x, y: box.y, width: box.width, height: box.height };
+      return boundsFromPoints([
+        transformPoint(matrix, box.x, box.y),
+        transformPoint(matrix, box.x + box.width, box.y),
+        transformPoint(matrix, box.x, box.y + box.height),
+        transformPoint(matrix, box.x + box.width, box.y + box.height),
+      ]);
+    } catch {
+      return { x: 0, y: 0, width: 0, height: 0 };
+    }
+  }
+
   function interpolateRect(start, end, t) {
     return {
       x: lerp(start.x, end.x, t),
@@ -112,6 +128,17 @@
     const translateX = toRect.x - fromRect.x * scaleX;
     const translateY = toRect.y - fromRect.y * scaleY;
     return "matrix(" + [scaleX, 0, 0, scaleY, translateX, translateY].join(" ") + ")";
+  }
+
+  function rectTranslationForElement(element, fromRect, toRect) {
+    const globalX = toRect.x + toRect.width / 2 - (fromRect.x + fromRect.width / 2);
+    const globalY = toRect.y + toRect.height / 2 - (fromRect.y + fromRect.height / 2);
+    const parentMatrix = element.parentElement?.getCTM?.();
+    if (!parentMatrix?.inverse) return "translate(" + globalX + " " + globalY + ")";
+    const inverse = parentMatrix.inverse();
+    const localX = inverse.a * globalX + inverse.c * globalY;
+    const localY = inverse.b * globalX + inverse.d * globalY;
+    return "translate(" + formatNumber(localX) + " " + formatNumber(localY) + ")";
   }
 
   function morphSelector(id) {
@@ -155,8 +182,10 @@
     decodeDataUri,
     intrinsicSize,
     safeBBox,
+    safeGlobalBBox,
     interpolateRect,
     rectTransform,
+    rectTranslationForElement,
     morphSelector,
     sceneKeyframes,
     segmentForFrame,

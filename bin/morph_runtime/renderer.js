@@ -6,8 +6,10 @@
     decodeDataUri,
     intrinsicSize,
     safeBBox,
+    safeGlobalBBox,
     interpolateRect,
     rectTransform,
+    rectTranslationForElement,
     morphSelector,
     smoothRate,
     sceneKeyframes,
@@ -37,7 +39,7 @@
         parts.set(key, {
           key,
           elementId: part.id,
-          bbox: safeBBox(part),
+          bbox: safeGlobalBBox(part),
         });
       });
       roots.set(rootId, {
@@ -468,7 +470,11 @@
                 const targetBox = interpolateRect(fallback.startBox, fallback.endBox, segment.progress);
                 const startPart = startOverlay.querySelector(elementSelector(fallback.startId));
                 if (startPart) {
-                  wrapMorphRoot(startPart, rectTransform(fallback.startBox, targetBox), 1);
+                  wrapMorphRoot(
+                    startPart,
+                    rectTranslationForElement(startPart, fallback.startBox, targetBox),
+                    1,
+                  );
                 }
               }
               stack.append(startOverlay);

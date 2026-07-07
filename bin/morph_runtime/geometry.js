@@ -90,8 +90,7 @@
     return clamp(Math.round(length / 6), SAMPLE_COUNT_MIN, SAMPLE_COUNT_MAX);
   }
 
-  function toSvgSpace(path, point) {
-    const matrix = path.getCTM();
+  function toSvgSpace(matrix, point) {
     if (!matrix) {
       return { x: point.x, y: point.y };
     }
@@ -99,7 +98,7 @@
     return { x: mapped.x, y: mapped.y };
   }
 
-  function samplePath(path, count) {
+  function samplePath(path, count, matrix) {
     const totalLength = pathLength(path);
     if (totalLength <= 0) {
       return [{ x: 0, y: 0 }];
@@ -108,7 +107,7 @@
     const steps = Math.max(1, count - 1);
     for (let index = 0; index < count; index += 1) {
       const point = path.getPointAtLength(totalLength * index / steps);
-      points.push(toSvgSpace(path, point));
+      points.push(toSvgSpace(matrix, point));
     }
     return points;
   }
@@ -135,8 +134,84 @@
     return points;
   }
 
-  function elementHasVisibleUses(root) {
-    return root.querySelector("use") !== null;
+  function tokenizePathData(data) {
+    return data.match(/[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g) || [];
+  }
+
+  function planCompatiblePathData(startData, endData) {
+    const startTokens = tokenizePathData(startData);
+    const endTokens = tokenizePathData(endData);
+    if (startTokens.length === 0 || startTokens.length !== endTokens.length) return null;
+    const commands = [];
+    const startNumbers = [];
+    const endNumbers = [];
+    for (let index = 0; index < startTokens.length; index += 1) {
+      const startCommand = /^[a-zA-Z]$/.test(startTokens[index]);
+      const endCommand = /^[a-zA-Z]$/.test(endTokens[index]);
+      if (startCommand || endCommand) {
+        if (!startCommand || !endCommand || startTokens[index] !== endTokens[index]) return null;
+        commands.push({ index, value: startTokens[index] });
+      } else {
+        startNumbers.push(parseNumeric(startTokens[index]));
+        endNumbers.push(parseNumeric(endTokens[index]));
+      }
+    }
+    return { tokenCount: startTokens.length, commands, startNumbers, endNumbers };
+  }
+
+  function interpolatePathData(plan, progress) {
+    const commandByIndex = new Map(plan.commands.map(item => [item.index, item.value]));
+    const tokens = [];
+    let numberIndex = 0;
+    for (let index = 0; index < plan.tokenCount; index += 1) {
+      const command = commandByIndex.get(index);
+      if (command) {
+        tokens.push(command);
+      } else {
+        tokens.push(String(formatNumber(lerp(
+          plan.startNumbers[numberIndex],
+          plan.endNumbers[numberIndex],
+          progress,
+        ))));
+        numberIndex += 1;
+      }
+    }
+    return tokens.join(" ");
+  }
+
+  function interpolateMatrix(start, end, progress) {
+    if (!start || !end) return null;
+    return {
+      a: lerp(start.a, end.a, progress),
+      b: lerp(start.b, end.b, progress),
+      c: lerp(start.c, end.c, progress),
+      d: lerp(start.d, end.d, progress),
+      e: lerp(start.e, end.e, progress),
+      f: lerp(start.f, end.f, progress),
+    };
+  }
+
+  function boundsForPoints(points) {
+    const xs = points.map(point => point.x);
+    const ys = points.map(point => point.y);
+    const x = Math.min(...xs);
+    const y = Math.min(...ys);
+    return {
+      x,
+      y,
+      width: Math.max(...xs) - x,
+      height: Math.max(...ys) - y,
+    };
+  }
+
+  function transformToBounds(startTransform, startBounds, endBounds) {
+    if (!startTransform || startBounds.width <= 0 || startBounds.height <= 0) return null;
+    const scaleX = endBounds.width / startBounds.width;
+    const scaleY = endBounds.height / startBounds.height;
+    const translateX = endBounds.x - startBounds.x * scaleX;
+    const translateY = endBounds.y - startBounds.y * scaleY;
+    const boundsTransform = new DOMMatrix([scaleX, 0, 0, scaleY, translateX, translateY]);
+    return boundsTransform.multiply(startTransform);
   }
 
   function collectRenderablePaths(root) {
@@ -152,40 +227,74 @@
     return /[zZ]\s*$/.test(data.trim());
   }
 
-  function planPathPair(startPath, endPath) {
+  function collectGeometryEntries(root) {
+    const entries = collectRenderablePaths(root).map(path => ({
+      element: path,
+      path,
+    }));
+    for (const use of root.querySelectorAll("use")) {
+      const path = referencedPathForUse(use, root);
+      if (path) entries.push({ element: use, path });
+    }
+    return entries;
+  }
+
+  function planPathPair(startEntry, endEntry) {
+    const startPath = startEntry.path;
+    const endPath = endEntry.path;
+    const startElement = startEntry.element;
+    const endElement = endEntry.element;
     const count = sampleCountForPair(startPath, endPath);
+    const startTransform = drawElementTransform(startElement);
+    const endTransform = drawElementTransform(endElement);
+    const startPoints = samplePath(startPath, count, startTransform);
+    const endPoints = samplePath(endPath, count, endTransform);
+    const startData = startPath.getAttribute("d") || "";
+    const endData = endPath.getAttribute("d") || "";
+    const directPathPlan = planCompatiblePathData(
+      startData,
+      endData,
+    );
+    const sameGlyphCandidate = startElement.localName === "use"
+      && endElement.localName === "use"
+      && tokenizePathData(startData).length === tokenizePathData(endData).length;
     return {
-      startPoints: samplePath(startPath, count),
-      endPoints: samplePath(endPath, count),
+      directPathPlan,
+      affinePathData: !directPathPlan && sameGlyphCandidate ? startData : null,
+      startTransform,
+      endTransform: !directPathPlan && sameGlyphCandidate
+        ? transformToBounds(startTransform, boundsForPoints(startPoints), boundsForPoints(endPoints))
+        : endTransform,
+      startPoints,
+      endPoints,
       closed: isClosedPath(startPath) || isClosedPath(endPath),
-      fillRule: endPath.getAttribute("fill-rule") || startPath.getAttribute("fill-rule") || "nonzero",
-      lineCap: endPath.getAttribute("stroke-linecap") || startPath.getAttribute("stroke-linecap") || "butt",
-      lineJoin: endPath.getAttribute("stroke-linejoin") || startPath.getAttribute("stroke-linejoin") || "miter",
-      miterLimit: endPath.getAttribute("stroke-miterlimit") || startPath.getAttribute("stroke-miterlimit") || "4",
-      fillStart: parseColor(startPath.getAttribute("fill")),
-      fillEnd: parseColor(endPath.getAttribute("fill")),
-      strokeStart: parseColor(startPath.getAttribute("stroke")),
-      strokeEnd: parseColor(endPath.getAttribute("stroke")),
-      strokeWidthStart: parseNumeric(startPath.getAttribute("stroke-width"), 0),
-      strokeWidthEnd: parseNumeric(endPath.getAttribute("stroke-width"), 0),
-      opacityStart: parseNumeric(startPath.getAttribute("opacity"), 1),
-      opacityEnd: parseNumeric(endPath.getAttribute("opacity"), 1),
-      fillOpacityStart: parseNumeric(startPath.getAttribute("fill-opacity"), 1),
-      fillOpacityEnd: parseNumeric(endPath.getAttribute("fill-opacity"), 1),
-      strokeOpacityStart: parseNumeric(startPath.getAttribute("stroke-opacity"), 1),
-      strokeOpacityEnd: parseNumeric(endPath.getAttribute("stroke-opacity"), 1),
+      fillRule: paintAttribute(endElement, endPath, "fill-rule") || paintAttribute(startElement, startPath, "fill-rule") || "nonzero",
+      lineCap: paintAttribute(endElement, endPath, "stroke-linecap") || paintAttribute(startElement, startPath, "stroke-linecap") || "butt",
+      lineJoin: paintAttribute(endElement, endPath, "stroke-linejoin") || paintAttribute(startElement, startPath, "stroke-linejoin") || "miter",
+      miterLimit: paintAttribute(endElement, endPath, "stroke-miterlimit") || paintAttribute(startElement, startPath, "stroke-miterlimit") || "4",
+      fillStart: parseColor(paintAttribute(startElement, startPath, "fill")),
+      fillEnd: parseColor(paintAttribute(endElement, endPath, "fill")),
+      strokeStart: parseColor(paintAttribute(startElement, startPath, "stroke")),
+      strokeEnd: parseColor(paintAttribute(endElement, endPath, "stroke")),
+      strokeWidthStart: parseNumeric(paintAttribute(startElement, startPath, "stroke-width"), 0),
+      strokeWidthEnd: parseNumeric(paintAttribute(endElement, endPath, "stroke-width"), 0),
+      opacityStart: parseNumeric(paintAttribute(startElement, startPath, "opacity"), 1),
+      opacityEnd: parseNumeric(paintAttribute(endElement, endPath, "opacity"), 1),
+      fillOpacityStart: parseNumeric(paintAttribute(startElement, startPath, "fill-opacity"), 1),
+      fillOpacityEnd: parseNumeric(paintAttribute(endElement, endPath, "fill-opacity"), 1),
+      strokeOpacityStart: parseNumeric(paintAttribute(startElement, startPath, "stroke-opacity"), 1),
+      strokeOpacityEnd: parseNumeric(paintAttribute(endElement, endPath, "stroke-opacity"), 1),
     };
   }
 
   function planGeometryMorph(planId, startRoot, endRoot) {
     if (!startRoot || !endRoot) return null;
-    if (elementHasVisibleUses(startRoot) || elementHasVisibleUses(endRoot)) return null;
-    const startPaths = collectRenderablePaths(startRoot);
-    const endPaths = collectRenderablePaths(endRoot);
-    if (startPaths.length === 0 || startPaths.length !== endPaths.length) return null;
+    const startEntries = collectGeometryEntries(startRoot);
+    const endEntries = collectGeometryEntries(endRoot);
+    if (startEntries.length === 0 || startEntries.length !== endEntries.length) return null;
     return {
       rootId: planId,
-      paths: startPaths.map((path, index) => planPathPair(path, endPaths[index])),
+      paths: startEntries.map((entry, index) => planPathPair(entry, endEntries[index])),
     };
   }
 
@@ -273,7 +382,19 @@
       group.setAttribute("data-kino-generated-morph", plan.rootId);
       for (const pathPlan of plan.paths) {
         const path = document.createElementNS(SVG_NS, "path");
-        path.setAttribute("d", pointsToPathData(interpolatePoints(pathPlan.startPoints, pathPlan.endPoints, progress), pathPlan.closed));
+        if (pathPlan.directPathPlan || pathPlan.affinePathData) {
+          path.setAttribute("d", pathPlan.directPathPlan
+            ? interpolatePathData(pathPlan.directPathPlan, progress)
+            : pathPlan.affinePathData);
+          const transform = matrixToAttribute(interpolateMatrix(
+            pathPlan.startTransform,
+            pathPlan.endTransform,
+            progress,
+          ));
+          if (transform) path.setAttribute("transform", transform);
+        } else {
+          path.setAttribute("d", pointsToPathData(interpolatePoints(pathPlan.startPoints, pathPlan.endPoints, progress), pathPlan.closed));
+        }
         path.setAttribute("fill", interpolateColor(pathPlan.fillStart, pathPlan.fillEnd, progress));
         path.setAttribute("stroke", interpolateColor(pathPlan.strokeStart, pathPlan.strokeEnd, progress));
         path.setAttribute("stroke-width", String(formatNumber(lerp(pathPlan.strokeWidthStart, pathPlan.strokeWidthEnd, progress))));
