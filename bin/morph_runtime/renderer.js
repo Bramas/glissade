@@ -4,6 +4,7 @@
     SVG_NS,
     parseSvgMarkup,
     decodeDataUri,
+    decompressGzip,
     intrinsicSize,
     inverseParentTransform,
     safeBBox,
@@ -341,11 +342,14 @@
     async loadText(source) {
       if (!this.textCache.has(source)) {
         this.textCache.set(source, (async () => {
-          const inline = decodeDataUri(source);
+          const inline = await decodeDataUri(source);
           if (inline !== null) return inline;
           const response = await fetch(source);
           if (!response.ok) {
             throw new Error("Failed to load frame " + source + ": " + response.status);
+          }
+          if (source.split("?", 1)[0].endsWith(".svg.gz")) {
+            return decompressGzip(new Uint8Array(await response.arrayBuffer()));
           }
           return response.text();
         })());

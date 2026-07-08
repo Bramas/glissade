@@ -56,10 +56,27 @@
     return svg;
   }
 
-  function decodeDataUri(source) {
-    const prefix = "data:image/svg+xml;base64,";
-    if (!source.startsWith(prefix)) return null;
-    return atob(source.slice(prefix.length));
+  function base64Bytes(encoded) {
+    const binary = atob(encoded);
+    return Uint8Array.from(binary, character => character.charCodeAt(0));
+  }
+
+  async function decompressGzip(bytes) {
+    if (typeof DecompressionStream === "undefined") {
+      throw new Error("Compressed Kino frames require browser support for DecompressionStream");
+    }
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    return new Response(stream).text();
+  }
+
+  async function decodeDataUri(source) {
+    const svgPrefix = "data:image/svg+xml;base64,";
+    if (source.startsWith(svgPrefix)) return atob(source.slice(svgPrefix.length));
+    const gzipPrefix = "data:application/gzip;base64,";
+    if (source.startsWith(gzipPrefix)) {
+      return decompressGzip(base64Bytes(source.slice(gzipPrefix.length)));
+    }
+    return null;
   }
 
   function intrinsicSize(svg) {
@@ -202,6 +219,7 @@
     inverseParentTransform,
     parseSvgMarkup,
     decodeDataUri,
+    decompressGzip,
     intrinsicSize,
     safeBBox,
     safeGlobalBBox,

@@ -8,6 +8,7 @@
 from string import Template
 import argparse
 import base64
+import gzip
 import importlib.util
 import json
 import math
@@ -188,6 +189,20 @@ Examples:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="embed SVG frames as base64 in HTML (default: True, set to False for external files)"
+    )
+
+    html_parser.add_argument(
+        "--minify-svg",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="remove insignificant whitespace from exported SVG frames (default: enabled)"
+    )
+
+    html_parser.add_argument(
+        "--compress-frames",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="gzip SVG frames and decompress them lazily in the browser (default: enabled)"
     )
 
     html_parser.add_argument(
@@ -841,6 +856,13 @@ def handle_html(args):
     try:
         with tempfile.TemporaryDirectory() as temporary_directory:
             manifest = compile_svg_project(args, temporary_directory)
+
+            if args.minify_svg:
+                for frame_path in Path(temporary_directory).glob("slide-*-frame-*.svg"):
+                    frame_path.write_text(
+                        svg_tagger.minify_svg(frame_path.read_text(encoding="utf-8")),
+                        encoding="utf-8",
+                    )
             
             if args.embed_frames:
                 # Embed frames as base64
@@ -849,13 +871,21 @@ def handle_html(args):
                     for frame_url in scene["frames"]:
                         frame_name = urlparse(frame_url).path.removeprefix("/frames/")
                         frame_path = Path(temporary_directory) / frame_name
-                        encoded = base64.b64encode(frame_path.read_bytes()).decode("ascii")
-                        embedded_frames.append("data:image/svg+xml;base64," + encoded)
+                        frame_bytes = frame_path.read_bytes()
+                        if args.compress_frames:
+                            frame_bytes = gzip.compress(frame_bytes, compresslevel=9, mtime=0)
+                            media_type = "application/gzip"
+                        else:
+                            media_type = "image/svg+xml"
+                        encoded = base64.b64encode(frame_bytes).decode("ascii")
+                        embedded_frames.append(f"data:{media_type};base64," + encoded)
                     scene["frames"] = embedded_frames
             else:
                 # Copy SVG files to frames directory
                 frames_dir.mkdir(parents=True, exist_ok=True)
                 for stale_frame in frames_dir.glob("slide-*-frame-*.svg"):
+                    stale_frame.unlink()
+                for stale_frame in frames_dir.glob("slide-*-frame-*.svg.gz"):
                     stale_frame.unlink()
                 
                 for scene in manifest["scenes"]:
@@ -863,9 +893,14 @@ def handle_html(args):
                     for frame_url in scene["frames"]:
                         frame_name = urlparse(frame_url).path.removeprefix("/frames/")
                         frame_path = Path(temporary_directory) / frame_name
+                        if args.compress_frames:
+                            frame_name += ".gz"
                         dest_path = frames_dir / frame_name
                         # Copy SVG file
-                        dest_path.write_bytes(frame_path.read_bytes())
+                        frame_bytes = frame_path.read_bytes()
+                        if args.compress_frames:
+                            frame_bytes = gzip.compress(frame_bytes, compresslevel=9, mtime=0)
+                        dest_path.write_bytes(frame_bytes)
                         # Use relative path from HTML file location
                         external_frames.append(f"frames/{frame_name}")
                     scene["frames"] = external_frames

@@ -40,6 +40,16 @@ Generate a self-contained presentation with:
 python3 bin/kino.py --root . examples/slides.typ html --fps 24
 ```
 
+SVG frames are minified and gzip-compressed by default. Compressed frames are
+decompressed lazily and cached by the presentation runtime:
+
+```bash
+python3 bin/kino.py --root . examples/slides.typ html --fps 24
+```
+
+Use `--no-minify-svg` or `--no-compress-frames` to inspect the generated SVGs
+or target a browser without `DecompressionStream` support.
+
 The generated HTML includes the presentation runtime and SVG frames in a
 single file. Animations remain resolution-independent, so
 neither reveal.js nor ffmpeg is needed. Right starts or continues playback and

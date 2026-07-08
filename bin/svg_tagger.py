@@ -234,6 +234,17 @@ def tag_svg_groups(
     return ET.tostring(root, encoding="unicode")
 
 
+def minify_svg(svg_content: str) -> str:
+    """Remove formatting whitespace while preserving rendered text content."""
+    root = ET.fromstring(svg_content)
+    for element in root.iter():
+        if element.text is not None and element.text.isspace():
+            element.text = None
+        if element.tail is not None and element.tail.isspace():
+            element.tail = None
+    return ET.tostring(root, encoding="unicode")
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python3 svg_tagger.py <input.svg> [output.svg]")
