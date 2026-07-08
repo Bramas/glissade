@@ -180,6 +180,20 @@ Place the `deck` show rule after global page/text configuration and shared
 definitions. Its `fps` value is the default for a standard Typst PDF build;
 individual `slide` calls can override it with their own `fps` argument (`#slide(fps: 12)[...]`).
 
+## Web asset build
+
+The readable presentation, editor, and runtime sources live under `web/`.
+Bun bundles and minifies them into the checked-in templates under `bin/assets/`:
+
+```bash
+bun run build
+```
+
+Use `bun run check` in CI to verify that the generated assets match their
+sources. Bun is only needed when developing Kino; normal exports use the
+packaged templates and remain Python-only. The `--template` option can still
+load a custom source or generated template.
+
 Packages whose counters occur inside animated content can opt into counter
 freezing. For example, with Theorion:
 

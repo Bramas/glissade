@@ -4,8 +4,9 @@
 *.mp4
 *.html
 !revealjs.html
-!bin/editor.html
-!bin/present.html
+!bin/assets/
+!bin/assets/*.html
+!web/**/*.html
 reveal.js-master/
 __pycache__/
 .DS_Store

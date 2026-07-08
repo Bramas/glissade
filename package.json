@@ -1,0 +1,8 @@
+{
+  "name": "kino-web-assets",
+  "private": true,
+  "scripts": {
+    "build": "bun run web/build.mjs",
+    "check": "bun run web/build.mjs --check"
+  }
+}

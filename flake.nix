@@ -20,6 +20,7 @@
             ruff
             mpv
             gifski
+            bun
           ];
         };
       });

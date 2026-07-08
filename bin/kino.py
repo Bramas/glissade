@@ -208,7 +208,7 @@ Examples:
     html_parser.add_argument(
         "--template",
         type=str,
-        default="bin/present.html",
+        default=str(Path(__file__).parent / "assets" / "present.min.html"),
         help="HTML presentation template"
     )
 
@@ -228,7 +228,7 @@ Examples:
     dev_parser.add_argument(
         "--template",
         type=str,
-        default="bin/editor.html",
+        default=str(Path(__file__).parent / "assets" / "editor.min.html"),
         help="editor HTML template"
     )
     dev_parser.set_defaults(func=handle_dev)
@@ -679,7 +679,7 @@ def _scene_keyframes(blocks, frame_count):
 
 
 def _read_morph_runtime_source():
-    runtime_dir = Path(__file__).parent / "morph_runtime"
+    runtime_dir = Path(__file__).parent.parent / "web" / "runtime"
     parts = [
         runtime_dir / "core.js",
         runtime_dir / "path_alignment.js",
@@ -837,9 +837,10 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
     return manifest
 
 def render_editor_template(template_path, title, manifest_source, live_reload):
-    runtime_source = _read_morph_runtime_source()
     with open(template_path, "r") as template_file:
-        template = Template(template_file.read())
+        template_source = template_file.read()
+    runtime_source = _read_morph_runtime_source() if "${morph_runtime_source}" in template_source else ""
+    template = Template(template_source)
     return template.substitute({
         "title": title,
         "manifest_source": manifest_source,
