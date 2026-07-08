@@ -92,12 +92,21 @@ def _between_marker_target(parent: ET.Element, start_marker: ET.Element, end_mar
         return None
     candidates = [
         child for child in children[start_index + 1:end_index]
-        if _local_name(child.tag) == "g" and _marker_kind(child) is None
+        if _marker_kind(child) is None and _has_visible_content(child)
     ]
-    for candidate in candidates:
-        if _has_visible_content(candidate):
-            return candidate
     return candidates[0] if candidates else None
+
+
+def _ensure_group(parent: ET.Element, target: ET.Element) -> ET.Element:
+    if _local_name(target.tag) == "g":
+        return target
+    namespace = target.tag.rsplit("}", 1)[0] + "}" if "}" in target.tag else ""
+    group = ET.Element(namespace + "g")
+    index = list(parent).index(target)
+    parent.remove(target)
+    group.append(target)
+    parent.insert(index, group)
+    return group
 
 
 def _remove_old_formula_ids(root: ET.Element) -> None:
@@ -145,6 +154,12 @@ def tag_svg_groups(
         parent = parent_map.get(element)
         if parent is None:
             continue
+        # Typst may wrap a marker in several single-child groups (notably for
+        # CeTZ content). Match using the outer wrapper that is a sibling of the
+        # marked drawing rather than the deeply nested transformed group.
+        while parent_map.get(parent) is not None and len(parent) == 1:
+            element = parent
+            parent = parent_map[parent]
 
         if kind == "morph-start":
             open_morph_start = (element, parent)
@@ -200,6 +215,7 @@ def tag_svg_groups(
         parent.remove(end_marker)
 
     for index, (target, start_marker, end_marker, parent) in enumerate(morph_targets):
+        target = _ensure_group(parent, target)
         if morph_specs is not None and index < len(morph_specs):
             morph = morph_specs[index]
             target.set("id", morph["id"])
@@ -241,5 +257,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-

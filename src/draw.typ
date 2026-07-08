@@ -7,6 +7,8 @@
   progress: progress,
 )
 
+#let _cetz-shape-interpolate(from, to, progress) = if progress < 1 { from } else { to }
+
 #let _part-marker-start-fill = rgb("#ff4fd8")
 #let _part-marker-end-fill = rgb("#00d5ff")
 #let _morph-marker-start-fill = rgb("#19c37d")
@@ -118,13 +120,25 @@
   parts: _collect-parts(body),
 )
 
+/// Wraps CeTZ drawing elements as a discrete Kino animation state.
+/// Render the state inside a CeTZ canvas with `kino-morph(name, cetz: content)`.
+#let cetz-shape(body) = {
+  assert(type(body) == array, message: "cetz-shape expects CeTZ drawing elements")
+  (
+    kino-type: "cetz-shape",
+    kino-interpolate: _cetz-shape-interpolate,
+    body: body,
+  )
+}
+
 /// Renders a semantic Kino value as ordinary Typst content.
 /// Formula states render their currently visible formula body.
-#let kino-morph(name, id: auto) = {
+#let kino-morph(name, id: auto, cetz: none) = {
   assert(type(name) == str, message: "kino-morph expects an animation state name")
   let value = a(name)
   let visible = _formula-frame(value)
-  let body = if type(visible) == dictionary and visible.at("kino-type", default: none) == "formula" {
+  let semantic-type = if type(visible) == dictionary { visible.at("kino-type", default: none) } else { none }
+  let body = if semantic-type in ("formula", "cetz-shape") {
     visible.body
   } else {
     value
@@ -132,11 +146,22 @@
   let effective-id = if id == auto { name } else { str(id) }
   let effect = animation-effect(name)
   let effective-effect = if effect == none { none } else { str(effect) }
-  metadata((
+  let root = metadata((
     kino-morph-root: true,
     id: effective-id,
     state: name,
     effect: effective-effect,
   ))
-  _wrap-morph(body)
+  if cetz != none {
+    assert(semantic-type == "cetz-shape", message: "the cetz option requires a cetz-shape state")
+    assert(type(cetz) == function, message: "cetz must be the CeTZ content drawing function")
+    (
+      ..cetz((0, 0), [#root #_morph-marker(_morph-marker-start-fill)]),
+      ..body,
+      ..cetz((0, 0), _morph-marker(_morph-marker-end-fill)),
+    )
+  } else {
+    root
+    _wrap-morph(body)
+  }
 }

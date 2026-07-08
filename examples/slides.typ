@@ -162,31 +162,118 @@ Your variables can be used in any package, including ctez. For instance:
 ]
 
 #slide(
+  title: "Draw border then fill",
+)[
+  #slide-heading[Draw border then fill]
+
+  You can draw a full cetz canvas in a state and animate its creation with kino-morph. The default morph-effect is "draw-border-then-fill" which will draw the border of the shapes and then fill them.
+
+  This also work with normal text.
+
+  #create(draw-state: [
+    #cetz.canvas({
+      import cetz.draw: *
+      circle((0pt, 0pt), radius: 70pt, fill: green, stroke: 3pt + green.darken(70%))
+    })
+  ], block:1, morph-effect: "draw-border-then-fill")
+
+  #create(draw-state2: text(stroke:red.darken(70%), red, 64pt)[*HELLO !*], 
+  block:2, duration:2, morph-effect: "draw-border-then-fill")
+
+  #grid(
+    columns: 2,
+    [
+#set text(16pt)
+```typst
+  #create(draw-state: [
+    #cetz.canvas({
+      import cetz.draw: *
+      circle((0pt, 0pt), radius: 70pt, fill: green, stroke: 3pt + green.darken(70%))
+    })
+  ], block:1, morph-effect: "draw-border-then-fill")
+
+  #create(draw-state2: text(stroke:red.darken(70%), red, 64pt)[*HELLO !*], 
+  block:2, duration:2, morph-effect: "draw-border-then-fill")
+
+  #context {
+    align(center, kino-morph("draw-state"))
+    align(center, kino-morph("draw-state2"))
+  }
+  
+#finish()
+```
+    ],[
+  #context {
+    align(center, kino-morph("draw-state"))
+    align(center, kino-morph("draw-state2"))
+  }
+  ])
+  #finish()
+]
+
+
+#slide(
   title: "Morph arbitrary shapes",
 )[
   #slide-heading[We can also morph arbitrary shapes]
 
-  #init(shape-state: [
-    #cetz.canvas({
-      import cetz.draw: *
-      circle((0pt, 0pt), radius: 65pt, fill: blue, stroke: 3pt + blue.darken(70%))
-    })
-  ])
-  #animate(shape-state: [
-    #cetz.canvas({
-      import cetz.draw: *
-      rect((-65pt, -65pt), (65pt, 65pt), fill: red, stroke: 3pt + red.darken(70%))
-    })
-  ])
+  Here we used a utililty function `cetz-shape`, but you can put an arbitrary cetz canvas or other object, kino-morph will try to morph it into the new one.
+
+  #init(shape-state: cetz-shape(
+    cetz.draw.circle((0pt, 0pt), radius: 65pt, fill: blue, stroke: 3pt + blue.darken(70%)),
+  ))
+  #animate(shape-state: cetz-shape(
+    cetz.draw.rect((-65pt, -65pt), (65pt, 65pt), fill: red, stroke: 3pt + red.darken(70%)),
+  ))
   #init(x: 0.0)
   #animate(x: 4, duration: 2)
   #init(sc: 1.0)
-  #animate(sc: 2.0, duration: 2, block:2)
+  #animate(sc: 2.0, duration: 2, block: 2)
 
+
+  #grid(
+    columns: 2,
+    [
+#set text(12pt)
+
+```typst
+  #init(shape-state: cetz-shape(
+    cetz.draw.circle((0pt, 0pt), radius: 65pt, 
+      fill: blue, stroke: 3pt + blue.darken(70%)),
+  ))
+  #animate(shape-state: cetz-shape(
+    cetz.draw.rect((-65pt, -65pt), (65pt, 65pt), 
+      fill: red, stroke: 3pt + red.darken(70%)),
+  ))
+  #init(x: 0.0)
+  #animate(x: 4, duration: 2)
+  #init(sc: 1.0)
+  #animate(sc: 2.0, duration: 2, block: 2)
+
+#context {
+  cetz.canvas({
+    import cetz.draw: *
+
+    content(kino-morph("shape-state", cetz: content)
+
+    if a("x") > 0 {
+      group({
+        scale(a("sc"))
+        translate((a("x"), -a("x")))
+        rect((-65pt, -65pt), (65pt, 65pt), fill: red, stroke: 3pt + red.darken(70%))
+      })
+    }
+  })
+}
+#finish()
+
+```
+], [
   #context {
     cetz.canvas({
       import cetz.draw: *
-      content((0,0), kino-morph("shape-state"))
+
+      kino-morph("shape-state", cetz: content)
 
       if a("x") > 0 {
         group({
@@ -198,33 +285,7 @@ Your variables can be used in any package, including ctez. For instance:
     })
   }
   #finish()
-]
 
-#slide(
-  title: "Draw shapes into view",
-)[
-  #slide-heading[Draw border then fill]
-
-  #create(draw-state: [
-    #cetz.canvas({
-      import cetz.draw: *
-      circle((0pt, 0pt), radius: 70pt, fill: green, stroke: 3pt + green.darken(70%))
-    })
-  ], block:1, morph-effect: "draw-border-then-fill")
-
-  #create(draw-state2: [
-    #cetz.canvas({
-      import cetz.draw: *
-      content((0pt, 0pt), text(stroke:red.darken(70%), red, 64pt)[*HELLO !*])
-    })
-  ], block:1, duration:3, morph-effect: "draw-border-then-fill")
-
-  #create(draw-state3: text(stroke:red.darken(70%), red, 64pt)[*HELLO !*], block:2, duration:3, morph-effect: "draw-border-then-fill")
-
-  #context {
-    align(center, kino-morph("draw-state"))
-    align(center, kino-morph("draw-state2"))
-    align(center, kino-morph("draw-state3"))
-  }
-  #finish()
+    ]
+  )
 ]
