@@ -42,10 +42,13 @@ python3 bin/kino.py --root . examples/slides.typ html --fps 24
 
 The generated HTML includes the presentation runtime and SVG frames in a
 single file. Animations remain resolution-independent, so
-neither reveal.js nor ffmpeg is needed. Use the arrow keys to navigate, space
-to pause or resume an animation, and `F` to enter fullscreen. Playback pauses
-at every `cut()` and at the final frame;
-press space again to continue after a cut. The exported page is a clean
+neither reveal.js nor ffmpeg is needed. Right starts or continues playback and
+does nothing while an animation is already playing. Double-tap Right to enter
+keyframe stepping; that mode resets after two seconds without another press.
+Left pauses at the start of the current or previous animation. Space toggles
+playback, and a compact timeline is available while paused for direct seeking.
+Playback pauses at every `cut()` and at the final frame. Press Space again to
+continue after a cut, and use `F` to enter fullscreen. The exported page is a clean
 presentation view without editor panels; press `O` to open its slide overview.
 
 For an editor with live rebuilds, a draggable playhead, animation blocks, and

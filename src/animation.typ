@@ -128,8 +128,13 @@
 // and make the player alternate between fragments of the same frame.
 #let _frame(body) = block(width: 100%, height: 100%, body)
 
+#let _max-block(variables) = {
+  let blocks = variables.values().join().keys().map(int)
+  if blocks.len() == 0 { 0 } else { calc.max(..blocks) }
+}
+
 #let _render-slideshow(body, id, index, variables, frozen-counters: ()) = {
-  let max_block = calc.max(..variables.values().join().keys().map(int))
+  let max_block = _max-block(variables)
   for b in range(1, max_block + 2) {
     page(_frame([
       #active-slide.update(_ => id)
@@ -143,7 +148,7 @@
 }
 
 #let _render-query-document(body, fps, id, index, title, frozen-counters, variables, cut_blocks, loop_blocks) = context {
-  let max_block = calc.max(..variables.values().join().keys().map(int))
+  let max_block = _max-block(variables)
   let effective-cuts = cut_blocks
   if not max_block in effective-cuts {
     effective-cuts = effective-cuts + (max_block,)
@@ -230,7 +235,18 @@
   } else if fps == 0 {
     _render-slideshow(body, id, index, variables, frozen-counters: frozen-counters)
   } else {
-      let max_block = calc.max(..variables.values().join().keys().map(int))
+      let max_block = _max-block(variables)
+      if max_block == 0 {
+        page(_frame([
+          #active-slide.update(_ => id)
+          #slide-scope(id)
+          #metadata(("kino_frame": 0, "kino_slide": id))
+          #metadata(("kino_animation_scope": (variables: variables, block: 1, time: 0, index: index)))
+          #metadata(("kino_new_frame": true))
+          #_frame-preamble(id, frozen-counters, first: true)
+          #body
+        ]))
+      }
       let effective-cuts = cut_blocks
       if not max_block in effective-cuts {
         effective-cuts = effective-cuts + (max_block,)

@@ -20,14 +20,40 @@
   title: "A global theorem counter",
   frozen-counters: (theorem-counter,),
 )[
-  #slide-heading[One document, isolated animations]
+  #slide-heading[Typst Slides]
 
-  #theorem(title: "Animated geometry")[
-    The theorem number is frozen while Kino renders every frame of this slide.
+  This is a standard typst document to show slides. You can use you favorite package, for instance theorion to create the following theorem:
+
+  #theorem[
+    This is a theorem. Its number stays the same during the animation.
   ]
 
+]
+
+#slide(
+  title: "Shared definitions",
+  frozen-counters: (theorem-counter,),
+)[
+  #slide-heading[You can animate variables]
+
+  You can define variables and animate them. For instance:
+  ```typst
+
   #init(x: 2.0)
-  #animate(x: 10.0)
+  #animate(x: 10.0, duration: 2)
+  #context {
+    [
+      value of x: #a("x")
+    ]
+    align(center, line(length: a("x") * 8mm, stroke: 3pt + accent))
+  }
+  #finish()
+```
+
+You can decide the number of frame per second this wil generate, by default it is 1 fps, with at least one frame at the begining and end of each slide (if different).
+
+  #init(x: 2.0)
+  #animate(x: 10.0, duration: 2)
 
   #context {
     [
@@ -38,40 +64,18 @@
   #finish()
 ]
 
-#slide(
-  title: "Shared definitions",
-  frozen-counters: (theorem-counter,),
-)[
-  #slide-heading[Global code remains available]
-
-  #theorem(title: "A second theorem")[
-    This theorem follows the first one even though the previous slide contains
-    multiple animation frames.
-  ]
-
-  #init(radius: 80%)
-  #animate(radius: 0%)
-
-  #context {
-    align(center + horizon, circle(radius: 50pt * a("radius"), fill: accent))
-  }
-  #finish()
-]
-
 
 #slide(
-  title: "Shared definitions 2",
+  title: "Cetz animations",
   frozen-counters: (theorem-counter,),
 )[
   #slide-heading[Cetz animations]
 
-  #theorem(title: "A third theorem")[
-    Here is a Cetz animation.
-  ]
+Your variables can be used in any package, including ctez. For instance:
 
-
-
-  #init(n: 4.0)
+#text(15pt)[
+```typst
+ #init(n: 4.0)
   #animate(n: 10.0, duration:2)
 
   #context {
@@ -95,6 +99,35 @@
     })
   }
   #finish()
+```]
+
+  #init(n: 4.0)
+  #animate(n: 10.0, duration:2)
+
+  #place(dx:500pt, dy: -300pt)[
+    #context {
+      cetz.canvas({
+        import cetz.draw: *
+
+        let n = float(a("n"))
+        let n_i = calc.ceil(n)
+
+        circle((0,0), radius: 110pt, stroke: 3pt + white)
+        circle((0,0), radius: 100pt, stroke: 3pt + accent)
+
+        content((130pt, 40pt), [$n = #n_i$], anchor: "west")
+
+        for i in range(0, n_i) {
+          let angle = 2 * 3.14 * i / n
+          let x = 100pt * calc.cos(angle)
+          let y = 100pt * calc.sin(angle)
+          circle((x, y), radius: 10pt, fill: accent)
+        }
+      })
+    }
+  ]
+
+  #finish()
 ]
 
 #import "@preview/mannot:0.4.0": *
@@ -106,32 +139,43 @@
 
   We can write formulas indicating where are specific parts of the formula. Then, the formula can be animated and the parts will move into place:
 
-  #create(formula-state: $part(a) = "out" = part(a, key: "a_2") = part(b)$)
-  #animate(formula-state: $1 / part(a) = "out" = part(a, key: "a_2") = part(b) / (1+c)$)
+  ```typst
+#create(f: $part(a) = o = part(a, key: "a_2") = part(b)$, duration: 2)
+#animate(f: $1 / part(a) = o = part(a, key: "a_2") = part(b) / (1+c)$)
+ 
+#align(center, context [
+  #kino-morph("f")
+])
+  ```
+
+  #create(f: $part(a) = o = part(a, key: "a_2") = part(b)$, duration: 2)
+  #animate(f: $1 / part(a) = o = part(a, key: "a_2") = part(b) / (1+c)$)
  
   #align(center, context [
-    #kino-morph("formula-state")
+    #kino-morph("f")
   ])
 
-  In the formula above, "= out =" is not a marked part so it will fade out and in during the animation. $a$ and $b$ are marked parts so they will move into place.
+  Creation and morphing of formulas (and other objects) is done by using `#kino-morph("f")` to show the object. Morphing animation are performed only in the custom export of the presentation. In pdf, objects are simply replaced by the new one.
+
+  In the formula above, "= o =" is not a marked part so it will fade out and in during the animation. $a$ and $b$ are marked parts so they will move into place. $a$ appears two time so we gave a key to the second one so it will no collide with the first one.
   #finish()
 ]
 
 #slide(
   title: "Morph arbitrary shapes",
 )[
-  #slide-heading[Circle to square]
+  #slide-heading[We can also morph arbitrary shapes]
 
   #init(shape-state: [
     #cetz.canvas({
       import cetz.draw: *
-      circle((0pt, 0pt), radius: 65pt, fill: blue)
+      circle((0pt, 0pt), radius: 65pt, fill: blue, stroke: 3pt + blue.darken(70%))
     })
   ])
   #animate(shape-state: [
     #cetz.canvas({
       import cetz.draw: *
-      rect((-65pt, -65pt), (65pt, 65pt), fill: red)
+      rect((-65pt, -65pt), (65pt, 65pt), fill: red, stroke: 3pt + red.darken(70%))
     })
   ])
   #init(x: 0.0)
@@ -148,7 +192,7 @@
         group({
           scale(a("sc"))
           translate((a("x"), -a("x")))
-          rect((-65pt, -65pt), (65pt, 65pt), fill: red)
+          rect((-65pt, -65pt), (65pt, 65pt), fill: red, stroke: 3pt + red.darken(70%))
         })
       }
     })
@@ -175,10 +219,12 @@
     })
   ], block:1, duration:3, morph-effect: "draw-border-then-fill")
 
+  #create(draw-state3: text(stroke:red.darken(70%), red, 64pt)[*HELLO !*], block:2, duration:3, morph-effect: "draw-border-then-fill")
+
   #context {
     align(center, kino-morph("draw-state"))
     align(center, kino-morph("draw-state2"))
-    align(center, kino-morph("draw-state2", id: "draw-state2-copy"))
+    align(center, kino-morph("draw-state3"))
   }
   #finish()
 ]

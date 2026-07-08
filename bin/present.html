@@ -13,8 +13,6 @@
     .stage > :not(.kino-measure-sandbox) { grid-area: 1 / 1; }
     .kino-stage-stack {
       position: relative;
-      width: min(100vw, calc(100vh * 4 / 3));
-      height: min(100vh, calc(100vw * 3 / 4));
       max-width: 100vw;
       max-height: 100vh;
     }
@@ -48,6 +46,14 @@
       border-radius: 50%; background: rgb(0 0 0 / .65); font-size: 18px;
     }
     .counter { min-width: 62px; text-align: center; font-size: 12px; text-shadow: 0 1px 2px black; }
+    .timeline {
+      position: fixed; left: 50%; bottom: 72px; z-index: 3; width: min(680px, calc(100vw - 36px));
+      padding: 4px 7px; transform: translateX(-50%); border: 1px solid rgb(255 255 255 / .18);
+      border-radius: 8px; background: rgb(10 11 14 / .82); backdrop-filter: blur(8px);
+    }
+    .timeline-track { position: relative; height: 14px; overflow: hidden; border-radius: 3px; background: rgb(255 255 255 / .08); cursor: ew-resize; touch-action: none; }
+    .timeline-block { position: absolute; inset-block: 2px; min-width: 2px; border: 1px solid #477ba9; border-radius: 2px; background: #284967; pointer-events: none; }
+    .timeline-playhead { position: absolute; inset-block: 0; width: 2px; background: #ff6573; pointer-events: none; }
     .progress { position: fixed; inset: auto 0 0; height: 3px; background: rgb(255 255 255 / .12); z-index: 4; }
     .progress span { display: block; width: 0; height: 100%; background: #65a7ff; transition: width .15s; }
     .overview {
@@ -68,14 +74,17 @@
 </head>
 <body>
   <main class="stage"><span>Loading presentation…</span></main>
-  <div class="help">O overview · Space play/pause · F fullscreen</div>
+  <div class="help">← animation start · → continue / double-tap to step · Space play/pause · O overview · F fullscreen</div>
   <nav class="controls" aria-label="Presentation controls">
-    <button class="control" data-action="previous" aria-label="Previous slide">&#8592;</button>
+    <button class="control" data-action="previous" aria-label="Previous animation">&#8592;</button>
     <button class="control" data-action="play" aria-label="Play animation">&#9654;</button>
     <span class="counter"></span>
     <button class="control" data-action="next" aria-label="Continue">&#8594;</button>
     <button class="control" data-action="overview" aria-label="Slide overview">&#9783;</button>
   </nav>
+  <div class="timeline" aria-label="Animation timeline" hidden>
+    <div class="timeline-track"><div class="timeline-blocks"></div><span class="timeline-playhead"></span></div>
+  </div>
   <div class="progress"><span></span></div>
   <section class="overview" aria-label="Slide overview" hidden>
     <header><h1>Slides</h1><button class="overview-close">Close</button></header>
@@ -91,6 +100,10 @@
       const playButton = document.querySelector('[data-action="play"]');
       const overview = document.querySelector(".overview");
       const overviewGrid = document.querySelector(".overview-grid");
+      const timeline = document.querySelector(".timeline");
+      const timelineTrack = document.querySelector(".timeline-track");
+      const timelineBlocks = document.querySelector(".timeline-blocks");
+      const timelinePlayhead = document.querySelector(".timeline-playhead");
       const stageRenderer = KinoMorphRuntime.createStageRenderer(stage);
       let manifest;
       let sceneIndex = 0;
@@ -98,37 +111,83 @@
       let playing = false;
       let animationHandle = 0;
       let nextFrameAt = 0;
+      let lastForwardAt = -Infinity;
+      let rapidForward = false;
+      let rapidForwardReset = 0;
+      const rapidForwardThreshold = 400;
+      const rapidForwardTimeout = 2000;
+      let scrubbing = false;
+      let timelineRevealed = false;
 
       function scene() { return manifest.scenes[sceneIndex]; }
       function clamp(value, minimum, maximum) { return Math.max(minimum, Math.min(value, maximum)); }
+      function framePercentage(frame, current = scene()) {
+        return current.frameCount > 1 ? frame / (current.frameCount - 1) * 100 : 0;
+      }
+      function fitStage(stack = stage.querySelector(".kino-stage-stack")) {
+        if (!stack) return;
+        const width = Number(stack.dataset.kinoWidth);
+        const height = Number(stack.dataset.kinoHeight);
+        const scale = Math.min(window.innerWidth / width, window.innerHeight / height);
+        stack.style.width = width * scale + "px";
+        stack.style.height = height * scale + "px";
+      }
+      function renderTimeline() {
+        const current = scene();
+        timelineBlocks.replaceChildren(...current.blocks.map(block => {
+          const item = document.createElement("span");
+          item.className = "timeline-block";
+          item.style.left = framePercentage(block.start_frame, current) + "%";
+          item.style.width = Math.max(0, framePercentage(block.end_frame, current) - framePercentage(block.start_frame, current)) + "%";
+          return item;
+        }));
+        updateTimeline();
+      }
+      function updateTimeline() {
+        if (!manifest) return;
+        const current = scene();
+        timeline.hidden = playing || !timelineRevealed || current.frameCount <= 1;
+        timelinePlayhead.style.left = framePercentage(frameIndex, current) + "%";
+      }
       async function render() {
         const current = scene();
         frameIndex = clamp(frameIndex, 0, current.frameCount - 1);
         await stageRenderer.render(current, frameIndex);
+        fitStage();
         counter.textContent = (sceneIndex + 1) + " / " + manifest.scenes.length;
         progress.style.width = ((sceneIndex + 1) / manifest.scenes.length * 100) + "%";
+        updateTimeline();
         history.replaceState(null, "", "#" + (sceneIndex + 1));
         stageRenderer.prefetch(current, frameIndex + 1);
       }
-      function pause() {
+      function pause(revealTimeline = false) {
         playing = false;
+        timelineRevealed = revealTimeline;
         cancelAnimationFrame(animationHandle);
         playButton.textContent = "▶";
+        updateTimeline();
       }
-      function selectScene(index) {
+      function selectScene(index, initialFrame = 0) {
         pause();
         sceneIndex = clamp(index, 0, manifest.scenes.length - 1);
-        frameIndex = 0;
+        frameIndex = clamp(initialFrame, 0, scene().frameCount - 1);
         overview.hidden = true;
+        renderTimeline();
         render().catch(console.error);
       }
-      function play() {
-        if (playing) { pause(); return; }
+      function startPlayback() {
+        if (playing) return;
         if (frameIndex >= scene().frameCount - 1) frameIndex = 0;
         playing = true;
+        timelineRevealed = false;
         playButton.textContent = "❚❚";
+        updateTimeline();
         nextFrameAt = performance.now();
         animationHandle = requestAnimationFrame(tick);
+      }
+      function togglePlayback() {
+        if (playing) pause(true);
+        else startPlayback();
       }
       function tick(now) {
         if (!playing) return;
@@ -141,9 +200,64 @@
         }
         animationHandle = requestAnimationFrame(tick);
       }
+      function resetRapidForward() {
+        clearTimeout(rapidForwardReset);
+        lastForwardAt = -Infinity;
+        rapidForward = false;
+      }
+      function scheduleRapidForwardReset() {
+        clearTimeout(rapidForwardReset);
+        rapidForwardReset = setTimeout(resetRapidForward, rapidForwardTimeout);
+      }
+      function stepToNextKeyframe() {
+        pause();
+        const next = KinoMorphRuntime.sceneKeyframes(scene()).find(keyframe => keyframe > frameIndex);
+        if (next !== undefined) {
+          frameIndex = next;
+          render().catch(console.error);
+        } else if (sceneIndex < manifest.scenes.length - 1) {
+          selectScene(sceneIndex + 1);
+        }
+      }
       function continueForward() {
-        if (frameIndex < scene().frameCount - 1) play();
-        else selectScene(sceneIndex + 1);
+        const now = performance.now();
+        const isRapid = rapidForward || now - lastForwardAt <= rapidForwardThreshold;
+        lastForwardAt = now;
+        scheduleRapidForwardReset();
+        if (isRapid) {
+          rapidForward = true;
+          stepToNextKeyframe();
+        } else if (playing) {
+          return;
+        } else if (frameIndex < scene().frameCount - 1) {
+          startPlayback();
+        } else if (sceneIndex < manifest.scenes.length - 1) {
+          selectScene(sceneIndex + 1);
+        }
+      }
+      function goBackToKeyframe() {
+        pause();
+        resetRapidForward();
+        const keyframes = KinoMorphRuntime.sceneKeyframes(scene());
+        const currentStart = keyframes.filter(keyframe => keyframe <= frameIndex).at(-1) ?? 0;
+        const target = frameIndex > currentStart
+          ? currentStart
+          : keyframes.filter(keyframe => keyframe < currentStart).at(-1);
+        if (target !== undefined) {
+          frameIndex = target;
+          render().catch(console.error);
+        } else if (sceneIndex > 0) {
+          const previousScene = manifest.scenes[sceneIndex - 1];
+          const previousStart = KinoMorphRuntime.sceneKeyframes(previousScene).at(-1) ?? 0;
+          selectScene(sceneIndex - 1, previousStart);
+        }
+      }
+      function seekTimeline(clientX) {
+        const bounds = timelineTrack.getBoundingClientRect();
+        const position = clamp((clientX - bounds.left) / bounds.width, 0, 1);
+        pause(true);
+        frameIndex = Math.round(position * Math.max(0, scene().frameCount - 1));
+        render().catch(console.error);
       }
       function toggleOverview() { overview.hidden = !overview.hidden; }
       function renderOverview() {
@@ -161,21 +275,36 @@
         }));
       }
 
-      document.querySelector('[data-action="previous"]').addEventListener("click", () => selectScene(sceneIndex - 1));
+      document.querySelector('[data-action="previous"]').addEventListener("click", goBackToKeyframe);
       document.querySelector('[data-action="next"]').addEventListener("click", continueForward);
       document.querySelector('[data-action="overview"]').addEventListener("click", toggleOverview);
       document.querySelector(".overview-close").addEventListener("click", toggleOverview);
-      playButton.addEventListener("click", play);
+      playButton.addEventListener("click", togglePlayback);
+      timelineTrack.addEventListener("pointerdown", event => {
+        scrubbing = true;
+        timelineTrack.setPointerCapture(event.pointerId);
+        seekTimeline(event.clientX);
+      });
+      timelineTrack.addEventListener("pointermove", event => {
+        if (scrubbing) seekTimeline(event.clientX);
+      });
+      timelineTrack.addEventListener("pointerup", event => {
+        scrubbing = false;
+        timelineTrack.releasePointerCapture(event.pointerId);
+      });
+      timelineTrack.addEventListener("pointercancel", () => { scrubbing = false; });
       document.addEventListener("keydown", event => {
-        if (event.key === " ") { event.preventDefault(); play(); }
-        else if (["ArrowRight", "PageDown"].includes(event.key)) continueForward();
-        else if (["ArrowLeft", "PageUp"].includes(event.key)) selectScene(sceneIndex - 1);
+        if (event.repeat) return;
+        if (event.key === " ") { event.preventDefault(); togglePlayback(); }
+        else if (["ArrowRight", "PageDown"].includes(event.key)) { event.preventDefault(); continueForward(); }
+        else if (["ArrowLeft", "PageUp"].includes(event.key)) { event.preventDefault(); goBackToKeyframe(); }
         else if (event.key.toLowerCase() === "o") toggleOverview();
         else if (event.key === "Escape" && !overview.hidden) overview.hidden = true;
         else if (event.key.toLowerCase() === "f") document.documentElement.requestFullscreen?.();
         else if (event.key === "Home") selectScene(0);
         else if (event.key === "End") selectScene(manifest.scenes.length - 1);
       });
+      window.addEventListener("resize", () => fitStage());
 
       let resolveDebugReady;
       const debugReady = new Promise(resolve => { resolveDebugReady = resolve; });
