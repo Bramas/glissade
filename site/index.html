@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Glissade turns Typst documents into animated, browser-native presentations.">
+  <title>Glissade — Animated presentations in Typst</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="nav shell">
+    <a class="wordmark" href="./" aria-label="Glissade home">glissade<span>.</span></a>
+    <nav aria-label="Primary navigation">
+      <a href="docs.html">Docs</a>
+      <a href="manual.pdf">Manual</a>
+      <a class="github" href="https://github.com/Bramas/glissade">GitHub ↗</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero shell">
+      <div class="eyebrow">Typst in motion</div>
+      <h1>Write the idea.<br><em>Animate the explanation.</em></h1>
+      <p class="lede">Glissade turns Typst documents into precise, interactive presentations with smooth vector animation and portable HTML output.</p>
+      <div class="actions">
+        <a class="button primary" href="docs.html">Get started</a>
+        <a class="button secondary" href="example.html">View example</a>
+        <a class="button secondary" href="https://github.com/Bramas/glissade">View source</a>
+      </div>
+      <div class="code-window" aria-label="Glissade code example">
+        <div class="code-bar"><span></span><span></span><span></span><b>slides.typ</b></div>
+        <pre><code><span class="muted">#</span>init(width: 1cm)
+<span class="accent">#animate</span>(width: 8cm)
+<span class="muted">#</span>cut()
+<span class="accent">#animate</span>(width: 3cm)
+
+<span class="muted">#</span>context {
+  rect(width: a(<span class="string">"width"</span>), fill: blue)
+}</code></pre>
+        <div class="motion-line"><span></span></div>
+      </div>
+    </section>
+
+    <section class="features shell" aria-labelledby="features-title">
+      <div class="section-heading">
+        <span>01 / What it does</span>
+        <h2 id="features-title">A complete path from Typst source to the stage.</h2>
+      </div>
+      <div class="feature-grid">
+        <article><b>Timeline as code</b><p>Animate values, coordinate blocks, define cuts, and reuse ordinary Typst definitions across every slide.</p></article>
+        <article><b>Vector-native motion</b><p>Morph formulas and SVG geometry in the browser without giving up sharp, resolution-independent output.</p></article>
+        <article><b>Presentation-ready</b><p>Preview changes live, navigate animation boundaries, inspect a slide overview, and export one self-contained HTML file.</p></article>
+      </div>
+    </section>
+
+    <section class="workflow">
+      <div class="shell workflow-inner">
+        <div class="section-heading light"><span>02 / Workflow</span><h2>Stay in Typst.<br>Ship to any browser.</h2></div>
+        <ol>
+          <li><span>1</span><div><b>Describe</b><p>Build slides with familiar Typst markup and Glissade’s small animation API.</p></div></li>
+          <li><span>2</span><div><b>Preview</b><p>Use the live editor to scrub frames and rebuild only the slide you are working on.</p></div></li>
+          <li><span>3</span><div><b>Present</b><p>Export compressed SVG frames and the browser runtime into a single file. Try the <a href="example.html">example deck</a>.</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="origin shell">
+      <div class="section-heading"><span>03 / Origin</span><h2>Built on a strong foundation.</h2></div>
+      <p>Glissade grew from <a href="https://github.com/aualbert/kino">Kino</a> by Augustin Albert, whose work established the core variable-animation and SVG-extraction machinery. Glissade carries that foundation into a browser-focused presentation system.</p>
+    </section>
+  </main>
+
+  <footer class="shell"><span>Glissade · MIT</span><span>Animated presentations in Typst</span></footer>
+</body>
+</html>

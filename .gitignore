@@ -6,6 +6,7 @@
 !revealjs.html
 !bin/assets/
 !bin/assets/*.html
+!site/*.html
 !web/**/*.html
 reveal.js-master/
 __pycache__/

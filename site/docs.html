@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Get started with Glissade, the Typst animation and presentation toolkit.">
+  <title>Documentation — Glissade</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="docs-page">
+  <header class="nav shell">
+    <a class="wordmark" href="./">glissade<span>.</span></a>
+    <nav><a class="active" href="docs.html">Docs</a><a href="manual.pdf">Manual</a><a href="example.html">Example</a><a class="github" href="https://github.com/Bramas/glissade">GitHub ↗</a></nav>
+  </header>
+  <main class="docs shell">
+    <aside>
+      <span>Documentation</span>
+      <a href="#install">Install</a><a href="#first-slide">First slide</a><a href="#export">Export</a><a href="#morph">Morphing</a><a href="#controls">Controls</a>
+    </aside>
+    <article>
+      <div class="eyebrow">Quick documentation</div>
+      <h1>From zero to an animated deck.</h1>
+      <p class="intro">Glissade keeps animation state in Typst and renders playback in the browser. This guide covers the shortest useful workflow; the <a href="manual.pdf">PDF manual</a> contains the full API reference.</p>
+
+      <h2 id="install">Install</h2>
+      <p>Import the package from Typst Universe:</p>
+      <pre><code>#import "@preview/glissade:0.1.0": *</code></pre>
+
+      <h2 id="first-slide">Create your first slide</h2>
+      <pre><code>#set page(width: 128mm, height: 96mm)
+#show: deck.with(fps: 12)
+
+#slide(title: "A moving value")[
+  #init(x: 1cm)
+  #animate(x: 8cm, duration: 1.2)
+
+  #context {
+    circle(radius: a("x") / 8, fill: blue)
+  }
+  #finish()
+]</code></pre>
+      <p><code>init</code> establishes a value, <code>animate</code> creates a timeline block, and <code>a</code> reads the value for the current frame.</p>
+
+      <h2 id="export">Preview and export</h2>
+      <pre><code># Live editor
+python3 bin/glissade.py --root . slides.typ dev --fps 12
+
+# Self-contained HTML presentation
+python3 bin/glissade.py --root . slides.typ html --fps 24</code></pre>
+      <p>The HTML exporter embeds the runtime and gzip-compressed SVG frames. Use <code>--no-embed-frames</code> while inspecting output or serving frames separately. The GitHub Pages site includes an <a href="example.html">exported example deck</a> generated from <code>examples/slides.typ</code> at 25 fps.</p>
+
+      <h2 id="morph">Morph formulas and shapes</h2>
+      <pre><code>#init(formula: $part(a) + part(b)$)
+#animate(formula: $part(a) / part(b)$)
+
+#context {
+  glissade-morph("formula")
+}</code></pre>
+      <p>Matching <code>part</code> markers move between keyframes. Unmatched fragments fade, and ordinary SVG geometry can be morphed or drawn into view.</p>
+
+      <h2 id="controls">Presentation controls</h2>
+      <div class="key-grid"><div><kbd>→</kbd><span>Play or advance</span></div><div><kbd>←</kbd><span>Previous boundary</span></div><div><kbd>Space</kbd><span>Play or pause</span></div><div><kbd>O</kbd><span>Slide overview</span></div><div><kbd>F</kbd><span>Fullscreen</span></div></div>
+    </article>
+  </main>
+  <footer class="shell"><span>Glissade · MIT</span><a href="https://github.com/Bramas/glissade">Source on GitHub ↗</a></footer>
+</body>
+</html>
