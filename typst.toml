@@ -1,11 +1,11 @@
 [package]
-name = "kino"
+name = "glissade"
 version = "0.1.0"
 entrypoint = "lib.typ"
 authors = ["Augustin Albert"]
 license = "MIT"
-description = "A proof of concept package for creating animations."
-repository = "https://github.com/aualbert/kino"
+description = "Create animated presentations in Typst and export them to the web."
+repository = "https://github.com/Bramas/glissade"
 keywords = ["animation", "video", "slide", "slides", "lecture", "manim", "beamer", "ffmpeg", "talk"]
 categories = ["presentation", "scripting", "fun"]
 exclude = [ "docs", "examples"]

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${title} — Kino</title>
+  <title>${title} — Glissade</title>
   <style>
     :root {
       color-scheme: dark;
@@ -41,23 +41,23 @@
     .scene-button.active { color: white; border-color: #3d70ad; background: #243750; }
     .preview { position: relative; min-width: 0; min-height: 0; padding: 22px; overflow: hidden; }
     .stage { width: 100%; height: 100%; display: flex; overflow: auto; }
-    .kino-stage-stack {
+    .glissade-stage-stack {
       position: relative;
       flex: none;
       margin: auto;
       filter: drop-shadow(0 12px 28px rgb(0 0 0 / .35));
     }
-    .kino-stage-frame {
+    .glissade-stage-frame {
       display: block;
       width: 100%;
       height: 100%;
     }
-    .kino-stage-overlay {
+    .glissade-stage-overlay {
       position: absolute;
       inset: 0;
       pointer-events: none;
     }
-    .kino-measure-sandbox {
+    .glissade-measure-sandbox {
       position: absolute;
       inset: 0;
       width: 0;
@@ -92,7 +92,7 @@
 <body>
   <main class="app">
     <header class="toolbar">
-      <span class="brand">Kino</span>
+      <span class="brand">Glissade</span>
       <button class="tool-button" data-action="previous-scene" title="Previous slide">&#8592;</button>
       <button class="tool-button" data-action="play" title="Play or pause (Space)">&#9654;</button>
       <button class="tool-button" data-action="next-scene" title="Next slide">&#8594;</button>
@@ -143,7 +143,7 @@
         zoomValue: document.querySelector(".zoom-value"),
         error: document.querySelector(".error-overlay")
       };
-      const stageRenderer = KinoMorphRuntime.createStageRenderer(elements.stage);
+      const stageRenderer = GlissadeMorphRuntime.createStageRenderer(elements.stage);
       let manifest = null;
       let sceneIndex = 0;
       let frameIndex = 0;
@@ -164,10 +164,10 @@
       function percentage(value, total) { return total > 0 ? value / total * 100 : 0; }
 
       function updateZoom() {
-        const stack = elements.stage.querySelector(".kino-stage-stack");
+        const stack = elements.stage.querySelector(".glissade-stage-stack");
         if (!stack) return;
-        const width = Number(stack.dataset.kinoWidth || 0);
-        const height = Number(stack.dataset.kinoHeight || 0);
+        const width = Number(stack.dataset.glissadeWidth || 0);
+        const height = Number(stack.dataset.glissadeHeight || 0);
         if (!width || !height) return;
         const bounds = elements.stage.getBoundingClientRect();
         const fit = Math.min(bounds.width / width, bounds.height / height);

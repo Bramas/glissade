@@ -144,18 +144,18 @@ Your variables can be used in any package, including ctez. For instance:
 #animate(f: $1 / part(a) = o = part(a, key: "a_2") = part(b) / (1+c)$)
  
 #align(center, context [
-  #kino-morph("f")
+  #glissade-morph("f")
 ])
   ```
 
   #create(f: $part(a) = o = part(a, key: "a_2") = part(b)$, duration: 2)
-  #animate(f: $1 / part(a) = o = part(a, key: "a_2") = part(b) / (1+c)$)
+  #animate(f: $1 / part(a) = o = part(a, key: "a_2") = part(b) / (1+c)$, duration: 0.5)
  
   #align(center, context [
-    #kino-morph("f")
+    #glissade-morph("f")
   ])
 
-  Creation and morphing of formulas (and other objects) is done by using `#kino-morph("f")` to show the object. Morphing animation are performed only in the custom export of the presentation. In pdf, objects are simply replaced by the new one.
+  Creation and morphing of formulas (and other objects) is done by using `#glissade-morph("f")` to show the object. Morphing animation are performed only in the custom export of the presentation. In pdf, objects are simply replaced by the new one.
 
   In the formula above, "= o =" is not a marked part so it will fade out and in during the animation. $a$ and $b$ are marked parts so they will move into place. $a$ appears two time so we gave a key to the second one so it will no collide with the first one.
   #finish()
@@ -166,7 +166,7 @@ Your variables can be used in any package, including ctez. For instance:
 )[
   #slide-heading[Draw border then fill]
 
-  You can draw a full cetz canvas in a state and animate its creation with kino-morph. The default morph-effect is "draw-border-then-fill" which will draw the border of the shapes and then fill them.
+  You can draw a full cetz canvas in a state and animate its creation with glissade-morph. The default morph-effect is "draw-border-then-fill" which will draw the border of the shapes and then fill them.
 
   This also work with normal text.
 
@@ -196,16 +196,16 @@ Your variables can be used in any package, including ctez. For instance:
   block:2, duration:2, morph-effect: "draw-border-then-fill")
 
   #context {
-    align(center, kino-morph("draw-state"))
-    align(center, kino-morph("draw-state2"))
+    align(center, glissade-morph("draw-state"))
+    align(center, glissade-morph("draw-state2"))
   }
   
 #finish()
 ```
     ],[
   #context {
-    align(center, kino-morph("draw-state"))
-    align(center, kino-morph("draw-state2"))
+    align(center, glissade-morph("draw-state"))
+    align(center, glissade-morph("draw-state2"))
   }
   ])
   #finish()
@@ -217,7 +217,7 @@ Your variables can be used in any package, including ctez. For instance:
 )[
   #slide-heading[We can also morph arbitrary shapes]
 
-  Here we used a utililty function `cetz-shape`, but you can put an arbitrary cetz canvas or other object, kino-morph will try to morph it into the new one.
+  Here we used a utililty function `cetz-shape`, but you can put an arbitrary cetz canvas or other object, glissade-morph will try to morph it into the new one.
 
   #init(shape-state: cetz-shape(
     cetz.draw.circle((0pt, 0pt), radius: 65pt, fill: blue, stroke: 3pt + blue.darken(70%)),
@@ -254,7 +254,7 @@ Your variables can be used in any package, including ctez. For instance:
   cetz.canvas({
     import cetz.draw: *
 
-    content(kino-morph("shape-state", cetz: content)
+    content(glissade-morph("shape-state", cetz: content)
 
     if a("x") > 0 {
       group({
@@ -273,7 +273,7 @@ Your variables can be used in any package, including ctez. For instance:
     cetz.canvas({
       import cetz.draw: *
 
-      kino-morph("shape-state", cetz: content)
+      glissade-morph("shape-state", cetz: content)
 
       if a("x") > 0 {
         group({

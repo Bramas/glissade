@@ -38,18 +38,18 @@ function minifyCss(source) {
 async function buildTemplate(name) {
   let html = await readFile(resolve(import.meta.dir, name, "index.html"), "utf8");
   html = html.replace("${morph_runtime_source}", runtime);
-  html = html.replaceAll("${title}", "__KINO_TITLE__");
-  html = html.replaceAll("${manifest_source}", "globalThis.__KINO_MANIFEST_SOURCE__");
-  html = html.replaceAll("${live_reload}", "globalThis.__KINO_LIVE_RELOAD__");
+  html = html.replaceAll("${title}", "__GLISSADE_TITLE__");
+  html = html.replaceAll("${manifest_source}", "globalThis.__GLISSADE_MANIFEST_SOURCE__");
+  html = html.replaceAll("${live_reload}", "globalThis.__GLISSADE_LIVE_RELOAD__");
 
   html = html.replace(/<style>([\s\S]*?)<\/style>/g, (_, css) => `<style>${minifyCss(css)}</style>`);
   html = html.replace(/<script>([\s\S]*?)<\/script>/g, (_, source) => `<script>${javascript.transformSync(source)}</script>`);
   html = html.replace(/>\s+</g, "><").trim();
   html = html
     .replaceAll("$", () => "$$")
-    .replaceAll("__KINO_TITLE__", "${title}")
-    .replaceAll("globalThis.__KINO_MANIFEST_SOURCE__", "${manifest_source}")
-    .replaceAll("globalThis.__KINO_LIVE_RELOAD__", "${live_reload}");
+    .replaceAll("__GLISSADE_TITLE__", "${title}")
+    .replaceAll("globalThis.__GLISSADE_MANIFEST_SOURCE__", "${manifest_source}")
+    .replaceAll("globalThis.__GLISSADE_LIVE_RELOAD__", "${live_reload}");
 
   const output = resolve(outputDirectory, `${name}.min.html`);
   const generated = html + "\n";

@@ -1,7 +1,7 @@
 #import "animation.typ": a, animation-effect
 
 #let _formula-interpolate(from, to, progress) = (
-  kino-type: "formula-transition",
+  glissade-type: "formula-transition",
   from: from,
   to: to,
   progress: progress,
@@ -29,14 +29,14 @@
 )
 
 #let _wrap-morph(body) = [
-  #metadata((kino-morph: true))
+  #metadata((glissade-morph: true))
   #_morph-marker(_morph-marker-start-fill)
   #box(inset: 0pt, outset: 0pt)[#body]
   #_morph-marker(_morph-marker-end-fill)
 ]
 
 #let _formula-frame(value) = {
-  if type(value) == dictionary and value.at("kino-type", default: none) == "formula-transition" {
+  if type(value) == dictionary and value.at("glissade-type", default: none) == "formula-transition" {
     if value.progress < 1 { value.from } else { value.to }
   } else {
     value
@@ -49,7 +49,7 @@
     let rendered = math.equation(block: false, body)
     let effective-key = if key == auto { repr(rendered) } else { str(key) }
     metadata((
-      kino-formula-part: true,
+      glissade-formula-part: true,
       key: effective-key,
       body: rendered,
     ))
@@ -60,7 +60,7 @@
   if (
     content.func() == metadata
       and type(content.value) == dictionary
-      and content.value.at("kino-formula-part", default: false)
+      and content.value.at("glissade-formula-part", default: false)
   ) {
     ((key: content.value.key, body: content.value.body),)
   } else {
@@ -111,33 +111,33 @@
   }
 }
 
-/// Wraps a formula as a semantic Kino value. Every visible animated fragment
+/// Wraps a formula as a semantic Glissade value. Every visible animated fragment
 /// should be wrapped in `part`; Typst still validates and typesets the full body.
 #let formula(body) = (
-  kino-type: "formula",
-  kino-interpolate: _formula-interpolate,
+  glissade-type: "formula",
+  glissade-interpolate: _formula-interpolate,
   body: body,
   parts: _collect-parts(body),
 )
 
-/// Wraps CeTZ drawing elements as a discrete Kino animation state.
-/// Render the state inside a CeTZ canvas with `kino-morph(name, cetz: content)`.
+/// Wraps CeTZ drawing elements as a discrete Glissade animation state.
+/// Render the state inside a CeTZ canvas with `glissade-morph(name, cetz: content)`.
 #let cetz-shape(body) = {
   assert(type(body) == array, message: "cetz-shape expects CeTZ drawing elements")
   (
-    kino-type: "cetz-shape",
-    kino-interpolate: _cetz-shape-interpolate,
+    glissade-type: "cetz-shape",
+    glissade-interpolate: _cetz-shape-interpolate,
     body: body,
   )
 }
 
-/// Renders a semantic Kino value as ordinary Typst content.
+/// Renders a semantic Glissade value as ordinary Typst content.
 /// Formula states render their currently visible formula body.
-#let kino-morph(name, id: auto, cetz: none) = {
-  assert(type(name) == str, message: "kino-morph expects an animation state name")
+#let glissade-morph(name, id: auto, cetz: none) = {
+  assert(type(name) == str, message: "glissade-morph expects an animation state name")
   let value = a(name)
   let visible = _formula-frame(value)
-  let semantic-type = if type(visible) == dictionary { visible.at("kino-type", default: none) } else { none }
+  let semantic-type = if type(visible) == dictionary { visible.at("glissade-type", default: none) } else { none }
   let body = if semantic-type in ("formula", "cetz-shape") {
     visible.body
   } else {
@@ -147,7 +147,7 @@
   let effect = animation-effect(name)
   let effective-effect = if effect == none { none } else { str(effect) }
   let root = metadata((
-    kino-morph-root: true,
+    glissade-morph-root: true,
     id: effective-id,
     state: name,
     effect: effective-effect,

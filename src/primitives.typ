@@ -1,6 +1,6 @@
 #import "utils.typ": check_types, get_block_duration, get_default_dict
 
-#let _operation(kind, fields: (:)) = metadata(("kino_operation": ((kind: kind) + fields)))
+#let _operation(kind, fields: (:)) = metadata(("glissade_operation": ((kind: kind) + fields)))
 
 #let init(..args) = _operation("init", fields: (args: args.named()))
 
@@ -78,9 +78,9 @@
   if (
     content.func() == metadata
       and type(content.value) == dictionary
-      and "kino_operation" in content.value
+      and "glissade_operation" in content.value
   ) {
-    (content.value.kino_operation,)
+    (content.value.glissade_operation,)
   } else if content.has("children") {
     content.children.map(_collect-operations).flatten()
   } else if content.has("child") {

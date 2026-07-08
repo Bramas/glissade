@@ -40,14 +40,14 @@ def assert_installed(program: str):
 
 def create_parser():
     parser = argparse.ArgumentParser(
-        description="Utility for creating animations",
+        description="Create and export animated Typst presentations with Glissade",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog="""
 Examples:
-  kino.py presentation.typ slides
-  kino.py animation.typ video --cut none --fps 24 --ppi 150
-  kino.py --root ./project presentation.typ html --fps 24
-  kino.py --root ./project presentation.typ dev
+  glissade.py presentation.typ slides
+  glissade.py animation.typ video --cut none --fps 24 --ppi 150
+  glissade.py --root ./project presentation.typ html --fps 24
+  glissade.py --root ./project presentation.typ dev
 """
     )
     parser.add_argument(
@@ -376,7 +376,7 @@ def handle_video(args):
 
                     result = subprocess.run(cmd2, timeout = args.timeout, capture_output=True, text=True, check = True)
                     data = json.loads(result.stdout)
-                    data = [d["kino"] for d in data if "kino" in d]
+                    data = [d["glissade"] for d in data if "glissade" in d]
                     
                     for item in data:
                         output = f"{root_path}{index+1}_{item['segment']}.{args.format}"
@@ -474,7 +474,7 @@ def _transition_function(name):
 def _visible_formula_value(value):
     if not isinstance(value, dict):
         return None
-    kind = value.get("kino-type")
+    kind = value.get("glissade-type")
     if kind == "formula-transition":
         return value.get("from") if value.get("progress", 0) < 1 else value.get("to")
     if kind == "formula":
@@ -488,7 +488,7 @@ def _collect_formula_parts_from_content(content):
     if (
         content.get("func") == "metadata"
         and isinstance(content.get("value"), dict)
-        and content["value"].get("kino-formula-part")
+        and content["value"].get("glissade-formula-part")
     ):
         key = content["value"].get("key", "part")
         body = content["value"].get("body")
@@ -533,15 +533,15 @@ def _resolve_timeline_value(name_dict, block, time_value):
             if (
                 isinstance(current_start, dict)
                 and isinstance(end_value, dict)
-                and current_start.get("kino-type") == "formula"
-                and end_value.get("kino-type") == "formula"
+                and current_start.get("glissade-type") == "formula"
+                and end_value.get("glissade-type") == "formula"
             ):
                 if duration == 0:
                     progress = 1
                 else:
                     progress = min(1, max(0, (time_value - hold) / duration))
                 return {
-                    "kino-type": "formula-transition",
+                    "glissade-type": "formula-transition",
                     "from": current_start,
                     "to": end_value,
                     "progress": _transition_function(transition)(progress),
@@ -617,13 +617,13 @@ def _extract_slide_variables(metadata):
     variables = {}
     pending_slide_id = None
     for item in metadata:
-        if "kino_slide_scope" in item:
-            pending_slide_id = str(item["kino_slide_scope"])
+        if "glissade_slide_scope" in item:
+            pending_slide_id = str(item["glissade_slide_scope"])
             continue
         if pending_slide_id is None:
             continue
-        if "kino_animation_scope" in item and pending_slide_id not in variables:
-            variables[pending_slide_id] = item["kino_animation_scope"].get("variables", {})
+        if "glissade_animation_scope" in item and pending_slide_id not in variables:
+            variables[pending_slide_id] = item["glissade_animation_scope"].get("variables", {})
             pending_slide_id = None
     return variables
 
@@ -632,13 +632,13 @@ def _extract_slide_morph_specs(metadata):
     morph_specs = {}
     pending_slide_id = None
     for item in metadata:
-        if "kino_slide_scope" in item:
-            pending_slide_id = str(item["kino_slide_scope"])
+        if "glissade_slide_scope" in item:
+            pending_slide_id = str(item["glissade_slide_scope"])
             morph_specs.setdefault(pending_slide_id, [])
             continue
         if pending_slide_id is None:
             continue
-        if item.get("kino-morph-root"):
+        if item.get("glissade-morph-root"):
             morph_id = item.get("id")
             morph_effect = item.get("effect")
             morph_specs[pending_slide_id].append({
@@ -715,7 +715,7 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
     metadata = json.loads(query.stdout)
     slide_variables = _extract_slide_variables(metadata)
     slide_morph_specs = _extract_slide_morph_specs(metadata)
-    timelines = [item["kino_timeline"] for item in metadata if "kino_timeline" in item]
+    timelines = [item["glissade_timeline"] for item in metadata if "glissade_timeline" in item]
     log(f"Discovered {len(timelines)} slide(s) in {time.perf_counter() - query_started:.2f}s")
     slide_ids = [str(timeline["id"]) for timeline in timelines]
     duplicate_ids = sorted({slide_id for slide_id in slide_ids if slide_ids.count(slide_id) > 1})
@@ -737,9 +737,9 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
             run_typst(args, [
                 "typst", "compile", args.input, output_pattern,
                 "--input", f"fps={args.fps}",
-                "--input", f"kino-slide={slide_id}",
-                "--input", f"kino-slide-index={index}",
-                "--input", "kino-frozen-values=" + json.dumps(timeline.get("frozen_values", [])),
+                "--input", f"glissade-slide={slide_id}",
+                "--input", f"glissade-slide-index={index}",
+                "--input", "glissade-frozen-values=" + json.dumps(timeline.get("frozen_values", [])),
             ])
             log(
                 f"Compiled slide {slide_id!r} in {time.perf_counter() - compile_started:.2f}s"
@@ -946,11 +946,11 @@ class LiveBuildState:
 
     def log(self, message):
         timestamp = time.strftime("%H:%M:%S")
-        print(f"[{timestamp}] Kino: {message}", flush=True)
+        print(f"[{timestamp}] Glissade: {message}", flush=True)
 
     def build(self):
         with self.build_lock:
-            build_directory = self.build_directory or Path(tempfile.mkdtemp(prefix="kino-preview-"))
+            build_directory = self.build_directory or Path(tempfile.mkdtemp(prefix="glissade-preview-"))
             try:
                 selected_ids = {self.selected_id} if self.build_directory and self.selected_id else None
                 build_started = time.perf_counter()
@@ -1126,7 +1126,7 @@ def handle_dev(args):
     server = QuietThreadingHTTPServer((args.host, args.port), make_editor_handler(state, editor_html))
     watcher = threading.Thread(target=watch_project, args=(state,), daemon=True)
     watcher.start()
-    print(f"Kino editor running at http://{args.host}:{args.port}")
+    print(f"Glissade editor running at http://{args.host}:{args.port}")
     print("Press Ctrl+C to stop.")
     try:
         server.serve_forever()
@@ -1246,7 +1246,7 @@ def handle_revealjs(args):
 
                     result = subprocess.run(cmd2, timeout = args.timeout, capture_output=True, text=True, check = True)
                     data = json.loads(result.stdout)
-                    data = [d["kino"] for d in data if "kino" in d]
+                    data = [d["glissade"] for d in data if "glissade" in d]
                     
                     for item in data:
                         output = os.path.join(tmpdir, f"segment{item['segment']}.mp4")

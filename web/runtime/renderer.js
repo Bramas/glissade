@@ -1,5 +1,5 @@
 (() => {
-  const runtime = globalThis.__kinoMorphRuntime || (globalThis.__kinoMorphRuntime = {});
+  const runtime = globalThis.__glissadeMorphRuntime || (globalThis.__glissadeMorphRuntime = {});
   const {
     SVG_NS,
     parseSvgMarkup,
@@ -27,16 +27,16 @@
   }
 
   function partSelector(key) {
-    return '[data-kino-part="true"][data-kino-part-key="' + CSS.escape(key) + '"]';
+    return '[data-glissade-part="true"][data-glissade-part-key="' + CSS.escape(key) + '"]';
   }
 
   function analyzeSvg(svg) {
     const roots = new Map();
-    svg.querySelectorAll('[data-kino-morph="true"]').forEach(root => {
-      const rootId = root.getAttribute("data-kino-morph-id") || root.id;
+    svg.querySelectorAll('[data-glissade-morph="true"]').forEach(root => {
+      const rootId = root.getAttribute("data-glissade-morph-id") || root.id;
       const parts = new Map();
-      root.querySelectorAll('[data-kino-part="true"]').forEach(part => {
-        const key = part.getAttribute("data-kino-part-key");
+      root.querySelectorAll('[data-glissade-part="true"]').forEach(part => {
+        const key = part.getAttribute("data-glissade-part-key");
         if (!key) return;
         parts.set(key, {
           key,
@@ -48,7 +48,7 @@
         id: rootId,
         elementId: root.id,
         bbox: safeBBox(root),
-        effect: root.getAttribute("data-kino-morph-effect") || null,
+        effect: root.getAttribute("data-glissade-morph-effect") || null,
         parts,
       });
     });
@@ -106,8 +106,8 @@
   function keepMorphBranch(element, allowedRootIds) {
     if (!(element instanceof Element)) return false;
     if (element.localName === "defs") return true;
-    if (element.matches('[data-kino-morph="true"]')) {
-      return allowedRootIds.has(element.getAttribute("data-kino-morph-id") || element.id);
+    if (element.matches('[data-glissade-morph="true"]')) {
+      return allowedRootIds.has(element.getAttribute("data-glissade-morph-id") || element.id);
     }
     const children = [...element.children];
     let keepAny = false;
@@ -174,8 +174,8 @@
       if (!rootId || rootId.includes("::")) continue;
       const target = baseSvg.querySelector(morphSelector(rootId));
       if (!target?.parentNode) continue;
-      const transform = group.getAttribute("data-kino-insertion-transform");
-      group.removeAttribute("data-kino-insertion-transform");
+      const transform = group.getAttribute("data-glissade-insertion-transform");
+      group.removeAttribute("data-glissade-insertion-transform");
       if (transform) group.setAttribute("transform", transform);
       target.parentNode.insertBefore(group, target);
       inserted += 1;
@@ -184,13 +184,13 @@
   }
 
   function ensureRootComposite(baseSvg, plan, rootId) {
-    const selector = '[data-kino-composite-root="' + CSS.escape(rootId) + '"]';
+    const selector = '[data-glissade-composite-root="' + CSS.escape(rootId) + '"]';
     const existing = baseSvg.querySelector(selector);
     if (existing) return existing;
     const target = baseSvg.querySelector(morphSelector(rootId));
     if (!target?.parentNode) return null;
     const composite = document.createElementNS(SVG_NS, "g");
-    composite.setAttribute("data-kino-composite-root", rootId);
+    composite.setAttribute("data-glissade-composite-root", rootId);
     const transform = plan.compositeTransforms.get(rootId);
     if (transform) composite.setAttribute("transform", transform);
     target.parentNode.insertBefore(composite, target);
@@ -199,7 +199,7 @@
 
   function appendGeneratedLayer(composite, overlay) {
     for (const group of [...overlay.children]) {
-      group.removeAttribute?.("data-kino-insertion-transform");
+      group.removeAttribute?.("data-glissade-insertion-transform");
       group.removeAttribute?.("transform");
       composite.appendChild(group);
     }
@@ -207,7 +207,7 @@
 
   let compositeLayerIndex = 0;
   function namespaceSvgIds(svg) {
-    const prefix = "kino-composite-" + compositeLayerIndex++ + "-";
+    const prefix = "glissade-composite-" + compositeLayerIndex++ + "-";
     const replacements = new Map();
     for (const element of svg.querySelectorAll("[id]")) {
       const oldId = element.id;
@@ -464,7 +464,7 @@
       this.stage = stage;
       this.store = options.store || new SvgFrameStore();
       this.sandbox = document.createElement("div");
-      this.sandbox.className = "kino-measure-sandbox";
+      this.sandbox.className = "glissade-measure-sandbox";
       this.stage.appendChild(this.sandbox);
       this.renderToken = 0;
       this.currentSize = { width: 1024, height: 768 };
@@ -480,13 +480,13 @@
       const size = intrinsicSize(baseSvg);
       this.currentSize = size;
       const stack = document.createElement("div");
-      stack.className = "kino-stage-stack";
-      stack.dataset.kinoWidth = String(size.width);
-      stack.dataset.kinoHeight = String(size.height);
+      stack.className = "glissade-stage-stack";
+      stack.dataset.glissadeWidth = String(size.width);
+      stack.dataset.glissadeHeight = String(size.height);
       stack.style.width = size.width + "px";
       stack.style.height = size.height + "px";
 
-      baseSvg.classList.add("kino-stage-base");
+      baseSvg.classList.add("glissade-stage-base");
       stack.appendChild(baseSvg);
 
       const segment = segmentForFrame(scene, frameIndex);
@@ -505,7 +505,7 @@
               const inserted = insertRootOverlayGroups(
                 baseSvg,
                 geometryOverlay,
-                "data-kino-generated-morph",
+                "data-glissade-generated-morph",
               );
               if (inserted < plan.geometryPlans.length) stack.appendChild(geometryOverlay);
             }
@@ -526,7 +526,7 @@
               const inserted = insertRootOverlayGroups(
                 baseSvg,
                 drawOverlay,
-                "data-kino-generated-draw",
+                "data-glissade-generated-draw",
               );
               if (inserted < plan.drawPlans.length) stack.appendChild(drawOverlay);
             }
@@ -546,7 +546,7 @@
                 await this.store.instantiate(scene.frames[segment.startFrame]),
                 startIds,
               );
-              startOverlay.classList.add("kino-stage-overlay", "kino-stage-overlay-start", "kino-stage-overlay-parts");
+              startOverlay.classList.add("glissade-stage-overlay", "glissade-stage-overlay-start", "glissade-stage-overlay-parts");
               for (const fallback of partPlan.fallbacks) {
                 const targetBox = interpolateRect(fallback.startBox, fallback.endBox, segment.progress);
                 const startPart = startOverlay.querySelector(elementSelector(fallback.startId));
@@ -573,8 +573,8 @@
                 await this.store.instantiate(scene.frames[segment.endFrame]),
                 allowedRootIds,
               );
-              startOverlay.classList.add("kino-stage-overlay", "kino-stage-overlay-start");
-              endOverlay.classList.add("kino-stage-overlay", "kino-stage-overlay-end");
+              startOverlay.classList.add("glissade-stage-overlay", "glissade-stage-overlay-start");
+              endOverlay.classList.add("glissade-stage-overlay", "glissade-stage-overlay-end");
               hideElementsById(startOverlay, match.matchedPartIds || []);
               hideElementsById(endOverlay, match.matchedPartIds || []);
               const startRoot = startOverlay.querySelector(morphSelector(match.rootId));
@@ -615,7 +615,7 @@
           if (plan.enteringFallbacks.length > 0) {
             const allowedRootIds = new Set(plan.enteringFallbacks.map(match => match.rootId));
             const endOverlay = prepareOverlaySvg(await this.store.instantiate(scene.frames[segment.endFrame]), allowedRootIds);
-            endOverlay.classList.add("kino-stage-overlay", "kino-stage-overlay-end");
+            endOverlay.classList.add("glissade-stage-overlay", "glissade-stage-overlay-end");
             for (const match of plan.enteringFallbacks) {
               const endRoot = endOverlay.querySelector(morphSelector(match.rootId));
               if (endRoot) {
@@ -627,7 +627,7 @@
           if (plan.leavingFallbacks.length > 0) {
             const allowedRootIds = new Set(plan.leavingFallbacks.map(match => match.rootId));
             const startOverlay = prepareOverlaySvg(await this.store.instantiate(scene.frames[segment.startFrame]), allowedRootIds);
-            startOverlay.classList.add("kino-stage-overlay", "kino-stage-overlay-start");
+            startOverlay.classList.add("glissade-stage-overlay", "glissade-stage-overlay-start");
             for (const match of plan.leavingFallbacks) {
               const startRoot = startOverlay.querySelector(morphSelector(match.rootId));
               if (startRoot) {
@@ -662,7 +662,7 @@
     }
   }
 
-  globalThis.KinoMorphRuntime = {
+  globalThis.GlissadeMorphRuntime = {
     createStageRenderer(stage, options) {
       return new StageRenderer(stage, options);
     },

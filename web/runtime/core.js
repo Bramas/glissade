@@ -1,5 +1,5 @@
 (() => {
-  const runtime = globalThis.__kinoMorphRuntime || (globalThis.__kinoMorphRuntime = {});
+  const runtime = globalThis.__glissadeMorphRuntime || (globalThis.__glissadeMorphRuntime = {});
   const SVG_NS = "http://www.w3.org/2000/svg";
 
   function clamp(value, minimum, maximum) {
@@ -51,7 +51,7 @@
     if (!svg || svg.localName !== "svg") {
       throw new Error("Failed to parse SVG frame");
     }
-    svg.classList.add("kino-stage-frame");
+    svg.classList.add("glissade-stage-frame");
     svg.setAttribute("preserveAspectRatio", svg.getAttribute("preserveAspectRatio") || "xMidYMid meet");
     return svg;
   }
@@ -63,7 +63,7 @@
 
   async function decompressGzip(bytes) {
     if (typeof DecompressionStream === "undefined") {
-      throw new Error("Compressed Kino frames require browser support for DecompressionStream");
+      throw new Error("Compressed Glissade frames require browser support for DecompressionStream");
     }
     const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
     return new Response(stream).text();
@@ -179,7 +179,7 @@
   }
 
   function morphSelector(id) {
-    return '[data-kino-morph="true"][data-kino-morph-id="' + CSS.escape(id) + '"]';
+    return '[data-glissade-morph="true"][data-glissade-morph-id="' + CSS.escape(id) + '"]';
   }
 
   function sceneKeyframes(scene) {

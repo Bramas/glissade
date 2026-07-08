@@ -1,5 +1,5 @@
 (() => {
-  const runtime = globalThis.__kinoMorphRuntime || (globalThis.__kinoMorphRuntime = {});
+  const runtime = globalThis.__glissadeMorphRuntime || (globalThis.__glissadeMorphRuntime = {});
   const { formatNumber } = runtime;
 
   const PARAM_COUNTS = { M: 2, L: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, T: 2 };

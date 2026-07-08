@@ -16,19 +16,19 @@
 }
 
 #show: project.with(
-  title: "Kino",
+  title: "Glissade",
   subtitle: "Create animations.",
   authors: ("aualbert",),
   version: "0.1.0",
   date: "2025-9-12",
   license: "MIT",
-  url: "https://github.com/aualbert/kino",
+  url: "https://github.com/Bramas/glissade",
 )
 
 #columns(2, gutter: 5%)[
 
-  This document contains the documentation for the Typst package `kino`.
-  It also provides instructions on how to use the companion Python script `kino.py`.
+  This document contains the documentation for the Typst package `glissade`.
+  It also provides instructions on how to use the companion Python script `glissade.py`.
 
   = Structure of an animation<structure>
 
@@ -134,7 +134,7 @@
 
   = Export tool<export>
 
-  You can use this package alongside the Python script kino.py, found at https://github.com/aualbert/kino.
+  You can use this package alongside the Python script glissade.py, found at https://github.com/Bramas/glissade.
   The requirements are:
   - `python3`
   - `pypdf`
@@ -142,7 +142,7 @@
   - `typst`
   A nix flake is also provided for convenience.
   The script exports animations to static slides, videos, or revealjs presentations.
-  Refer to @cmdsyntax for the syntax of the program kino.py.
+  Refer to @cmdsyntax for the syntax of the program glissade.py.
   This section describes the different arguments.
 
   - `INPUT` Input file, either a single scene (a typst file) or a list of scenes to be played in order (a toml file with the following syntax):
@@ -186,7 +186,7 @@
 ]
 \
 
-#figure(caption: "Command-line syntax of kino.py")[
+#figure(caption: "Command-line syntax of glissade.py")[
   #set align(left)
   #set text(
     font: "DejaVu Sans Mono",
@@ -194,7 +194,7 @@
     tracking: -.1pt,
     weight: 500,
   )
-  kino.py [-h] #h(2.59cm) INPUT {#text(blue)[video]|#text(green)[revealjs]|#text(red)[slides]} [--cut {none|scene|all}]
+  glissade.py [-h] #h(2.59cm) INPUT {#text(blue)[video]|#text(green)[revealjs]|#text(red)[slides]} [--cut {none|scene|all}]
   \ #h(1.55cm) [--root ROOT] #h(6.865cm) [--fps FPS]
   \ #h(1.55cm) [--timeout TIMEOUT] #h(5.7cm) [--ppi PPI]
   \ #h(10.94cm) [--format FORMAT]

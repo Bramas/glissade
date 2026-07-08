@@ -10,23 +10,23 @@
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
     body { color: white; background: #0b0c0f; font-family: system-ui, sans-serif; }
     .stage { position: fixed; inset: 0; display: grid; place-items: center; }
-    .stage > :not(.kino-measure-sandbox) { grid-area: 1 / 1; }
-    .kino-stage-stack {
+    .stage > :not(.glissade-measure-sandbox) { grid-area: 1 / 1; }
+    .glissade-stage-stack {
       position: relative;
       max-width: 100vw;
       max-height: 100vh;
     }
-    .kino-stage-frame {
+    .glissade-stage-frame {
       display: block;
       width: 100%;
       height: 100%;
     }
-    .kino-stage-overlay {
+    .glissade-stage-overlay {
       position: absolute;
       inset: 0;
       pointer-events: none;
     }
-    .kino-measure-sandbox {
+    .glissade-measure-sandbox {
       position: absolute;
       inset: 0;
       width: 0;
@@ -104,7 +104,7 @@
       const timelineTrack = document.querySelector(".timeline-track");
       const timelineBlocks = document.querySelector(".timeline-blocks");
       const timelinePlayhead = document.querySelector(".timeline-playhead");
-      const stageRenderer = KinoMorphRuntime.createStageRenderer(stage);
+      const stageRenderer = GlissadeMorphRuntime.createStageRenderer(stage);
       let manifest;
       let sceneIndex = 0;
       let frameIndex = 0;
@@ -124,10 +124,10 @@
       function framePercentage(frame, current = scene()) {
         return current.frameCount > 1 ? frame / (current.frameCount - 1) * 100 : 0;
       }
-      function fitStage(stack = stage.querySelector(".kino-stage-stack")) {
+      function fitStage(stack = stage.querySelector(".glissade-stage-stack")) {
         if (!stack) return;
-        const width = Number(stack.dataset.kinoWidth);
-        const height = Number(stack.dataset.kinoHeight);
+        const width = Number(stack.dataset.glissadeWidth);
+        const height = Number(stack.dataset.glissadeHeight);
         const scale = Math.min(window.innerWidth / width, window.innerHeight / height);
         stack.style.width = width * scale + "px";
         stack.style.height = height * scale + "px";
@@ -187,6 +187,7 @@
       }
       function togglePlayback() {
         if (playing) pause(true);
+        else if (frameIndex >= scene().frameCount - 1) continueForward();
         else startPlayback();
       }
       function tick(now) {
@@ -211,7 +212,7 @@
       }
       function stepToNextKeyframe() {
         pause();
-        const next = KinoMorphRuntime.sceneKeyframes(scene()).find(keyframe => keyframe > frameIndex);
+        const next = GlissadeMorphRuntime.sceneKeyframes(scene()).find(keyframe => keyframe > frameIndex);
         if (next !== undefined) {
           frameIndex = next;
           render().catch(console.error);
@@ -238,7 +239,7 @@
       function goBackToKeyframe() {
         pause();
         resetRapidForward();
-        const keyframes = KinoMorphRuntime.sceneKeyframes(scene());
+        const keyframes = GlissadeMorphRuntime.sceneKeyframes(scene());
         const currentStart = keyframes.filter(keyframe => keyframe <= frameIndex).at(-1) ?? 0;
         const target = frameIndex > currentStart
           ? currentStart
@@ -248,7 +249,7 @@
           render().catch(console.error);
         } else if (sceneIndex > 0) {
           const previousScene = manifest.scenes[sceneIndex - 1];
-          const previousStart = KinoMorphRuntime.sceneKeyframes(previousScene).at(-1) ?? 0;
+          const previousStart = GlissadeMorphRuntime.sceneKeyframes(previousScene).at(-1) ?? 0;
           selectScene(sceneIndex - 1, previousStart);
         }
       }
@@ -308,7 +309,7 @@
 
       let resolveDebugReady;
       const debugReady = new Promise(resolve => { resolveDebugReady = resolve; });
-      globalThis.KinoDebug = {
+      globalThis.GlissadeDebug = {
         ready: debugReady,
         async renderFrame(sceneReference, requestedFrame) {
           await debugReady;
@@ -319,30 +320,30 @@
           const exactFrame = clamp(Number(requestedFrame) || 0, 0, requestedScene.frameCount - 1);
           pause();
           await stageRenderer.render(requestedScene, exactFrame);
-          const layers = [...stage.querySelectorAll(".kino-stage-frame")];
+          const layers = [...stage.querySelectorAll(".glissade-stage-frame")];
           return {
             scene: requestedScene.id,
             frame: exactFrame,
             layers: layers.map(layer => ({
               classes: [...layer.classList],
               paths: layer.querySelectorAll("path").length,
-              generated: [...layer.querySelectorAll("[data-kino-generated-draw], [data-kino-generated-morph]")]
-                .map(item => item.getAttribute("data-kino-generated-draw") || item.getAttribute("data-kino-generated-morph")),
+              generated: [...layer.querySelectorAll("[data-glissade-generated-draw], [data-glissade-generated-morph]")]
+                .map(item => item.getAttribute("data-glissade-generated-draw") || item.getAttribute("data-glissade-generated-morph")),
             })),
           };
         },
         serializeFrame() {
-          const stack = stage.querySelector(".kino-stage-stack");
+          const stack = stage.querySelector(".glissade-stage-stack");
           if (!stack) throw new Error("No rendered frame");
-          const width = stack.dataset.kinoWidth;
-          const height = stack.dataset.kinoHeight;
+          const width = stack.dataset.glissadeWidth;
+          const height = stack.dataset.glissadeHeight;
           const output = document.createElementNS("http://www.w3.org/2000/svg", "svg");
           output.setAttribute("xmlns", "http://www.w3.org/2000/svg");
           output.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
           output.setAttribute("viewBox", "0 0 " + width + " " + height);
           output.setAttribute("width", width);
           output.setAttribute("height", height);
-          for (const layer of stack.querySelectorAll(":scope > .kino-stage-frame")) {
+          for (const layer of stack.querySelectorAll(":scope > .glissade-stage-frame")) {
             const clone = layer.cloneNode(true);
             clone.setAttribute("x", "0");
             clone.setAttribute("y", "0");
@@ -360,7 +361,7 @@
         sceneIndex = requested > 0 ? clamp(requested - 1, 0, manifest.scenes.length - 1) : 0;
         renderOverview();
         resolveDebugReady();
-        if (new URLSearchParams(location.search).get("kino-debug") !== "1") {
+        if (new URLSearchParams(location.search).get("glissade-debug") !== "1") {
           render().catch(console.error);
         }
       });

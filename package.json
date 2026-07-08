@@ -1,5 +1,5 @@
 {
-  "name": "kino-web-assets",
+  "name": "glissade-web-assets",
   "private": true,
   "scripts": {
     "build": "bun run web/build.mjs",

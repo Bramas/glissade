@@ -6,7 +6,7 @@
 #import "transitions.typ": get_transition
 
 /// Terminates the animation. Mandatory.
-#let finish() = metadata(("kino_operation": (kind: "finish")))
+#let finish() = metadata(("glissade_operation": (kind: "finish")))
 
 // Main function for computing `a`("x")
 #let build_mapping(variables, block, name) = {
@@ -42,10 +42,10 @@
 /// Returns the morph effect attached to the active transition for a state.
 #let animation-effect(name) = {
   let scopes = query(selector(metadata).before(here())).filter(element => (
-    type(element.value) == dictionary and "kino_animation_scope" in element.value
+    type(element.value) == dictionary and "glissade_animation_scope" in element.value
   ))
-  assert(scopes.len() > 0, message: "animation-effect() must be evaluated inside a Kino slide frame")
-  let scope = scopes.last().value.kino_animation_scope
+  assert(scopes.len() > 0, message: "animation-effect() must be evaluated inside a Glissade slide frame")
+  let scope = scopes.last().value.glissade_animation_scope
   let name-dict = scope.variables.at(name, default: (:))
   let entries = name-dict.at(str(scope.block), default: ())
   let active = none
@@ -64,20 +64,20 @@
   name,
 ) = {
   let scopes = query(selector(metadata).before(here())).filter(element => (
-    type(element.value) == dictionary and "kino_animation_scope" in element.value
+    type(element.value) == dictionary and "glissade_animation_scope" in element.value
   ))
-  assert(scopes.len() > 0, message: "a() must be evaluated inside a Kino slide frame")
-  let scope = scopes.last().value.kino_animation_scope
+  assert(scopes.len() > 0, message: "a() must be evaluated inside a Glissade slide frame")
+  let scope = scopes.last().value.glissade_animation_scope
   build_mapping(scope.variables, scope.block, name)(scope.time)
 }
 
 /// Returns the one-based logical slide number for the current frame.
 #let slide-number() = {
   let scopes = query(selector(metadata).before(here())).filter(element => (
-    type(element.value) == dictionary and "kino_animation_scope" in element.value
+    type(element.value) == dictionary and "glissade_animation_scope" in element.value
   ))
-  assert(scopes.len() > 0, message: "slide-number() must be used inside a Kino slide")
-  scopes.last().value.kino_animation_scope.index
+  assert(scopes.len() > 0, message: "slide-number() must be used inside a Glissade slide")
+  scopes.last().value.glissade_animation_scope.index
 }
 
 #let _restore-counter(counter, value) = {
@@ -94,7 +94,7 @@
 }
 
 #let _frame-preamble(id, frozen-counters, first: false) = context {
-  let values-input = sys.inputs.at("kino-frozen-values", default: "")
+  let values-input = sys.inputs.at("glissade-frozen-values", default: "")
   if frozen-counters.len() > 0 {
     if first {
       if values-input != "" {
@@ -103,11 +103,11 @@
           _restore-counter(counter, value)
         }
       }
-      metadata(("kino_counter_checkpoint": id))
+      metadata(("glissade_counter_checkpoint": id))
     } else {
       let checkpoints = query(selector(metadata).before(here())).filter(element => (
         type(element.value) == dictionary
-          and element.value.at("kino_counter_checkpoint", default: none) == id
+          and element.value.at("glissade_counter_checkpoint", default: none) == id
       ))
       if checkpoints.len() > 0 {
         let location = checkpoints.first().location()
@@ -139,8 +139,8 @@
     page(_frame([
       #active-slide.update(_ => id)
       #slide-scope(id)
-      #metadata(("kino_animation_scope": (variables: variables, block: b, time: 0, index: index)))
-      #metadata(("kino_new_frame": true))
+      #metadata(("glissade_animation_scope": (variables: variables, block: b, time: 0, index: index)))
+      #metadata(("glissade_new_frame": true))
       #_frame-preamble(id, frozen-counters, first: b == 1)
       #body
     ]))
@@ -179,7 +179,7 @@
 
     if b in effective-cuts {
       metadata((
-        "kino": (
+        "glissade": (
           "fps": fps,
           "duration": duration,
           "frames": local_frames + 1,
@@ -194,7 +194,7 @@
     }
   }
   metadata((
-      "kino_timeline": (
+      "glissade_timeline": (
       "id": id,
       "index": index,
       "title": title,
@@ -208,7 +208,7 @@
   page(_frame([
     #active-slide.update(_ => id)
     #slide-scope(id)
-    #metadata(("kino_animation_scope": (variables: variables, block: 1, time: 0, index: index)))
+    #metadata(("glissade_animation_scope": (variables: variables, block: 1, time: 0, index: index)))
     #body
   ]))
 }
@@ -240,9 +240,9 @@
         page(_frame([
           #active-slide.update(_ => id)
           #slide-scope(id)
-          #metadata(("kino_frame": 0, "kino_slide": id))
-          #metadata(("kino_animation_scope": (variables: variables, block: 1, time: 0, index: index)))
-          #metadata(("kino_new_frame": true))
+          #metadata(("glissade_frame": 0, "glissade_slide": id))
+          #metadata(("glissade_animation_scope": (variables: variables, block: 1, time: 0, index: index)))
+          #metadata(("glissade_new_frame": true))
           #_frame-preamble(id, frozen-counters, first: true)
           #body
         ]))
@@ -266,9 +266,9 @@
           page(_frame([
             #active-slide.update(_ => id)
             #slide-scope(id)
-            #metadata(("kino_frame": frame, "kino_slide": id))
-            #metadata(("kino_animation_scope": (variables: variables, block: b, time: new_time, index: index)))
-            #metadata(("kino_new_frame": true))
+            #metadata(("glissade_frame": frame, "glissade_slide": id))
+            #metadata(("glissade_animation_scope": (variables: variables, block: b, time: new_time, index: index)))
+            #metadata(("glissade_new_frame": true))
             #_frame-preamble(id, frozen-counters, first: b == 1 and frame == 0)
             #body
           ]))
@@ -276,7 +276,7 @@
 
         if b in effective-cuts {
           metadata((
-            "kino": (
+            "glissade": (
               "fps": fps,
               "duration": duration,
               "frames": local_frames + 1,
@@ -298,7 +298,7 @@
   /// Whether the pre-cut segment should loop (revealjs only)
   /// -> bool
   loop: false,
-) = metadata(("kino_operation": (kind: "cut", loop: loop)))
+) = metadata(("glissade_operation": (kind: "cut", loop: loop)))
 
 /// Collects one logical slide for the `deck` show rule.
 #let slide(
@@ -309,7 +309,7 @@
   fps: -1,
 ) = {
   metadata((
-    "kino_slide_definition": (
+    "glissade_slide_definition": (
       id: id,
       title: title,
       frozen-counters: frozen-counters,
@@ -323,9 +323,9 @@
   if (
     content.func() == metadata
       and type(content.value) == dictionary
-      and "kino_slide_definition" in content.value
+      and "glissade_slide_definition" in content.value
   ) {
-    (content.value.kino_slide_definition,)
+    (content.value.glissade_slide_definition,)
   } else if content.has("children") {
     content.children.map(_collect-slides).flatten()
   } else if content.has("child") {
@@ -356,7 +356,7 @@
     let base = _generated-slide-id(item, offset + 1)
     let occurrences = used-ids.at(base, default: 0)
     if item.id != auto {
-      assert(occurrences == 0, message: "duplicate Kino slide id: " + base)
+      assert(occurrences == 0, message: "duplicate Glissade slide id: " + base)
     }
     occurrences += 1
     used-ids.insert(base, occurrences)
@@ -365,7 +365,7 @@
   }
   definitions = normalized
 
-  let selected = sys.inputs.at("kino-slide", default: "")
+  let selected = sys.inputs.at("glissade-slide", default: "")
   let effective-fps = int(sys.inputs.at("fps", default: str(fps)))
   for (offset, item) in definitions.enumerate() {
     let index = offset + 1

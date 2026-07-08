@@ -1,5 +1,5 @@
 (() => {
-  const runtime = globalThis.__kinoMorphRuntime || (globalThis.__kinoMorphRuntime = {});
+  const runtime = globalThis.__glissadeMorphRuntime || (globalThis.__glissadeMorphRuntime = {});
   const {
     SVG_NS,
     clamp,
@@ -282,14 +282,14 @@
   function makeGeometryOverlay(size, plans, progress) {
     if (plans.length === 0) return null;
     const svg = document.createElementNS(SVG_NS, "svg");
-    svg.setAttribute("class", "kino-stage-frame kino-stage-overlay kino-stage-overlay-geometry");
+    svg.setAttribute("class", "glissade-stage-frame glissade-stage-overlay glissade-stage-overlay-geometry");
     svg.setAttribute("viewBox", "0 0 " + size.width + " " + size.height);
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     for (const plan of plans) {
       const group = document.createElementNS(SVG_NS, "g");
-      group.setAttribute("data-kino-generated-morph", plan.rootId);
+      group.setAttribute("data-glissade-generated-morph", plan.rootId);
       if (plan.insertionTransform) {
-        group.setAttribute("data-kino-insertion-transform", plan.insertionTransform);
+        group.setAttribute("data-glissade-insertion-transform", plan.insertionTransform);
       }
       for (const pathPlan of plan.paths) {
         const path = document.createElementNS(SVG_NS, "path");
@@ -318,15 +318,15 @@
   function makeDrawOverlay(size, plans, progress, progressForPlan = null) {
     if (plans.length === 0) return null;
     const svg = document.createElementNS(SVG_NS, "svg");
-    svg.setAttribute("class", "kino-stage-frame kino-stage-overlay kino-stage-overlay-draw");
+    svg.setAttribute("class", "glissade-stage-frame glissade-stage-overlay glissade-stage-overlay-draw");
     svg.setAttribute("viewBox", "0 0 " + size.width + " " + size.height);
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     for (const plan of plans) {
       const planProgress = progressForPlan ? progressForPlan(plan, progress) : progress;
       const group = document.createElementNS(SVG_NS, "g");
-      group.setAttribute("data-kino-generated-draw", plan.rootId);
+      group.setAttribute("data-glissade-generated-draw", plan.rootId);
       if (plan.insertionTransform) {
-        group.setAttribute("data-kino-insertion-transform", plan.insertionTransform);
+        group.setAttribute("data-glissade-insertion-transform", plan.insertionTransform);
       }
       // Match Manim Write's default submobject timing. Its lag ratio describes
       // the delay as a fraction of one path's duration; the whole sequence is
@@ -342,7 +342,7 @@
         const temporaryStrokeFade = fillProgress;
 
         const fill = document.createElementNS(SVG_NS, "path");
-        fill.setAttribute("data-kino-draw-path", String(pathIndex));
+        fill.setAttribute("data-glissade-draw-path", String(pathIndex));
         fill.setAttribute("d", pathPlan.d);
         if (pathPlan.transform) fill.setAttribute("transform", pathPlan.transform);
         fill.setAttribute("fill", interpolateColor({ ...pathPlan.fillEnd, a: 0 }, pathPlan.fillEnd, fillProgress));
@@ -353,7 +353,7 @@
         group.appendChild(fill);
 
         const stroke = document.createElementNS(SVG_NS, "path");
-        stroke.setAttribute("data-kino-draw-path", String(pathIndex));
+        stroke.setAttribute("data-glissade-draw-path", String(pathIndex));
         stroke.setAttribute("d", pathPlan.d);
         if (pathPlan.transform) stroke.setAttribute("transform", pathPlan.transform);
         stroke.setAttribute("fill", "none");

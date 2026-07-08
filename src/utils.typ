@@ -13,7 +13,7 @@
   } else if type(ty) == function {
     let zero = get_zero(ty(.0))
     _ => zero
-  } else if type(ty) == dictionary and "kino-interpolate" in ty {
+  } else if type(ty) == dictionary and "glissade-interpolate" in ty {
     ty
   }
 }
@@ -66,9 +66,9 @@
   if old_type == function {
     check_types((old(0), new(0)))
   }
-  if old_type == dictionary and "kino-interpolate" in old {
+  if old_type == dictionary and "glissade-interpolate" in old {
     assert(
-      new.at("kino-type", default: none) == old.at("kino-type", default: none),
+      new.at("glissade-type", default: none) == old.at("glissade-type", default: none),
       message: "Cannot animate different semantic value types.",
     )
   }
@@ -98,7 +98,7 @@
   } else if type(ty) == function {
     let scaler = get_scaler(ty(0))
     return (start, end, t) => (x => scaler(start(x), end(x), t))
-  } else if type(ty) == dictionary and "kino-interpolate" in ty {
-    return ty.at("kino-interpolate")
+  } else if type(ty) == dictionary and "glissade-interpolate" in ty {
+    return ty.at("glissade-interpolate")
   }
 }

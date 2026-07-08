@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tag SVG elements representing explicit Kino formula parts."""
+"""Tag SVG elements representing explicit Glissade formula parts."""
 
 import sys
 from pathlib import Path
@@ -11,7 +11,7 @@ END_FILL = "#00d5ff"
 MORPH_START_FILL = "#19c37d"
 MORPH_END_FILL = "#ff8a00"
 PART_ID_PREFIX = "formula-part-"
-MORPH_ID_PREFIX = "kino-morph-"
+MORPH_ID_PREFIX = "glissade-morph-"
 SVG_NS = "http://www.w3.org/2000/svg"
 XLINK_NS = "http://www.w3.org/1999/xlink"
 H5_NS = "http://www.w3.org/1999/xhtml"
@@ -115,17 +115,17 @@ def _remove_old_formula_ids(root: ET.Element) -> None:
         if element_id and (element_id.startswith(PART_ID_PREFIX) or element_id.startswith(MORPH_ID_PREFIX)):
             del element.attrib["id"]
         for attribute in (
-            "data-kino-morph",
-            "data-kino-morph-id",
-            "data-kino-morph-svg-id",
-            "data-kino-morph-name",
-            "data-kino-morph-effect",
-            "data-kino-morph-index",
-            "data-kino-part",
-            "data-kino-part-id",
-            "data-kino-part-key",
-            "data-kino-state",
-            "data-kino-parent-morph",
+            "data-glissade-morph",
+            "data-glissade-morph-id",
+            "data-glissade-morph-svg-id",
+            "data-glissade-morph-name",
+            "data-glissade-morph-effect",
+            "data-glissade-morph-index",
+            "data-glissade-part",
+            "data-glissade-part-id",
+            "data-glissade-part-key",
+            "data-glissade-state",
+            "data-glissade-parent-morph",
         ):
             if attribute in element.attrib:
                 del element.attrib[attribute]
@@ -136,7 +136,7 @@ def tag_svg_groups(
     part_specs: list[dict[str, str]] | None = None,
     morph_specs: list[dict[str, str]] | None = None,
 ) -> str:
-    """Add IDs only to groups explicitly marked by Kino formula sentinels."""
+    """Add IDs only to groups explicitly marked by Glissade formula sentinels."""
     root = ET.fromstring(svg_content)
     parent_map = {child: parent for parent in root.iter() for child in parent}
     _remove_old_formula_ids(root)
@@ -202,13 +202,13 @@ def tag_svg_groups(
         if part_specs is not None and index < len(part_specs):
             part = part_specs[index]
             target.set("id", part["id"])
-            target.set("data-kino-part", "true")
-            target.set("data-kino-part-id", part["id"])
-            target.set("data-kino-part-key", part["key"])
-            target.set("data-kino-state", part["state"])
+            target.set("data-glissade-part", "true")
+            target.set("data-glissade-part-id", part["id"])
+            target.set("data-glissade-part-key", part["key"])
+            target.set("data-glissade-state", part["state"])
             morph_name = part.get("morph")
             if morph_name is not None:
-                target.set("data-kino-parent-morph", morph_name)
+                target.set("data-glissade-parent-morph", morph_name)
         else:
             target.set("id", f"{PART_ID_PREFIX}{index}")
         parent.remove(start_marker)
@@ -219,15 +219,15 @@ def tag_svg_groups(
         if morph_specs is not None and index < len(morph_specs):
             morph = morph_specs[index]
             target.set("id", morph["id"])
-            target.set("data-kino-morph-id", morph["name"])
-            target.set("data-kino-morph-svg-id", morph["id"])
-            target.set("data-kino-morph-name", morph["name"])
+            target.set("data-glissade-morph-id", morph["name"])
+            target.set("data-glissade-morph-svg-id", morph["id"])
+            target.set("data-glissade-morph-name", morph["name"])
             if morph.get("effect") is not None:
-                target.set("data-kino-morph-effect", morph["effect"])
+                target.set("data-glissade-morph-effect", morph["effect"])
         else:
             target.set("id", f"{MORPH_ID_PREFIX}{index}")
-        target.set("data-kino-morph", "true")
-        target.set("data-kino-morph-index", str(index))
+        target.set("data-glissade-morph", "true")
+        target.set("data-glissade-morph-index", str(index))
         parent.remove(start_marker)
         parent.remove(end_marker)
 

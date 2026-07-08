@@ -19,8 +19,8 @@ class QuietHandler(SimpleHTTPRequestHandler):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Render one Kino runtime frame to a standalone SVG")
-    parser.add_argument("html", type=Path, help="generated Kino HTML presentation")
+    parser = argparse.ArgumentParser(description="Render one Glissade runtime frame to a standalone SVG")
+    parser.add_argument("html", type=Path, help="generated Glissade HTML presentation")
     parser.add_argument("--scene", required=True, help="scene ID or zero-based scene index")
     parser.add_argument("--frame", required=True, type=int, help="zero-based logical frame index")
     parser.add_argument("--output", required=True, type=Path, help="output SVG path")
@@ -42,16 +42,16 @@ def main():
             page = browser.new_page()
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.goto(
-                f"http://127.0.0.1:{server.server_port}/{html.name}?kino-debug=1",
+                f"http://127.0.0.1:{server.server_port}/{html.name}?glissade-debug=1",
                 wait_until="domcontentloaded",
                 timeout=10_000,
             )
-            page.evaluate("KinoDebug.ready")
+            page.evaluate("GlissadeDebug.ready")
             report = page.evaluate(
-                "([scene, frame]) => KinoDebug.renderFrame(scene, frame)",
+                "([scene, frame]) => GlissadeDebug.renderFrame(scene, frame)",
                 [scene, args.frame],
             )
-            svg = page.evaluate("KinoDebug.serializeFrame()")
+            svg = page.evaluate("GlissadeDebug.serializeFrame()")
             browser.close()
     finally:
         server.shutdown()
