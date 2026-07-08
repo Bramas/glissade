@@ -16,9 +16,9 @@
 }
 
 #show: project.with(
-  title: "Glissade",
+  title: "Kino animations (used by Glissade)",
   subtitle: "Create animations.",
-  authors: ("aualbert",),
+  authors: ("aualbert", "edited by bramas"),
   version: "0.1.0",
   date: "2025-9-12",
   license: "MIT",
@@ -27,7 +27,7 @@
 
 #columns(2, gutter: 5%)[
 
-  This document contains the documentation for the Typst package `glissade`.
+  This document contains the documentation for the Typst package `glissade`, originally created for the Kino project.
   It also provides instructions on how to use the companion Python script `glissade.py`.
 
   = Structure of an animation<structure>

@@ -2,7 +2,7 @@
 name = "glissade"
 version = "0.1.0"
 entrypoint = "lib.typ"
-authors = ["Augustin Albert"]
+authors = ["Quentin Bramas", "Augustin Albert"]
 license = "MIT"
 description = "Create animated presentations in Typst and export them to the web."
 repository = "https://github.com/Bramas/glissade"

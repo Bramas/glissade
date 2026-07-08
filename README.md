@@ -104,6 +104,8 @@ Augustin Albert. Kino established the core machinery for managing animated
 Typst variables and extracting animation frames as SVG. Glissade is deeply
 grateful for that foundation.
 
+Thanks also to Jean-Romain Luttringer for finding the name Glissade.
+
 Since then, Glissade has developed into a separate project focused on animated
 presentations for the browser: multi-slide documents, a live editor,
 self-contained HTML export, playback controls, formula and geometry morphing,

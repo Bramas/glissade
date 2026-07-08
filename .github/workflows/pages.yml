@@ -23,7 +23,6 @@ jobs:
         uses: typst-community/setup-typst@v5
         with:
           typst-version: ^0.14
-          cache-dependency-path: docs/manual.typ
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
