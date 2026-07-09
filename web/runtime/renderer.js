@@ -26,6 +26,41 @@
     return "#" + CSS.escape(id);
   }
 
+  function frameSourceKey(source) {
+    return typeof source === "string" ? source : JSON.stringify(source);
+  }
+
+  function parseSvgFragment(markup) {
+    const document = new DOMParser().parseFromString(
+      '<svg xmlns="' + SVG_NS + '" xmlns:xlink="http://www.w3.org/1999/xlink">' + markup + "</svg>",
+      "image/svg+xml",
+    );
+    const parseError = document.querySelector("parsererror");
+    if (parseError) throw new Error("Failed to parse SVG delta fragment");
+    return document.documentElement.firstElementChild;
+  }
+
+  function replaceSvgNodeAtPath(svg, path, markup) {
+    let parent = svg;
+    for (let index = 0; index < path.length - 1; index += 1) {
+      parent = parent.children[path[index]];
+      if (!parent) throw new Error("Invalid SVG delta path");
+    }
+    const childIndex = path[path.length - 1];
+    const current = parent.children[childIndex];
+    const replacement = parseSvgFragment(markup);
+    if (!current || !replacement) throw new Error("Invalid SVG delta replacement");
+    parent.replaceChild(replacement, current);
+  }
+
+  function applySvgDelta(baseText, source) {
+    const svg = parseSvgMarkup(baseText);
+    for (const patch of source.patches || []) {
+      replaceSvgNodeAtPath(svg, patch.path || [], patch.svg || "");
+    }
+    return new XMLSerializer().serializeToString(svg);
+  }
+
   function partSelector(key) {
     return '[data-glissade-part="true"][data-glissade-part-key="' + CSS.escape(key) + '"]';
   }
@@ -339,9 +374,18 @@
       this.planCache = new Map();
     }
 
-    async loadText(source) {
+    async loadText(source, frames = null) {
       if (!this.textCache.has(source)) {
         this.textCache.set(source, (async () => {
+          if (source && typeof source === "object") {
+            if (source.kind !== "svg-delta-v1") {
+              throw new Error("Unsupported Glissade frame source: " + source.kind);
+            }
+            if (!frames || !Number.isInteger(source.base) || !frames[source.base]) {
+              throw new Error("Invalid Glissade SVG delta base");
+            }
+            return applySvgDelta(await this.loadText(frames[source.base], frames), source);
+          }
           const inline = await decodeDataUri(source);
           if (inline !== null) return inline;
           const response = await fetch(source);
@@ -357,14 +401,14 @@
       return this.textCache.get(source);
     }
 
-    async instantiate(source) {
-      return parseSvgMarkup(await this.loadText(source));
+    async instantiate(source, frames = null) {
+      return parseSvgMarkup(await this.loadText(source, frames));
     }
 
-    async analyzed(source, sandbox) {
+    async analyzed(source, sandbox, frames = null) {
       if (!this.analysisCache.has(source)) {
         this.analysisCache.set(source, (async () => {
-          const svg = await this.instantiate(source);
+          const svg = await this.instantiate(source, frames);
           sandbox.replaceChildren(svg);
           const analysis = analyzeSvg(svg);
           const size = intrinsicSize(svg);
@@ -375,18 +419,18 @@
       return this.analysisCache.get(source);
     }
 
-    async segmentPlan(startSource, endSource, sandbox) {
-      const cacheKey = startSource + "::" + endSource;
+    async segmentPlan(startSource, endSource, sandbox, frames = null) {
+      const cacheKey = frameSourceKey(startSource) + "::" + frameSourceKey(endSource);
       if (!this.planCache.has(cacheKey)) {
         this.planCache.set(cacheKey, (async () => {
           const [startData, endData] = await Promise.all([
-            this.analyzed(startSource, sandbox),
-            this.analyzed(endSource, sandbox),
+            this.analyzed(startSource, sandbox, frames),
+            this.analyzed(endSource, sandbox, frames),
           ]);
           const morphEvents = collectMorphMatches(startData.analysis, endData.analysis);
           const matches = morphEvents.matches;
-          const startSvg = await this.instantiate(startSource);
-          const endSvg = await this.instantiate(endSource);
+          const startSvg = await this.instantiate(startSource, frames);
+          const endSvg = await this.instantiate(endSource, frames);
           sandbox.replaceChildren(startSvg, endSvg);
           const geometryPlans = [];
           const drawPlans = [];
@@ -474,7 +518,7 @@
     async render(scene, frameIndex) {
       const token = ++this.renderToken;
       const source = scene.frames[frameIndex];
-      const baseSvg = await this.store.instantiate(source);
+      const baseSvg = await this.store.instantiate(source, scene.frames);
       if (token !== this.renderToken) return this.currentSize;
 
       const size = intrinsicSize(baseSvg);
@@ -495,6 +539,7 @@
           scene.frames[segment.startFrame],
           scene.frames[segment.endFrame],
           this.sandbox,
+          scene.frames,
         );
         if (token !== this.renderToken) return this.currentSize;
         if (plan.allMatches.length > 0) {
@@ -543,7 +588,7 @@
             if (partPlan.fallbacks.length > 0) {
               const startIds = new Set(partPlan.fallbacks.map(item => item.startId));
               const startOverlay = prepareElementOverlaySvg(
-                await this.store.instantiate(scene.frames[segment.startFrame]),
+                await this.store.instantiate(scene.frames[segment.startFrame], scene.frames),
                 startIds,
               );
               startOverlay.classList.add("glissade-stage-overlay", "glissade-stage-overlay-start", "glissade-stage-overlay-parts");
@@ -566,11 +611,11 @@
             for (const match of plan.fallbackMatches) {
               const allowedRootIds = new Set([match.rootId]);
               const startOverlay = prepareOverlaySvg(
-                await this.store.instantiate(scene.frames[segment.startFrame]),
+                await this.store.instantiate(scene.frames[segment.startFrame], scene.frames),
                 allowedRootIds,
               );
               const endOverlay = prepareOverlaySvg(
-                await this.store.instantiate(scene.frames[segment.endFrame]),
+                await this.store.instantiate(scene.frames[segment.endFrame], scene.frames),
                 allowedRootIds,
               );
               startOverlay.classList.add("glissade-stage-overlay", "glissade-stage-overlay-start");
@@ -614,7 +659,7 @@
           }
           if (plan.enteringFallbacks.length > 0) {
             const allowedRootIds = new Set(plan.enteringFallbacks.map(match => match.rootId));
-            const endOverlay = prepareOverlaySvg(await this.store.instantiate(scene.frames[segment.endFrame]), allowedRootIds);
+            const endOverlay = prepareOverlaySvg(await this.store.instantiate(scene.frames[segment.endFrame], scene.frames), allowedRootIds);
             endOverlay.classList.add("glissade-stage-overlay", "glissade-stage-overlay-end");
             for (const match of plan.enteringFallbacks) {
               const endRoot = endOverlay.querySelector(morphSelector(match.rootId));
@@ -626,7 +671,7 @@
           }
           if (plan.leavingFallbacks.length > 0) {
             const allowedRootIds = new Set(plan.leavingFallbacks.map(match => match.rootId));
-            const startOverlay = prepareOverlaySvg(await this.store.instantiate(scene.frames[segment.startFrame]), allowedRootIds);
+            const startOverlay = prepareOverlaySvg(await this.store.instantiate(scene.frames[segment.startFrame], scene.frames), allowedRootIds);
             startOverlay.classList.add("glissade-stage-overlay", "glissade-stage-overlay-start");
             for (const match of plan.leavingFallbacks) {
               const startRoot = startOverlay.querySelector(morphSelector(match.rootId));
@@ -654,11 +699,11 @@
 
     prefetch(scene, frameIndex) {
       const source = scene.frames[frameIndex];
-      if (source) this.store.loadText(source).catch(() => {});
+      if (source) this.store.loadText(source, scene.frames).catch(() => {});
       const segment = segmentForFrame(scene, frameIndex);
       if (!segment) return;
-      this.store.loadText(scene.frames[segment.startFrame]).catch(() => {});
-      this.store.loadText(scene.frames[segment.endFrame]).catch(() => {});
+      this.store.loadText(scene.frames[segment.startFrame], scene.frames).catch(() => {});
+      this.store.loadText(scene.frames[segment.endFrame], scene.frames).catch(() => {});
     }
   }
 

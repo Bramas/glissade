@@ -256,10 +256,11 @@
   ```
 
   This writes a standalone HTML file next to the input. By default, SVG frames
-  are embedded, minified, compressed, and decompressed lazily in the browser.
-  Use `--no-embed-frames` if you prefer external frame files, `--no-minify-svg`
-  while debugging SVG output, or `--no-compress-frames` if compression makes
-  local inspection harder.
+  are embedded, minified, compressed, optimized into smaller SVG deltas when
+  possible, and decompressed lazily in the browser. Use `--no-embed-frames` if
+  you prefer external frame files, `--no-minify-svg` while debugging SVG output,
+  `--no-optimize-frames` to keep every frame as a complete SVG, or
+  `--no-compress-frames` if compression makes local inspection harder.
 
   `--root` should point to the Typst project root. This matters when the
   document imports files outside its own directory, for example `../src/...`.
@@ -291,7 +292,7 @@
   \ #h(0.6cm) video #h(1.18cm) [--cut {none|scene|all}] [--fps FPS] [--ppi PPI] [--format FORMAT]
   \ #h(0.6cm) revealjs #h(.62cm) [--cut {none|scene|all}] [--fps FPS] [--ppi PPI] [--title TITLE] [--progress] [--template TEMPLATE]
   \ #h(0.6cm) html #h(1.39cm) [--cut {none|scene|all}] [--fps FPS] [--ppi PPI] [--title TITLE] [--progress]
-  \ #h(2.49cm) [--embed-frames] [--minify-svg] [--compress-frames] [--template TEMPLATE]
+  \ #h(2.49cm) [--embed-frames] [--minify-svg] [--compress-frames] [--optimize-frames] [--template TEMPLATE]
   \ #h(0.6cm) dev #h(1.54cm) [--cut {none|scene|all}] [--fps FPS] [--ppi PPI] [--host HOST] [--port PORT] [--template TEMPLATE]
   \
 ]<cmdsyntax>

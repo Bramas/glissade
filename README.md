@@ -78,7 +78,9 @@ shapes can use the same mechanism for geometry morphing or a
 - `O` opens the slide overview and `F` enters fullscreen.
 
 Playback pauses at every `cut()` and at the final frame. The generated HTML
-contains the runtime and compressed SVG frames in one portable file.
+contains the runtime and compressed SVG frames in one portable file. By default,
+HTML export stores smaller SVG deltas for intermediate frames when that is more
+compact than keeping complete SVGs; use `--no-optimize-frames` to disable this.
 
 ## Development
 
