@@ -916,6 +916,7 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
             "index": index - 1,
             "name": timeline.get("title") or slide_id,
             "source": os.path.basename(args.input),
+            "autoplay": bool(timeline.get("autoplay", False)),
             "fps": timeline.get("fps", args.fps),
             "duration": timeline.get("duration", 0),
             "frameCount": len(frames) if should_compile else timeline.get("frames", 0),

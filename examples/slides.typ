@@ -16,24 +16,6 @@
 // Apply the deck after global page/text configuration and shared definitions.
 #show: deck.with(fps: 1)
 
-#slide[
-  = Hello Glissade
-
-  #init(width: 3cm)
-  #animate(width: 8cm)
-  #animate(width: 3cm)
-  #cut(loop: true)
-
-  #context {
-    rect(
-      width: a("width"),
-      height: 1cm,
-      fill: blue,
-    )
-  }
-  #finish()
-]
-
 #slide(
   title: "A global theorem counter",
   frozen-counters: (theorem-counter,),
@@ -145,6 +127,49 @@ Your variables can be used in any package, including ctez. For instance:
     }
   ]
 
+  #finish()
+]
+
+
+#slide(autoplay: true)[
+  = Loop animation
+
+  Animation can be looped by using `#cut(loop: true)` after the animation. For instance:
+
+  #init(width: 3cm)
+  #animate(width: 8cm)
+  #animate(width: 3cm)
+  #cut(loop: true)
+
+  #grid(
+    columns: 2,
+    gutter: 5cm,
+    [
+```typst
+#init(width: 3cm)
+#animate(width: 8cm)
+#animate(width: 3cm)
+#cut(loop: true)
+#context {
+  rect(
+    width: a("width"),
+    height: 1cm,
+    fill: blue,
+  )
+}
+#finish()
+```
+    ],
+    [
+
+      #context {
+        rect(
+          width: a("width"),
+          height: 1cm,
+          fill: blue,
+        )
+      }
+    ])
   #finish()
 ]
 

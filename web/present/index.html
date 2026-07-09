@@ -192,9 +192,15 @@
         pause();
         sceneIndex = clamp(index, 0, manifest.scenes.length - 1);
         frameIndex = clamp(initialFrame, 0, scene().frameCount - 1);
+        const selectedIndex = sceneIndex;
+        const shouldAutoplay = Boolean(scene().autoplay) && frameIndex === 0 && scene().frameCount > 1;
         overview.hidden = true;
         renderTimeline();
-        render().catch(console.error);
+        render()
+          .then(() => {
+            if (sceneIndex === selectedIndex && shouldAutoplay) startPlayback();
+          })
+          .catch(console.error);
       }
       function startPlayback() {
         if (playing) return;
@@ -393,7 +399,7 @@
         renderOverview();
         resolveDebugReady();
         if (new URLSearchParams(location.search).get("glissade-debug") !== "1") {
-          render().catch(console.error);
+          selectScene(sceneIndex);
         }
       });
     })();

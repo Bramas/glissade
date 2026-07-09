@@ -22,11 +22,12 @@ Glissade focuses on three things:
 #set page(width: 128mm, height: 96mm)
 #show: deck.with(fps: 12)
 
-#slide(title: "Hello Glissade")[
-  #init(width: 1cm)
+#slide(title: "Hello Glissade", autoplay: true)[
+  = Hello Glissade
+  #init(width: 3cm)
   #animate(width: 8cm)
-  #cut()
   #animate(width: 3cm)
+  #cut(loop: true)
 
   #context {
     rect(width: a("width"), height: 1cm, fill: blue)

@@ -147,7 +147,7 @@
   }
 }
 
-#let _render-query-document(body, fps, id, index, title, frozen-counters, variables, cut_blocks, loop_blocks) = context {
+#let _render-query-document(body, fps, id, index, title, autoplay, frozen-counters, variables, cut_blocks, loop_blocks) = context {
   let max_block = _max-block(variables)
   let effective-cuts = cut_blocks
   if not max_block in effective-cuts {
@@ -198,6 +198,7 @@
       "id": id,
       "index": index,
       "title": title,
+      "autoplay": autoplay,
       "frozen_values": frozen-counters.map(counter => (counter.get)()),
       "fps": fps,
       "duration": elapsed,
@@ -220,6 +221,7 @@
   id: "1",
   index: 1,
   title: none,
+  autoplay: false,
   frozen-counters: (),
   /// Frames per second of animation. Overrides command line parameters.
   /// -> int
@@ -231,7 +233,7 @@
   let cut_blocks = built.cuts
   let loop_blocks = built.loops
   if int(sys.inputs.at("query", default: 0)) == 1 {
-    _render-query-document(body, fps, id, index, title, frozen-counters, variables, cut_blocks, loop_blocks)
+    _render-query-document(body, fps, id, index, title, autoplay, frozen-counters, variables, cut_blocks, loop_blocks)
   } else if fps == 0 {
     _render-slideshow(body, id, index, variables, frozen-counters: frozen-counters)
   } else {
@@ -305,6 +307,7 @@
   body,
   id: auto,
   title: none,
+  autoplay: false,
   frozen-counters: (),
   fps: -1,
 ) = {
@@ -312,6 +315,7 @@
     "glissade_slide_definition": (
       id: id,
       title: title,
+      autoplay: autoplay,
       frozen-counters: frozen-counters,
       fps: fps,
       body: body,
@@ -375,6 +379,7 @@
         id: item.id,
         index: index,
         title: item.title,
+        autoplay: item.autoplay,
         frozen-counters: item.frozen-counters,
         fps: if item.fps < 0 { effective-fps } else { item.fps },
       )

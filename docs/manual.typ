@@ -94,9 +94,10 @@
 
   `id` is used by the live editor and by HTML export metadata. If omitted,
   Glissade derives it from the slide title, then falls back to `slide-1`,
-  `slide-2`, and so on. `title` is shown in the browser overview. `fps` can be
-  set per slide when one scene needs more or fewer frames than the rest of the
-  deck.
+  `slide-2`, and so on. `title` is shown in the browser overview. Set
+  `autoplay: true` when a slide should start playing as soon as it is entered in
+  the browser presentation. `fps` can be set per slide when one scene needs more
+  or fewer frames than the rest of the deck.
 
   `cut()` creates a playback boundary inside a slide. In the browser, Right or
   Page Down advances through these boundaries, Space plays and pauses, and the
