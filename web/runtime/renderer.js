@@ -90,15 +90,26 @@
   }
 
   function parseSvgFragment(markup) {
+    const preview = markup.trim().slice(0, 80);
     const document = new DOMParser().parseFromString(
       `<svg xmlns="${SVG_NS}">${markup}</svg>`,
       "image/svg+xml",
     );
     const wrapper = document.documentElement;
     if (!wrapper || wrapper.localName !== "svg") {
-      throw new Error("Failed to parse SVG fragment");
+      throw new Error("Invalid SVG wrapper element: " + preview);
     }
-    return wrapper.firstElementChild;
+    const element = wrapper.firstElementChild;
+    if (!element) {
+      throw new Error("Empty SVG fragment: " + preview);
+    }
+    return element;
+  }
+
+  function expectedChildCountForPatch(patch) {
+    return Number.isInteger(patch?.targetCount) && patch.targetCount >= 0
+      ? patch.targetCount
+      : null;
   }
 
   function keepSelectedBranch(element, selectedIds) {
@@ -375,31 +386,52 @@
       return parseSvgMarkup(await this.loadText(source));
     }
 
-    async instantiateFrame(scene, frameIndex) {
+    async instantiateFrame(scene, frameIndex, visited = new Set()) {
+      if (visited.has(frameIndex)) {
+        throw new Error("Cyclic SVG patch reference");
+      }
+      visited.add(frameIndex);
       const frame = scene.frames[frameIndex];
       const source = frameSource(frame);
       if (!source) throw new Error("Missing frame source");
       const text = await this.loadText(source);
-      const trimmed = text.trimStart();
-      if (trimmed.startsWith("{") && trimmed.includes("\"glissade-type\":\"frame-patch\"")) {
-        const patch = JSON.parse(text);
+      let patch;
+      try {
+        patch = JSON.parse(text);
+      } catch {
+        patch = null;
+      }
+      if (patch?.["glissade-type"] === "frame-patch") {
+        const expectedChildCount = expectedChildCountForPatch(patch);
+        if (expectedChildCount === null) {
+          throw new Error("Invalid patch frame");
+        }
+        const operations = Array.isArray(patch.children) ? patch.children : [];
         const baseIndex = frameBaseIndex(frame);
         if (baseIndex === null) {
           throw new Error("Patch frame is missing a base frame reference");
         }
-        const baseSvg = await this.instantiateFrame(scene, baseIndex);
+        const baseSvg = await this.instantiateFrame(scene, baseIndex, visited);
         const patched = baseSvg.cloneNode(true);
-        for (const operation of patch.children || []) {
+        for (const operation of operations) {
+          if (!operation || !Number.isInteger(operation.index) || typeof operation.xml !== "string") {
+            throw new Error("Invalid patch operation");
+          }
+          if (operation.index < 0 || operation.index > patched.children.length) {
+            throw new Error("Invalid patch operation index");
+          }
           const replacement = parseSvgFragment(operation.xml);
-          const existing = patched.children[operation.index] || null;
+          const existing = operation.index < patched.children.length
+            ? patched.children[operation.index]
+            : null;
           if (existing) {
             patched.replaceChild(replacement, existing);
           } else {
             patched.appendChild(replacement);
           }
         }
-        while (patched.children.length > (patch.targetCount || 0)) {
-          patched.removeChild(patched.lastElementChild);
+        while (patched.children.length > expectedChildCount) {
+          patched.removeChild(patched.lastChild);
         }
         return patched;
       }
