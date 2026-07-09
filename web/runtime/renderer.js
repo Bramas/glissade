@@ -16,6 +16,8 @@
     smoothRate,
     sceneKeyframes,
     segmentForFrame,
+    frameSource,
+    frameBaseIndex,
     planGeometryMorph,
     makeGeometryOverlay,
     planDrawIn,
@@ -85,6 +87,18 @@
 
   function isDrawEffect(effect) {
     return effect === "draw-border-then-fill" || effect === "create" || effect === "write";
+  }
+
+  function parseSvgFragment(markup) {
+    const document = new DOMParser().parseFromString(
+      `<svg xmlns="${SVG_NS}">${markup}</svg>`,
+      "image/svg+xml",
+    );
+    const wrapper = document.documentElement;
+    if (!wrapper || wrapper.localName !== "svg") {
+      throw new Error("Failed to parse SVG fragment");
+    }
+    return wrapper.firstElementChild;
   }
 
   function keepSelectedBranch(element, selectedIds) {
@@ -361,6 +375,37 @@
       return parseSvgMarkup(await this.loadText(source));
     }
 
+    async instantiateFrame(scene, frameIndex) {
+      const frame = scene.frames[frameIndex];
+      const source = frameSource(frame);
+      if (!source) throw new Error("Missing frame source");
+      const text = await this.loadText(source);
+      const trimmed = text.trimStart();
+      if (trimmed.startsWith("{") && trimmed.includes("\"glissade-type\":\"frame-patch\"")) {
+        const patch = JSON.parse(text);
+        const baseIndex = frameBaseIndex(frame);
+        if (baseIndex === null) {
+          throw new Error("Patch frame is missing a base frame reference");
+        }
+        const baseSvg = await this.instantiateFrame(scene, baseIndex);
+        const patched = baseSvg.cloneNode(true);
+        for (const operation of patch.children || []) {
+          const replacement = parseSvgFragment(operation.xml);
+          const existing = patched.children[operation.index] || null;
+          if (existing) {
+            patched.replaceChild(replacement, existing);
+          } else {
+            patched.appendChild(replacement);
+          }
+        }
+        while (patched.children.length > (patch.targetCount || 0)) {
+          patched.removeChild(patched.lastElementChild);
+        }
+        return patched;
+      }
+      return parseSvgMarkup(text);
+    }
+
     async analyzed(source, sandbox) {
       if (!this.analysisCache.has(source)) {
         this.analysisCache.set(source, (async () => {
@@ -473,8 +518,7 @@
 
     async render(scene, frameIndex) {
       const token = ++this.renderToken;
-      const source = scene.frames[frameIndex];
-      const baseSvg = await this.store.instantiate(source);
+      const baseSvg = await this.store.instantiateFrame(scene, frameIndex);
       if (token !== this.renderToken) return this.currentSize;
 
       const size = intrinsicSize(baseSvg);
@@ -653,12 +697,20 @@
     }
 
     prefetch(scene, frameIndex) {
-      const source = scene.frames[frameIndex];
+      const frame = scene.frames[frameIndex];
+      const source = frameSource(frame);
       if (source) this.store.loadText(source).catch(() => {});
+      const baseIndex = frameBaseIndex(frame);
+      if (baseIndex !== null && scene.frames[baseIndex]) {
+        const baseSource = frameSource(scene.frames[baseIndex]);
+        if (baseSource) this.store.loadText(baseSource).catch(() => {});
+      }
       const segment = segmentForFrame(scene, frameIndex);
       if (!segment) return;
-      this.store.loadText(scene.frames[segment.startFrame]).catch(() => {});
-      this.store.loadText(scene.frames[segment.endFrame]).catch(() => {});
+      const startSource = frameSource(scene.frames[segment.startFrame]);
+      const endSource = frameSource(scene.frames[segment.endFrame]);
+      if (startSource) this.store.loadText(startSource).catch(() => {});
+      if (endSource) this.store.loadText(endSource).catch(() => {});
     }
   }
 

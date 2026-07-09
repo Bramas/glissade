@@ -72,6 +72,8 @@
   async function decodeDataUri(source) {
     const svgPrefix = "data:image/svg+xml;base64,";
     if (source.startsWith(svgPrefix)) return atob(source.slice(svgPrefix.length));
+    const jsonPrefix = "data:application/json;base64,";
+    if (source.startsWith(jsonPrefix)) return atob(source.slice(jsonPrefix.length));
     const gzipPrefix = "data:application/gzip;base64,";
     if (source.startsWith(gzipPrefix)) {
       return decompressGzip(base64Bytes(source.slice(gzipPrefix.length)));
@@ -209,6 +211,16 @@
     return null;
   }
 
+  function frameSource(frame) {
+    return typeof frame === "string" ? frame : frame?.source || null;
+  }
+
+  function frameBaseIndex(frame) {
+    return typeof frame === "object" && frame !== null && typeof frame.base === "number"
+      ? frame.base
+      : null;
+  }
+
   Object.assign(runtime, {
     SVG_NS,
     clamp,
@@ -229,5 +241,7 @@
     morphSelector,
     sceneKeyframes,
     segmentForFrame,
+    frameSource,
+    frameBaseIndex,
   });
 })();

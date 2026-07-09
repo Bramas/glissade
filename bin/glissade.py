@@ -22,6 +22,7 @@ import tempfile
 import threading
 import time
 import tomllib
+import xml.etree.ElementTree as ET
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -208,7 +209,7 @@ Examples:
     html_parser.add_argument(
         "--template",
         type=str,
-        default=str(Path(__file__).parent / "assets" / "present.min.html"),
+        default=str(Path(__file__).parent.parent / "web" / "present" / "index.html"),
         help="HTML presentation template"
     )
 
@@ -228,7 +229,7 @@ Examples:
     dev_parser.add_argument(
         "--template",
         type=str,
-        default=str(Path(__file__).parent / "assets" / "editor.min.html"),
+        default=str(Path(__file__).parent.parent / "web" / "editor" / "index.html"),
         help="editor HTML template"
     )
     dev_parser.set_defaults(func=handle_dev)
@@ -436,6 +437,96 @@ def run_typst(args, command, *, capture_output=False):
 def frame_number(path):
     match = re.search(r"frame-(\d+)\.svg$", str(path))
     return int(match.group(1)) if match else -1
+
+
+def _encode_embedded_bytes(payload: bytes, media_type: str) -> str:
+    return f"data:{media_type};base64," + base64.b64encode(payload).decode("ascii")
+
+
+def _encode_embedded_text(text: str, media_type: str, compress: bool) -> str:
+    payload = text.encode("utf-8")
+    if compress:
+        payload = gzip.compress(payload, compresslevel=9, mtime=0)
+        media_type = "application/gzip"
+    return _encode_embedded_bytes(payload, media_type)
+
+
+def _frame_patch(base_text: str, target_text: str):
+    base_root = ET.fromstring(base_text)
+    target_root = ET.fromstring(target_text)
+    base_children = list(base_root)
+    target_children = list(target_root)
+    if len(base_children) != len(target_children):
+        return None
+
+    operations = []
+    patch_size = 0
+    for index, (base_child, target_child) in enumerate(zip(base_children, target_children)):
+        base_xml = ET.tostring(base_child, encoding="unicode")
+        target_xml = ET.tostring(target_child, encoding="unicode")
+        if base_xml == target_xml:
+            continue
+        operations.append({
+            "index": index,
+            "xml": target_xml,
+        })
+        patch_size += len(target_xml)
+
+    if patch_size >= len(target_text):
+        return None
+    return {
+        "glissade-type": "frame-patch",
+        "targetCount": len(target_children),
+        "children": operations,
+    }
+
+
+def _scene_frame_bases(scene):
+    keyframes = sorted({int(frame) for frame in scene.get("keyframes", [])})
+    if not keyframes:
+        return [0]
+    return keyframes
+
+
+def _scene_frame_sources(temporary_directory, scene, compress_frames):
+    paths = [
+        Path(temporary_directory) / urlparse(frame_url).path.removeprefix("/frames/")
+        for frame_url in scene["frames"]
+    ]
+    texts = [path.read_text(encoding="utf-8") for path in paths]
+    bases = _scene_frame_bases(scene)
+    embedded_frames = []
+    for frame_index, frame_text in enumerate(texts):
+        base_index = max((index for index in bases if index <= frame_index), default=0)
+        if frame_index != base_index:
+            patch = _frame_patch(texts[base_index], frame_text)
+            if patch is not None:
+                embedded_frames.append({
+                    "source": _encode_embedded_text(
+                        json.dumps(patch, separators=(",", ":")),
+                        "application/json",
+                        compress_frames,
+                    ),
+                    "base": base_index,
+                })
+                continue
+        embedded_frames.append(_encode_embedded_text(frame_text, "image/svg+xml", compress_frames))
+    return embedded_frames
+
+
+def _copy_scene_frames(temporary_directory, scene, frames_dir, compress_frames):
+    external_frames = []
+    for frame_url in scene["frames"]:
+        frame_name = urlparse(frame_url).path.removeprefix("/frames/")
+        frame_path = Path(temporary_directory) / frame_name
+        frame_bytes = frame_path.read_bytes()
+        if compress_frames:
+            frame_name += ".gz"
+            frame_bytes = gzip.compress(frame_bytes, compresslevel=9, mtime=0)
+        dest_path = frames_dir / frame_name
+        dest_path.write_bytes(frame_bytes)
+        external_frames.append(f"frames/{frame_name}")
+    return external_frames
 
 
 def _sanitize_formula_part_token(value):
@@ -866,23 +957,13 @@ def handle_html(args):
                     )
             
             if args.embed_frames:
-                # Embed frames as base64
                 for scene in manifest["scenes"]:
-                    embedded_frames = []
-                    for frame_url in scene["frames"]:
-                        frame_name = urlparse(frame_url).path.removeprefix("/frames/")
-                        frame_path = Path(temporary_directory) / frame_name
-                        frame_bytes = frame_path.read_bytes()
-                        if args.compress_frames:
-                            frame_bytes = gzip.compress(frame_bytes, compresslevel=9, mtime=0)
-                            media_type = "application/gzip"
-                        else:
-                            media_type = "image/svg+xml"
-                        encoded = base64.b64encode(frame_bytes).decode("ascii")
-                        embedded_frames.append(f"data:{media_type};base64," + encoded)
-                    scene["frames"] = embedded_frames
+                    scene["frames"] = _scene_frame_sources(
+                        temporary_directory,
+                        scene,
+                        args.compress_frames,
+                    )
             else:
-                # Copy SVG files to frames directory
                 frames_dir.mkdir(parents=True, exist_ok=True)
                 for stale_frame in frames_dir.glob("slide-*-frame-*.svg"):
                     stale_frame.unlink()
@@ -890,21 +971,12 @@ def handle_html(args):
                     stale_frame.unlink()
                 
                 for scene in manifest["scenes"]:
-                    external_frames = []
-                    for frame_url in scene["frames"]:
-                        frame_name = urlparse(frame_url).path.removeprefix("/frames/")
-                        frame_path = Path(temporary_directory) / frame_name
-                        if args.compress_frames:
-                            frame_name += ".gz"
-                        dest_path = frames_dir / frame_name
-                        # Copy SVG file
-                        frame_bytes = frame_path.read_bytes()
-                        if args.compress_frames:
-                            frame_bytes = gzip.compress(frame_bytes, compresslevel=9, mtime=0)
-                        dest_path.write_bytes(frame_bytes)
-                        # Use relative path from HTML file location
-                        external_frames.append(f"frames/{frame_name}")
-                    scene["frames"] = external_frames
+                    scene["frames"] = _copy_scene_frames(
+                        temporary_directory,
+                        scene,
+                        frames_dir,
+                        args.compress_frames,
+                    )
             
             manifest_source = "Promise.resolve(" + json.dumps(manifest, separators=(",", ":")) + ")"
             result = render_editor_template(
