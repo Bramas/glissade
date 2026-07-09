@@ -162,6 +162,13 @@
         return minutes + ":" + remainder + "." + millis;
       }
       function percentage(value, total) { return total > 0 ? value / total * 100 : 0; }
+      function cutAtFrame(current, frame) {
+        return current.cuts.find(cut => cut.frame === frame);
+      }
+      function loopStartFrame(current, cut) {
+        const previous = [...current.cuts].reverse().find(item => item.frame < cut.frame);
+        return previous ? previous.frame : 0;
+      }
 
       function updateZoom() {
         const stack = elements.stage.querySelector(".glissade-stage-stack");
@@ -277,8 +284,16 @@
         if (now >= nextFrameAt) {
           if (frameIndex >= scene().frameCount - 1) { pause(); return; }
           frameIndex += 1;
+          const cut = cutAtFrame(scene(), frameIndex);
+          if (cut?.loop) {
+            frameIndex = loopStartFrame(scene(), cut);
+            renderFrame();
+            nextFrameAt += 1000 / scene().fps;
+            animationHandle = requestAnimationFrame(tick);
+            return;
+          }
           renderFrame();
-          if (scene().cuts.some(cut => cut.frame === frameIndex)) {
+          if (cut) {
             pause();
             return;
           }

@@ -30,20 +30,28 @@
       <div class="demo-panel" aria-label="Glissade source and rendered result">
         <div class="code-window" aria-label="Glissade code example">
           <div class="code-bar"><span></span><span></span><span></span><b>slides.typ</b></div>
-          <pre><code><span class="muted">#</span>init(width: 1cm)
-<span class="accent">#animate</span>(width: 8cm)
-<span class="muted">#</span>cut()
-<span class="accent">#animate</span>(width: 3cm)
+          <pre><code><span class="muted">#</span>slide[
+  = Hello Glissade
 
-<span class="muted">#</span>context {
-  rect(width: a(<span class="string">"width"</span>), fill: blue)
-}</code></pre>
+  <span class="muted">#</span>init(width: 3cm)
+  <span class="accent">#animate</span>(width: 8cm)
+  <span class="accent">#animate</span>(width: 3cm)
+  <span class="muted">#</span>cut(loop: true)
+
+  <span class="muted">#</span>context {
+    rect(
+      width: a(<span class="string">"width"</span>),
+      height: 1cm,
+      fill: blue,
+    )
+  }
+  <span class="muted">#</span>finish()
+]</code></pre>
         </div>
         <div class="result-window" aria-label="Rendered slide preview">
           <div class="result-bar"><b>Result</b><a href="example.html">open deck</a></div>
           <div class="slide-preview">
             <div class="slide-title">Hello Glissade</div>
-            <div class="measure-track"><span></span></div>
             <div class="preview-rect"></div>
             <div class="frame-strip"><i></i><i></i><i></i><i></i><i></i></div>
           </div>

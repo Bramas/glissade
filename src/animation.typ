@@ -295,7 +295,7 @@
 
 /// Add a cut at the end of the current block.
 #let cut(
-  /// Whether the pre-cut segment should loop (revealjs only)
+  /// Whether the pre-cut segment should loop during browser playback.
   /// -> bool
   loop: false,
 ) = metadata(("glissade_operation": (kind: "cut", loop: loop)))

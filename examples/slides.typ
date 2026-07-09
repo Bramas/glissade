@@ -16,6 +16,24 @@
 // Apply the deck after global page/text configuration and shared definitions.
 #show: deck.with(fps: 1)
 
+#slide[
+  = Hello Glissade
+
+  #init(width: 3cm)
+  #animate(width: 8cm)
+  #animate(width: 3cm)
+  #cut(loop: true)
+
+  #context {
+    rect(
+      width: a("width"),
+      height: 1cm,
+      fill: blue,
+    )
+  }
+  #finish()
+]
+
 #slide(
   title: "A global theorem counter",
   frozen-counters: (theorem-counter,),

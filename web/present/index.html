@@ -124,6 +124,27 @@
       function framePercentage(frame, current = scene()) {
         return current.frameCount > 1 ? frame / (current.frameCount - 1) * 100 : 0;
       }
+      function cutAtFrame(current, frame) {
+        return current.cuts.find(cut => cut.frame === frame);
+      }
+      function loopStartFrame(current, cut) {
+        const previous = [...current.cuts].reverse().find(item => item.frame < cut.frame);
+        return previous ? previous.frame : 0;
+      }
+      function activeLoopCut(current, frame) {
+        return [...current.cuts]
+          .filter(cut => cut.loop && loopStartFrame(current, cut) <= frame && frame < cut.frame)
+          .at(-1);
+      }
+      function exitLoop(cut) {
+        pause(true);
+        if (cut.frame >= scene().frameCount - 1 && sceneIndex < manifest.scenes.length - 1) {
+          selectScene(sceneIndex + 1);
+        } else {
+          frameIndex = cut.frame;
+          render().catch(console.error);
+        }
+      }
       function fitStage(stack = stage.querySelector(".glissade-stage-stack")) {
         if (!stack) return;
         const width = Number(stack.dataset.glissadeWidth);
@@ -195,8 +216,16 @@
         if (now >= nextFrameAt) {
           if (frameIndex >= scene().frameCount - 1) { pause(); return; }
           frameIndex += 1;
+          const cut = cutAtFrame(scene(), frameIndex);
+          if (cut?.loop) {
+            frameIndex = loopStartFrame(scene(), cut);
+            render().catch(console.error);
+            nextFrameAt += 1000 / scene().fps;
+            animationHandle = requestAnimationFrame(tick);
+            return;
+          }
           render().catch(console.error);
-          if (scene().cuts.some(cut => cut.frame === frameIndex)) { pause(); return; }
+          if (cut) { pause(); return; }
           nextFrameAt += 1000 / scene().fps;
         }
         animationHandle = requestAnimationFrame(tick);
@@ -229,6 +258,8 @@
           rapidForward = true;
           stepToNextKeyframe();
         } else if (playing) {
+          const loopCut = activeLoopCut(scene(), frameIndex);
+          if (loopCut) exitLoop(loopCut);
           return;
         } else if (frameIndex < scene().frameCount - 1) {
           startPlayback();
