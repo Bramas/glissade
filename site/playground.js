@@ -242,15 +242,12 @@
   }
 
   loadSource();
-  fetch("glissade.typ")
+  fetch("glissade.generated.typ")
     .then(response => {
-      if (!response.ok) throw new Error("Could not load bundled glissade.typ");
+      if (!response.ok) throw new Error("The playground bundle has not been generated. Run `npm run build:playground-lib` before serving the site locally.");
       return response.text();
     })
     .then(source => {
-      if (source.includes("Placeholder for the Glissade playground bundle")) {
-        throw new Error("The playground bundle has not been generated. Run `npm run build:playground-lib` before serving the site locally.");
-      }
       bundledLibrary = source;
       if (compilerReady) compile();
     })
