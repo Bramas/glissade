@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Get started with Glissade, the Typst animation and presentation toolkit.">
+  <meta name="description" content="Glissade documentation with focused Typst slide examples and live rendered results.">
   <title>Documentation — Glissade</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=feature-catalog">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
 </head>
 <body class="docs-page">
   <header class="nav shell">
@@ -15,53 +16,294 @@
   <main class="docs shell">
     <aside>
       <span>Documentation</span>
-      <a href="#install">Install</a><a href="#first-slide">First slide</a><a href="#export">Export</a><a href="#morph">Morphing</a><a href="#controls">Controls</a>
+      <a href="#getting-started">Getting started</a>
+      <a href="#animate">animate</a>
+      <a href="#meanwhile">meanwhile</a>
+      <a href="#sequence">then, wait, cut</a>
+      <a href="#loop">loop</a>
+      <a href="#transitions">transitions</a>
+      <a href="#formula-morph">formula morphing</a>
+      <a href="#create">create</a>
+      <a href="#metadata">slide metadata</a>
+      <a href="#export">export</a>
     </aside>
     <article>
-      <div class="eyebrow">Quick documentation</div>
-      <h1>From zero to an animated deck.</h1>
-      <p class="intro">Glissade keeps animation state in Typst and renders playback in the browser. This guide covers the shortest useful workflow; the <a href="manual.pdf">PDF manual</a> contains the full API reference.</p>
+      <div class="eyebrow">Documentation</div>
+      <h1>Small Typst examples, real rendered slides.</h1>
+      <p class="intro">Each feature below has a focused source snippet on the left and a rendered Glissade HTML slide on the right. The previews are exported from the matching files in <code>site/examples/</code>, so they exercise the same browser runtime used by actual presentations.</p>
 
-      <h2 id="install">Install</h2>
-      <p>Import the package from Typst Universe:</p>
-      <pre><code>#import "@preview/glissade:0.1.0": *</code></pre>
-
-      <h2 id="first-slide">Create your first slide</h2>
-      <pre><code>#set page(width: 128mm, height: 96mm)
+      <section id="getting-started" class="doc-section">
+        <h2>Getting started</h2>
+        <p>A Glissade deck is an ordinary Typst document with a <code>deck</code> show rule and one or more <code>slide</code> blocks. Inside a slide, animation state is declared with primitives such as <code>init</code>, <code>animate</code>, and <code>cut</code>, then read with <code>a("name")</code> inside <code>context</code>.</p>
+        <pre><code>#import "@preview/glissade:0.1.0": *
+#set page(width: 128mm, height: 96mm)
 #show: deck.with(fps: 12)
 
-#slide(title: "A moving value")[
-  #init(x: 1cm)
-  #animate(x: 8cm, duration: 1.2)
+#slide(title: "A first animation")[
+  #init(width: 1cm)
+  #animate(width: 8cm)
+  #wait(duration: .45)
+  #cut(loop: true)
 
-  #context {
-    circle(radius: a("x") / 8, fill: blue)
-  }
+  #context [
+    #rect(width: a("width"), height: 1cm)
+  ]
   #finish()
 ]</code></pre>
-      <p><code>init</code> establishes a value, <code>animate</code> creates a timeline block, and <code>a</code> reads the value for the current frame.</p>
+      </section>
 
-      <h2 id="export">Preview and export</h2>
-      <pre><code># Live editor
+      <section id="animate" class="doc-section">
+        <h2>Animate a value</h2>
+        <p><code>init</code> gives a variable its starting value. <code>animate</code> creates the next timeline block and interpolates that variable to a new value. Use <code>a("width")</code> from a Typst context to read the value for the current frame.</p>
+        <div class="example-card">
+          <div class="live-code">
+            <div class="example-bar"><span>animate-width.typ</span><b>value state</b></div>
+            <pre><code>#init(width: 42pt)
+#animate(width: 220pt, duration: 1.1)
+#wait(duration: .45)
+#cut(loop: true)
+
+#context [
+  #rect(
+    width: a("width"),
+    height: 34pt,
+    radius: 5pt,
+    fill: accent,
+  )
+]</code></pre>
+          </div>
+          <div class="live-result">
+            <div class="example-bar"><span>Result</span><a href="examples/animate-width.html">open</a></div>
+            <iframe data-src="examples/animate-width.html" title="Rendered animate width example" loading="lazy"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <section id="meanwhile" class="doc-section">
+        <h2>Coordinate variables with meanwhile</h2>
+        <p><code>meanwhile</code> adds another variable animation to the current block. It is useful when several visual properties should change together: position and opacity, scale and color, or multiple diagram coordinates.</p>
+        <div class="example-card">
+          <div class="live-code">
+            <div class="example-bar"><span>meanwhile.typ</span><b>same block</b></div>
+            <pre><code>#init(x: 20pt, opacity: 20%)
+#animate(x: 210pt, duration: 1.2)
+#meanwhile(opacity: 100%, duration: 1.2)
+#wait(duration: .45)
+#cut(loop: true)
+
+#context [
+  #place(dx: a("x"), dy: 32pt)[
+    #circle(
+      radius: 23pt,
+      fill: accent.transparentize(100% - a("opacity")),
+    )
+  ]
+]</code></pre>
+          </div>
+          <div class="live-result">
+            <div class="example-bar"><span>Result</span><a href="examples/meanwhile.html">open</a></div>
+            <iframe data-src="examples/meanwhile.html" title="Rendered meanwhile example" loading="lazy"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <section id="sequence" class="doc-section">
+        <h2>Sequence steps with then, wait, and cut</h2>
+        <p><code>then</code> appends an animation after the current block, <code>wait</code> holds state for a duration, and <code>cut</code> creates a playback boundary. In the browser, advancing moves through cuts before moving to the next slide.</p>
+        <div class="example-card">
+          <div class="live-code">
+            <div class="example-bar"><span>then-wait-cut.typ</span><b>presenter boundary</b></div>
+            <pre><code>#init(step: 0)
+#animate(step: 1, duration: .45)
+#then(step: 2, duration: .45)
+#wait(duration: .35)
+#then(step: 3, duration: .45)
+#wait(duration: .55)
+#cut(loop: true)
+
+#context [
+  // Render each box as active when step reaches it.
+]</code></pre>
+          </div>
+          <div class="live-result">
+            <div class="example-bar"><span>Result</span><a href="examples/then-wait-cut.html">open</a></div>
+            <iframe data-src="examples/then-wait-cut.html" title="Rendered sequence example" loading="lazy"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <section id="loop" class="doc-section">
+        <h2>Loop a segment</h2>
+        <p>Pass <code>loop: true</code> to <code>cut</code> when a segment should keep playing until the presenter advances. This is useful for ambient motion on title slides, waiting screens, or diagrams that should stay alive while you talk.</p>
+        <div class="example-card">
+          <div class="live-code">
+            <div class="example-bar"><span>loop.typ</span><b>looping cut</b></div>
+            <pre><code>#init(width: 48pt)
+#animate(width: 230pt, duration: .9)
+#animate(width: 48pt, duration: .9)
+#wait(duration: .35)
+#cut(loop: true)
+
+#context [
+  #rect(
+    width: a("width"),
+    height: 40pt,
+    radius: 20pt,
+    fill: rgb("#19a974"),
+  )
+]</code></pre>
+          </div>
+          <div class="live-result">
+            <div class="example-bar"><span>Result</span><a href="examples/loop.html">open</a></div>
+            <iframe data-src="examples/loop.html" title="Rendered loop example" loading="lazy"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <section id="transitions" class="doc-section">
+        <h2>Pick a transition function</h2>
+        <p>Animation primitives accept <code>transition</code>. Built-ins include <code>linear</code>, <code>smooth</code>, <code>quad</code>, <code>cubic</code>, <code>quart</code>, <code>sin</code>, and <code>circ</code>. You can also provide a custom function from <code>[0, 1]</code> to <code>[0, 1]</code>.</p>
+        <div class="example-card">
+          <div class="live-code">
+            <div class="example-bar"><span>transitions.typ</span><b>curves</b></div>
+            <pre><code>#init(linear-x: 0pt, smooth-x: 0pt, sin-x: 0pt)
+#animate(linear-x: 200pt, duration: 1.2, transition: linear)
+#meanwhile(smooth-x: 200pt, duration: 1.2, transition: smooth)
+#meanwhile(sin-x: 200pt, duration: 1.2, transition: sin)
+#wait(duration: .45)
+#cut(loop: true)
+
+#context [
+  #row("linear", 28pt, a("linear-x"), blue)
+  #row("smooth", 78pt, a("smooth-x"), green)
+  #row("sin", 128pt, a("sin-x"), purple)
+]</code></pre>
+          </div>
+          <div class="live-result">
+            <div class="example-bar"><span>Result</span><a href="examples/transitions.html">open</a></div>
+            <iframe data-src="examples/transitions.html" title="Rendered transitions example" loading="lazy"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <section id="formula-morph" class="doc-section">
+        <h2>Morph formulas by marking parts</h2>
+        <p>Wrap a formula in <code>formula(...)</code>, mark the pieces that should be tracked with <code>part</code>, then render the state with <code>glissade-morph</code>. Matching parts move between frames, while unmatched pieces can fade in or out.</p>
+        <div class="example-card">
+          <div class="live-code">
+            <div class="example-bar"><span>formula-morph.typ</span><b>semantic SVG</b></div>
+            <pre><code>#init(eq: formula($part(a) part(=) part(b)$))
+#animate(
+  eq: formula($part(a) / part(c) part(=) part(b) / part(c)$),
+  duration: 1.1,
+)
+#wait(duration: .45)
+#cut(loop: true)
+
+#align(center)[
+  #context [
+    #text(size: 34pt)[#glissade-morph("eq")]
+  ]
+]</code></pre>
+          </div>
+          <div class="live-result">
+            <div class="example-bar"><span>Result</span><a href="examples/formula-morph.html">open</a></div>
+            <iframe data-src="examples/formula-morph.html" title="Rendered formula morph example" loading="lazy"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <section id="create" class="doc-section">
+        <h2>Create content with draw-border-then-fill</h2>
+        <p><code>create</code> introduces content from an empty state. By default it attaches the <code>draw-border-then-fill</code> morph effect, so the browser runtime can draw the shape before filling it.</p>
+        <div class="example-card">
+          <div class="live-code">
+            <div class="example-bar"><span>create-reveal.typ</span><b>content reveal</b></div>
+            <pre><code>#create(card: [
+  #rect(
+    width: 230pt,
+    height: 92pt,
+    radius: 8pt,
+    fill: rgb("#d8e9df"),
+    stroke: 1pt + rgb("#246b61"),
+  )[New idea]
+], duration: 1.5)
+#wait(duration: .45)
+#cut(loop: true)
+
+#align(center)[
+  #context [#glissade-morph("card")]
+]</code></pre>
+          </div>
+          <div class="live-result">
+            <div class="example-bar"><span>Result</span><a href="examples/create-reveal.html">open</a></div>
+            <iframe data-src="examples/create-reveal.html" title="Rendered create reveal example" loading="lazy"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <section id="metadata" class="doc-section">
+        <h2>Use slide metadata</h2>
+        <p><code>slide</code> accepts an explicit <code>id</code>, a browser overview <code>title</code>, <code>autoplay</code>, and a local <code>fps</code>. Use <code>slide-number()</code> when the rendered content should display its position in the deck.</p>
+        <div class="example-card">
+          <div class="live-code">
+            <div class="example-bar"><span>slide-metadata.typ</span><b>slide options</b></div>
+            <pre><code>#slide(
+  id: "overview-title",
+  title: "Overview title",
+  autoplay: true,
+  fps: 16,
+)[
+  #init(width: 70pt)
+  #animate(width: 210pt, duration: .9)
+  #wait(duration: .45)
+  #cut(loop: true)
+  // ...
+  slide #slide-number()
+]</code></pre>
+          </div>
+          <div class="live-result">
+            <div class="example-bar"><span>Result</span><a href="examples/slide-metadata.html">open</a></div>
+            <iframe data-src="examples/slide-metadata.html" title="Rendered slide metadata example" loading="lazy"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <section id="export" class="doc-section">
+        <h2>Export and preview</h2>
+        <p>The command-line bridge compiles Typst, reads Glissade metadata, extracts SVG frames, and packages the browser runtime. Use <code>dev</code> while authoring and <code>html</code> when you want a portable presentation.</p>
+        <pre><code># Live editor
 python3 bin/glissade.py --root . slides.typ dev --fps 12
 
 # Self-contained HTML presentation
-python3 bin/glissade.py --root . slides.typ html --fps 24</code></pre>
-      <p>The HTML exporter embeds the runtime and gzip-compressed SVG frames. Use <code>--no-embed-frames</code> while inspecting output or serving frames separately. The GitHub Pages site includes an <a href="example.html">exported example deck</a> generated from <code>examples/slides.typ</code> at 25 fps.</p>
-
-      <h2 id="morph">Morph formulas and shapes</h2>
-      <pre><code>#init(formula: $part(a) + part(b)$)
-#animate(formula: $part(a) / part(b)$)
-
-#context {
-  glissade-morph("formula")
-}</code></pre>
-      <p>Matching <code>part</code> markers move between keyframes. Unmatched fragments fade, and ordinary SVG geometry can be morphed or drawn into view.</p>
-
-      <h2 id="controls">Presentation controls</h2>
-      <div class="key-grid"><div><kbd>→</kbd><span>Play or advance</span></div><div><kbd>←</kbd><span>Previous boundary</span></div><div><kbd>Space</kbd><span>Play or pause</span></div><div><kbd>O</kbd><span>Slide overview</span></div><div><kbd>F</kbd><span>Fullscreen</span></div></div>
+python3 bin/glissade.py --root . slides.typ html --fps 24 --title "My talk"</code></pre>
+        <p>The full <a href="manual.pdf">PDF manual</a> goes deeper into supported value types, generated metadata, export flags, and the lower-level Kino-compatible outputs.</p>
+      </section>
     </article>
   </main>
+  <script>
+    (() => {
+      const frames = [...document.querySelectorAll(".example-card iframe[data-src]")];
+      const replay = frame => {
+        const source = frame.dataset.src;
+        if (!source) return;
+        frame.src = source + "?loop=" + Date.now();
+      };
+      const observer = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          const frame = entry.target.querySelector("iframe[data-src]");
+          if (!frame) continue;
+          if (entry.isIntersecting) {
+            if (entry.target.dataset.visible !== "true") replay(frame);
+            entry.target.dataset.visible = "true";
+          } else {
+            entry.target.dataset.visible = "false";
+          }
+        }
+      }, { rootMargin: "-10% 0px -20% 0px", threshold: 0.35 });
+      for (const frame of frames) observer.observe(frame.closest(".example-card"));
+    })();
+  </script>
   <footer class="shell"><span>Glissade · MIT</span><a href="https://github.com/Bramas/glissade">Source on GitHub ↗</a></footer>
 </body>
 </html>
