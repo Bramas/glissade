@@ -6,7 +6,7 @@
   <meta name="description" content="Glissade documentation with focused Typst slide examples and live rendered results.">
   <title>Documentation — Glissade</title>
   <link rel="stylesheet" href="styles.css?v=feature-catalog">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="./favicon.png">
 </head>
 <body class="docs-page">
   <header class="nav shell">
@@ -35,7 +35,7 @@
       <section id="getting-started" class="doc-section">
         <h2>Getting started</h2>
         <p>A Glissade deck is an ordinary Typst document with a <code>deck</code> show rule and one or more <code>slide</code> blocks. Inside a slide, animation state is declared with primitives such as <code>init</code>, <code>animate</code>, and <code>cut</code>, then read with <code>a("name")</code> inside <code>context</code>.</p>
-        <pre><code>#import "@preview/glissade:0.1.0": *
+        <pre><code class="language-typst">#import "@preview/glissade:0.1.0": *
 #set page(width: 128mm, height: 96mm)
 #show: deck.with(fps: 12)
 
@@ -58,7 +58,7 @@
         <div class="example-card">
           <div class="live-code">
             <div class="example-bar"><span>animate-width.typ</span><b>value state</b></div>
-            <pre><code>#init(width: 42pt)
+            <pre><code class="language-typst">#init(width: 42pt)
 #animate(width: 220pt, duration: 1.1)
 #wait(duration: .45)
 #cut(loop: true)
@@ -85,7 +85,7 @@
         <div class="example-card">
           <div class="live-code">
             <div class="example-bar"><span>meanwhile.typ</span><b>same block</b></div>
-            <pre><code>#init(x: 20pt, opacity: 20%)
+            <pre><code class="language-typst">#init(x: 20pt, opacity: 20%)
 #animate(x: 210pt, duration: 1.2)
 #meanwhile(opacity: 100%, duration: 1.2)
 #wait(duration: .45)
@@ -113,7 +113,7 @@
         <div class="example-card">
           <div class="live-code">
             <div class="example-bar"><span>then-wait-cut.typ</span><b>presenter boundary</b></div>
-            <pre><code>#init(step: 0)
+            <pre><code class="language-typst">#init(step: 0)
 #animate(step: 1, duration: .45)
 #then(step: 2, duration: .45)
 #wait(duration: .35)
@@ -138,7 +138,7 @@
         <div class="example-card">
           <div class="live-code">
             <div class="example-bar"><span>loop.typ</span><b>looping cut</b></div>
-            <pre><code>#init(width: 48pt)
+            <pre><code class="language-typst">#init(width: 48pt)
 #animate(width: 230pt, duration: .9)
 #animate(width: 48pt, duration: .9)
 #wait(duration: .35)
@@ -166,7 +166,7 @@
         <div class="example-card">
           <div class="live-code">
             <div class="example-bar"><span>transitions.typ</span><b>curves</b></div>
-            <pre><code>#init(linear-x: 0pt, smooth-x: 0pt, sin-x: 0pt)
+            <pre><code class="language-typst">#init(linear-x: 0pt, smooth-x: 0pt, sin-x: 0pt)
 #animate(linear-x: 200pt, duration: 1.2, transition: linear)
 #meanwhile(smooth-x: 200pt, duration: 1.2, transition: smooth)
 #meanwhile(sin-x: 200pt, duration: 1.2, transition: sin)
@@ -192,7 +192,7 @@
         <div class="example-card">
           <div class="live-code">
             <div class="example-bar"><span>formula-morph.typ</span><b>semantic SVG</b></div>
-            <pre><code>#init(eq: formula($part(a) part(=) part(b)$))
+            <pre><code class="language-typst">#init(eq: formula($part(a) part(=) part(b)$))
 #animate(
   eq: formula($part(a) / part(c) part(=) part(b) / part(c)$),
   duration: 1.1,
@@ -219,7 +219,7 @@
         <div class="example-card">
           <div class="live-code">
             <div class="example-bar"><span>create-reveal.typ</span><b>content reveal</b></div>
-            <pre><code>#create(card: [
+            <pre><code class="language-typst">#create(card: [
   #rect(
     width: 230pt,
     height: 92pt,
@@ -248,7 +248,7 @@
         <div class="example-card">
           <div class="live-code">
             <div class="example-bar"><span>slide-metadata.typ</span><b>slide options</b></div>
-            <pre><code>#slide(
+            <pre><code class="language-typst">#slide(
   id: "overview-title",
   title: "Overview title",
   autoplay: true,
@@ -272,7 +272,7 @@
       <section id="export" class="doc-section">
         <h2>Export and preview</h2>
         <p>The command-line bridge compiles Typst, reads Glissade metadata, extracts SVG frames, and packages the browser runtime. Use <code>dev</code> while authoring and <code>html</code> when you want a portable presentation.</p>
-        <pre><code># Live editor
+        <pre><code class="language-bash"># Live editor
 python3 bin/glissade.py --root . slides.typ dev --fps 12
 
 # Self-contained HTML presentation
@@ -281,6 +281,7 @@ python3 bin/glissade.py --root . slides.typ html --fps 24 --title "My talk"</cod
       </section>
     </article>
   </main>
+  <script src="highlight.js"></script>
   <script>
     (() => {
       const frames = [...document.querySelectorAll(".example-card iframe[data-src]")];

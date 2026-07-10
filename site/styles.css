@@ -18,7 +18,7 @@ a { color: inherit; }
 .shell { width: min(1160px, calc(100% - 48px)); margin-inline: auto; }
 .nav { height: 84px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
 .wordmark { font-size: 24px; font-weight: 800; letter-spacing: -.05em; text-decoration: none; }
-.wordmark span, .accent { color: var(--blue); }
+.wordmark span, .accent, .tok-keyword { color: var(--blue); }
 .nav nav { display: flex; align-items: center; gap: 28px; font-size: 14px; font-weight: 650; }
 .nav nav a { text-decoration: none; }
 .nav nav a:hover, .nav nav .active { text-decoration: underline; text-underline-offset: 5px; }
@@ -41,6 +41,17 @@ a { color: inherit; }
 pre { overflow: auto; }
 .code-window pre { margin: 0; padding: 24px 28px; font: 14px/1.62 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .code-window .muted { color: #899793; } .code-window .string { color: #b6d87a; }
+.tok-hash { color: #8e9b96; }
+.tok-function { color: #7fc6ff; }
+.tok-string { color: #b6d87a; }
+.tok-number { color: #f1c36b; }
+.tok-literal { color: #d9a7ff; }
+.tok-comment { color: #899793; font-style: italic; }
+.highlighted-code { color: #edf5ea; }
+.highlighted-code .tok-keyword { color: #8bd5ff; font-weight: 750; }
+.highlighted-code .tok-function { color: #ffd166; font-weight: 700; }
+.highlighted-code .tok-hash { color: #c3d0ca; }
+.highlighted-code .tok-comment { color: #adbbb5; }
 .result-window { display: grid; grid-template-rows: 44px 1fr; background: #ffffff; }
 .result-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid var(--line); color: #5a6562; font-size: 12px; }
 .result-bar b { color: var(--ink); font: 12px ui-monospace, monospace; }
