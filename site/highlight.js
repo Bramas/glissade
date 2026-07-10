@@ -47,6 +47,12 @@
     return "typst";
   };
 
+  globalThis.GlissadeHighlight = {
+    typst: highlightTypst,
+    shell: highlightShell,
+    escapeHtml,
+  };
+
   for (const code of document.querySelectorAll("pre code")) {
     const source = code.textContent;
     code.classList.add("highlighted-code");

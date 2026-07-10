@@ -32,6 +32,7 @@ jobs:
           python3 -m pip install pypdf
           typst compile --root . docs/manual.typ docs/manual.pdf
           python3 bin/glissade.py --root . examples/slides.typ html --fps 25 --title "Glissade example"
+          node bin/build-playground-library.mjs
           mkdir -p public
           cp -R site/. public/
           cp docs/manual.pdf public/manual.pdf

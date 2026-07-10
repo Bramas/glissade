@@ -2,6 +2,7 @@
   "name": "glissade-web-assets",
   "private": true,
   "scripts": {
+    "build:playground-lib": "node bin/build-playground-library.mjs",
     "build": "bun run web/build.mjs",
     "check": "bun run web/build.mjs --check"
   }

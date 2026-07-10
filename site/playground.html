@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Try Typst slide source in the browser with a live Glissade-style preview.">
+  <title>Playground — Glissade</title>
+  <link rel="stylesheet" href="styles.css?v=playground">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
+  <script
+    type="module"
+    src="https://cdn.jsdelivr.net/npm/@myriaddreamin/typst.ts/dist/esm/contrib/all-in-one-lite.bundle.js"
+    id="typst"
+  ></script>
+</head>
+<body class="playground-page">
+  <header class="nav shell">
+    <a class="wordmark" href="./" aria-label="Glissade home">glissade<span>.</span></a>
+    <nav aria-label="Primary navigation">
+      <a href="docs.html">Docs</a>
+      <a class="active" href="playground.html">Playground</a>
+      <a href="manual.pdf">Manual</a>
+      <a href="example.html">Example</a>
+      <a class="github" href="https://github.com/Bramas/glissade">GitHub ↗</a>
+    </nav>
+  </header>
+
+  <main class="playground-shell">
+    <section class="playground-toolbar" aria-label="Playground controls">
+      <div>
+        <h1>Edit source. See the slide.</h1>
+      </div>
+      <div class="playground-actions">
+        <button class="button secondary" type="button" data-action="default-example">Load default example</button>
+        <button class="button secondary" type="button" data-action="reset">Reset</button>
+        <button class="button primary" type="button" data-action="compile">Compile</button>
+      </div>
+    </section>
+
+    <p class="playground-warning">
+      <strong>Playground limitation:</strong> <code>glissade-morph</code> does not work in this browser preview yet.
+    </p>
+
+    <section class="playground-grid" aria-label="Typst editor and rendered preview">
+      <div class="editor-pane">
+        <div class="example-bar">
+          <span>main.typ</span>
+          <b>imports bundled glissade.typ</b>
+        </div>
+        <div class="editor-stack">
+          <pre class="editor-highlight" aria-hidden="true"></pre>
+          <textarea id="typst-source" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+        </div>
+      </div>
+      <div class="preview-pane">
+        <div class="example-bar"><span>Result</span><b data-status>Loading typst.ts…</b></div>
+        <div class="typst-preview" id="typst-preview">
+          <div class="preview-message">Waiting for the browser compiler…</div>
+        </div>
+        <div class="frame-controls" hidden>
+          <button type="button" data-frame-action="previous" title="Previous frame">&#8592;</button>
+          <button type="button" data-frame-action="play" title="Play or pause">&#9654;</button>
+          <button type="button" data-frame-action="next" title="Next frame">&#8594;</button>
+          <span data-frame-status>Frame 1 / 1</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="highlight.js"></script>
+  <script src="playground.js"></script>
+</body>
+</html>
