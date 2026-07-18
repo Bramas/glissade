@@ -41,7 +41,7 @@
     .scene-button:hover { background: var(--panel-2); }
     .scene-button.active { color: white; border-color: #3d70ad; background: #243750; }
     .preview { position: relative; min-width: 0; min-height: 0; padding: 22px; overflow: hidden; }
-    .stage { width: 100%; height: 100%; display: flex; overflow: auto; }
+    .stage { width: 100%; height: 100%; display: flex; overflow: auto; touch-action: pan-y; }
     .glissade-stage-stack {
       position: relative;
       flex: none;
@@ -160,6 +160,11 @@
       let pauseWhenBlurred = false;
       let zoom = 1;
       let scrubbing = false;
+      let mouseSequenceStartedPlaying = false;
+      let touchStart = null;
+      let suppressClickUntil = 0;
+      const swipeDistance = 50;
+      const swipeDuration = 700;
 
       function scene() { return manifest?.scenes[sceneIndex]; }
       function clamp(value, minimum, maximum) { return Math.max(minimum, Math.min(value, maximum)); }
@@ -299,6 +304,42 @@
         elements.status.classList.add("error");
       }
       function hideError() { elements.error.hidden = true; }
+      function isInteractiveTarget(target) {
+        return target instanceof Element
+          && Boolean(target.closest("a, button, input, select, textarea, [contenteditable], [data-glissade-interactive]"));
+      }
+      function handleStageClick(event) {
+        if (performance.now() < suppressClickUntil) return;
+        if (event.pointerType && event.pointerType !== "mouse") return;
+        if (isInteractiveTarget(event.target)) return;
+        if (event.detail === 1) {
+          mouseSequenceStartedPlaying = playing;
+          if (!playing) selectScene(sceneIndex + 1);
+        }
+      }
+      function handleStageDoubleClick(event) {
+        if (isInteractiveTarget(event.target)) return;
+        if (mouseSequenceStartedPlaying && playing) pause();
+        mouseSequenceStartedPlaying = false;
+      }
+      function handleStagePointerDown(event) {
+        if (event.pointerType !== "touch" || !event.isPrimary || isInteractiveTarget(event.target)) return;
+        suppressClickUntil = performance.now() + 800;
+        touchStart = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() };
+      }
+      function handleStagePointerUp(event) {
+        if (!touchStart || event.pointerId !== touchStart.id) return;
+        const gesture = touchStart;
+        touchStart = null;
+        const dx = event.clientX - gesture.x;
+        const dy = event.clientY - gesture.y;
+        const elapsed = performance.now() - gesture.time;
+        if (elapsed <= swipeDuration && Math.abs(dx) >= swipeDistance && Math.abs(dx) > Math.abs(dy)) {
+          selectScene(sceneIndex + (dx < 0 ? 1 : -1));
+        } else if (Math.hypot(dx, dy) < 12) {
+          play();
+        }
+      }
 
       async function loadManifest(preservePosition = false) {
         try {
@@ -337,6 +378,11 @@
         try { localStorage.setItem("glissade-pause-when-blurred", String(pauseWhenBlurred)); } catch {}
       });
       elements.play.addEventListener("click", play);
+      elements.stage.addEventListener("click", handleStageClick);
+      elements.stage.addEventListener("dblclick", handleStageDoubleClick);
+      elements.stage.addEventListener("pointerdown", handleStagePointerDown);
+      elements.stage.addEventListener("pointerup", handleStagePointerUp);
+      elements.stage.addEventListener("pointercancel", () => { touchStart = null; });
       elements.timelineTrack.addEventListener("pointerdown", event => {
         scrubbing = true;
         elements.timelineTrack.setPointerCapture(event.pointerId);

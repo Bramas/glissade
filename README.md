@@ -84,6 +84,9 @@ shapes can use the same mechanism for geometry morphing or a
   through keyframes.
 - Left or Page Up returns to the current or previous animation boundary.
 - Space toggles playback and advances to the next animation at the end.
+- Clicking the slide continues when paused; double-clicking pauses an animation.
+- On touch screens, tap to play or pause, swipe left to continue, and swipe right
+  to return to the previous animation boundary.
 - `O` opens the slide overview and `F` enters fullscreen.
 
 Playback pauses at every `cut()` and at the final frame. The generated HTML

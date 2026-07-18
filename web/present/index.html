@@ -9,7 +9,7 @@
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
     body { color: white; background: #0b0c0f; font-family: system-ui, sans-serif; }
-    .stage { position: fixed; inset: 0; display: grid; place-items: center; }
+    .stage { position: fixed; inset: 0; display: grid; place-items: center; touch-action: pan-y; }
     .stage > :not(.glissade-measure-sandbox) { grid-area: 1 / 1; }
     .glissade-stage-stack {
       position: relative;
@@ -76,7 +76,7 @@
 </head>
 <body>
   <main class="stage"><span>Loading presentation…</span></main>
-  <div class="help">← animation start · → continue / double-tap to step · Space play/pause · O overview · F fullscreen</div>
+  <div class="help">Click / swipe left continue · Double-click / tap play/pause · Swipe right back · O overview · F fullscreen</div>
   <nav class="controls" aria-label="Presentation controls">
     <button class="control" data-action="previous" aria-label="Previous animation">&#8592;</button>
     <button class="control" data-action="play" aria-label="Play animation">&#9654;</button>
@@ -130,6 +130,12 @@
       const rapidForwardTimeout = 2000;
       let scrubbing = false;
       let timelineRevealed = false;
+      let mouseStart = null;
+      let lastMouseClick = null;
+      let touchStart = null;
+      const doubleClickDuration = 400;
+      const swipeDistance = 50;
+      const swipeDuration = 700;
       const overviewImageUrls = [];
 
       function scene() { return manifest.scenes[sceneIndex]; }
@@ -301,6 +307,49 @@
         render().catch(console.error);
       }
       function toggleOverview() { overview.hidden = !overview.hidden; }
+      function isInteractiveTarget(target) {
+        return target instanceof Element
+          && Boolean(target.closest("a, button, input, select, textarea, [contenteditable], [data-glissade-interactive]"));
+      }
+      function handleStagePointerDown(event) {
+        if (!event.isPrimary || isInteractiveTarget(event.target)) return;
+        const start = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() };
+        if (event.pointerType === "touch") touchStart = start;
+        else if (event.pointerType === "mouse" && event.button === 0) mouseStart = start;
+      }
+      function handleStagePointerUp(event) {
+        if (event.pointerType === "mouse" && mouseStart?.id === event.pointerId) {
+          const gesture = mouseStart;
+          mouseStart = null;
+          const now = performance.now();
+          const moved = Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y);
+          if (moved >= 12) return;
+          const isDoubleClick = lastMouseClick
+            && now - lastMouseClick.time <= doubleClickDuration
+            && Math.hypot(event.clientX - lastMouseClick.x, event.clientY - lastMouseClick.y) < 20;
+          if (isDoubleClick) {
+            if (lastMouseClick.startedPlaying) pause(true);
+            lastMouseClick = null;
+          } else {
+            const startedPlaying = playing;
+            continueForward();
+            lastMouseClick = { time: now, x: event.clientX, y: event.clientY, startedPlaying };
+          }
+          return;
+        }
+        if (event.pointerType !== "touch" || !touchStart || event.pointerId !== touchStart.id) return;
+        const gesture = touchStart;
+        touchStart = null;
+        const dx = event.clientX - gesture.x;
+        const dy = event.clientY - gesture.y;
+        const elapsed = performance.now() - gesture.time;
+        if (elapsed <= swipeDuration && Math.abs(dx) >= swipeDistance && Math.abs(dx) > Math.abs(dy)) {
+          if (dx < 0) continueForward();
+          else goBackToKeyframe();
+        } else if (Math.hypot(dx, dy) < 12) {
+          togglePlayback();
+        }
+      }
       function renderOverview() {
         for (const url of overviewImageUrls.splice(0)) URL.revokeObjectURL(url);
         overviewGrid.replaceChildren(...manifest.scenes.map((item, index) => {
@@ -338,6 +387,9 @@
         try { localStorage.setItem("glissade-pause-when-blurred", String(pauseWhenBlurred)); } catch {}
       });
       playButton.addEventListener("click", togglePlayback);
+      stage.addEventListener("pointerdown", handleStagePointerDown);
+      stage.addEventListener("pointerup", handleStagePointerUp);
+      stage.addEventListener("pointercancel", () => { mouseStart = null; touchStart = null; });
       timelineTrack.addEventListener("pointerdown", event => {
         scrubbing = true;
         timelineTrack.setPointerCapture(event.pointerId);
