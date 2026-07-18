@@ -31,6 +31,7 @@
       border-radius: 6px; background: var(--panel-2); cursor: pointer;
     }
     .tool-button:hover { border-color: #59606d; }
+    .toolbar-setting { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; white-space: nowrap; }
     .sidebar { overflow: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 10px; }
     .sidebar h2 { margin: 2px 6px 10px; color: var(--muted); font-size: 11px; text-transform: uppercase; }
     .scene-button {
@@ -103,6 +104,8 @@
       <button class="tool-button" data-action="zoom-in" title="Zoom in (Ctrl/⌘ +)">+</button>
       <button class="tool-button" data-action="zoom-fit" title="Fit slide (Ctrl/⌘ 0)">Fit</button>
       <button class="tool-button" data-action="fullscreen" title="Fullscreen (F)">Fullscreen</button>
+      <label class="toolbar-setting"><input type="checkbox" data-setting="pause-when-hidden"> Pause when hidden</label>
+      <label class="toolbar-setting"><input type="checkbox" data-setting="pause-when-blurred"> Pause when unfocused</label>
       <span class="status">Loading…</span>
     </header>
     <aside class="sidebar"><h2>Scenes</h2><div class="scene-list"></div></aside>
@@ -140,6 +143,8 @@
         playhead: document.querySelector(".playhead"),
         timelineTrack: document.querySelector(".timeline-track"),
         play: document.querySelector('[data-action="play"]'),
+        pauseWhenHidden: document.querySelector('[data-setting="pause-when-hidden"]'),
+        pauseWhenBlurred: document.querySelector('[data-setting="pause-when-blurred"]'),
         zoomValue: document.querySelector(".zoom-value"),
         error: document.querySelector(".error-overlay")
       };
@@ -149,7 +154,10 @@
       let frameIndex = 0;
       let playing = false;
       let animationHandle = 0;
-      let nextFrameAt = 0;
+      let playbackStartedAt = 0;
+      let playbackStartFrame = 0;
+      let pauseWhenHidden = true;
+      let pauseWhenBlurred = false;
       let zoom = 1;
       let scrubbing = false;
 
@@ -162,13 +170,6 @@
         return minutes + ":" + remainder + "." + millis;
       }
       function percentage(value, total) { return total > 0 ? value / total * 100 : 0; }
-      function cutAtFrame(current, frame) {
-        return current.cuts.find(cut => cut.frame === frame);
-      }
-      function loopStartFrame(current, cut) {
-        const previous = [...current.cuts].reverse().find(item => item.frame < cut.frame);
-        return previous ? previous.frame : 0;
-      }
 
       function updateZoom() {
         const stack = elements.stage.querySelector(".glissade-stage-stack");
@@ -276,29 +277,19 @@
         if (frameIndex >= scene().frameCount - 1) frameIndex = 0;
         playing = true;
         elements.play.textContent = "❚❚";
-        nextFrameAt = performance.now();
+        playbackStartedAt = performance.now();
+        playbackStartFrame = frameIndex;
         animationHandle = requestAnimationFrame(tick);
       }
       function tick(now) {
         if (!playing) return;
-        if (now >= nextFrameAt) {
-          if (frameIndex >= scene().frameCount - 1) { pause(); return; }
-          frameIndex += 1;
-          const cut = cutAtFrame(scene(), frameIndex);
-          if (cut?.loop) {
-            frameIndex = loopStartFrame(scene(), cut);
-            renderFrame();
-            nextFrameAt += 1000 / scene().fps;
-            animationHandle = requestAnimationFrame(tick);
-            return;
-          }
-          renderFrame();
-          if (cut) {
-            pause();
-            return;
-          }
-          nextFrameAt += 1000 / scene().fps;
+        const elapsedFrames = Math.floor((now - playbackStartedAt) * scene().fps / 1000);
+        const target = GlissadeMorphRuntime.advancePlaybackFrame(scene(), playbackStartFrame, elapsedFrames);
+        if (target.frame !== frameIndex) {
+          frameIndex = target.frame;
+          renderFrame().catch(showError);
         }
+        if (target.cut || target.ended) { pause(); return; }
         animationHandle = requestAnimationFrame(tick);
       }
       function showError(message) {
@@ -314,6 +305,14 @@
           const oldScene = sceneIndex;
           const oldFrame = frameIndex;
           manifest = await getManifest();
+          if (savedPauseWhenHidden === null || savedPauseWhenHidden === undefined) {
+            pauseWhenHidden = manifest.pauseWhenHidden !== false;
+            elements.pauseWhenHidden.checked = pauseWhenHidden;
+          }
+          if (savedPauseWhenBlurred === null || savedPauseWhenBlurred === undefined) {
+            pauseWhenBlurred = manifest.pauseWhenBlurred === true;
+            elements.pauseWhenBlurred.checked = pauseWhenBlurred;
+          }
           hideError();
           sceneIndex = clamp(oldScene, 0, manifest.scenes.length - 1);
           frameIndex = preservePosition ? clamp(oldFrame, 0, manifest.scenes[sceneIndex].frameCount - 1) : 0;
@@ -329,6 +328,14 @@
       document.querySelector('[data-action="zoom-in"]').addEventListener("click", () => setZoom(zoom * 1.2));
       document.querySelector('[data-action="zoom-fit"]').addEventListener("click", () => setZoom(1));
       document.querySelector('[data-action="fullscreen"]').addEventListener("click", () => document.documentElement.requestFullscreen?.());
+      elements.pauseWhenHidden.addEventListener("change", () => {
+        pauseWhenHidden = elements.pauseWhenHidden.checked;
+        try { localStorage.setItem("glissade-pause-when-hidden", String(pauseWhenHidden)); } catch {}
+      });
+      elements.pauseWhenBlurred.addEventListener("change", () => {
+        pauseWhenBlurred = elements.pauseWhenBlurred.checked;
+        try { localStorage.setItem("glissade-pause-when-blurred", String(pauseWhenBlurred)); } catch {}
+      });
       elements.play.addEventListener("click", play);
       elements.timelineTrack.addEventListener("pointerdown", event => {
         scrubbing = true;
@@ -356,12 +363,28 @@
       });
 
       new ResizeObserver(updateZoom).observe(elements.stage);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && pauseWhenHidden && playing) pause();
+      });
+      window.addEventListener("blur", () => {
+        if (pauseWhenBlurred && playing) pause();
+      });
 
       if (liveReload) {
         const events = new EventSource("/events");
         events.addEventListener("reload", () => loadManifest(true));
         events.addEventListener("build-error", event => showError(event.data));
       }
+      let savedPauseWhenHidden;
+      let savedPauseWhenBlurred;
+      try { savedPauseWhenHidden = localStorage.getItem("glissade-pause-when-hidden"); } catch {}
+      try { savedPauseWhenBlurred = localStorage.getItem("glissade-pause-when-blurred"); } catch {}
+      pauseWhenHidden = savedPauseWhenHidden === null || savedPauseWhenHidden === undefined
+        ? true
+        : savedPauseWhenHidden !== "false";
+      pauseWhenBlurred = savedPauseWhenBlurred === "true";
+      elements.pauseWhenHidden.checked = pauseWhenHidden;
+      elements.pauseWhenBlurred.checked = pauseWhenBlurred;
       loadManifest();
     })();
   </script>

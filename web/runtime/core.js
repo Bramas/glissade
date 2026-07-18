@@ -191,6 +191,28 @@
     return ordered;
   }
 
+  function advancePlaybackFrame(scene, startFrame, steps) {
+    let frame = startFrame;
+    let remaining = Math.max(0, steps);
+    while (remaining > 0) {
+      const cut = scene.cuts.find(item => item.frame > frame);
+      const boundary = cut ? cut.frame : scene.frameCount - 1;
+      const distance = boundary - frame;
+      if (remaining < distance) return { frame: frame + remaining };
+      frame = boundary;
+      remaining -= distance;
+      if (!cut) return { frame, ended: true };
+      if (!cut.loop) return { frame, cut };
+      const previousCut = [...scene.cuts].reverse().find(item => item.frame < cut.frame);
+      const loopStart = previousCut ? previousCut.frame : 0;
+      const loopLength = cut.frame - loopStart;
+      if (loopLength <= 0) return { frame, cut };
+      frame = loopStart;
+      remaining %= loopLength;
+    }
+    return { frame };
+  }
+
   function segmentForFrame(scene, frameIndex) {
     const keyframes = sceneKeyframes(scene);
     for (let index = 0; index < keyframes.length - 1; index += 1) {
@@ -228,6 +250,7 @@
     rectTranslationForElement,
     morphSelector,
     sceneKeyframes,
+    advancePlaybackFrame,
     segmentForFrame,
   });
 })();

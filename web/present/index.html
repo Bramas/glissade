@@ -60,8 +60,10 @@
       position: fixed; inset: 0; z-index: 5; overflow: auto; padding: 54px;
       background: rgb(12 14 18 / .96); backdrop-filter: blur(12px);
     }
-    .overview header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    .overview header { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin-bottom: 28px; }
     .overview h1 { margin: 0; font-size: 24px; }
+    .overview-settings { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-left: auto; }
+    .overview-setting { display: flex; align-items: center; gap: 7px; color: rgb(255 255 255 / .72); font-size: 13px; }
     .overview-close { padding: 9px 14px; border: 1px solid #444b57; border-radius: 7px; background: #242832; }
     .overview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 22px; }
     .overview-item { padding: 0; overflow: hidden; border: 2px solid transparent; border-radius: 8px; background: #1a1d23; text-align: left; }
@@ -87,7 +89,14 @@
   </div>
   <div class="progress"><span></span></div>
   <section class="overview" aria-label="Slide overview" hidden>
-    <header><h1>Slides</h1><button class="overview-close">Close</button></header>
+    <header>
+      <h1>Slides</h1>
+      <div class="overview-settings">
+        <label class="overview-setting"><input type="checkbox" data-setting="pause-when-hidden"> Pause when tab is hidden</label>
+        <label class="overview-setting"><input type="checkbox" data-setting="pause-when-blurred"> Pause when window loses focus</label>
+      </div>
+      <button class="overview-close">Close</button>
+    </header>
     <div class="overview-grid"></div>
   </section>
   <script>
@@ -110,7 +119,10 @@
       let frameIndex = 0;
       let playing = false;
       let animationHandle = 0;
-      let nextFrameAt = 0;
+      let playbackStartedAt = 0;
+      let playbackStartFrame = 0;
+      let pauseWhenHidden = true;
+      let pauseWhenBlurred = false;
       let lastForwardAt = -Infinity;
       let rapidForward = false;
       let rapidForwardReset = 0;
@@ -118,14 +130,12 @@
       const rapidForwardTimeout = 2000;
       let scrubbing = false;
       let timelineRevealed = false;
+      const overviewImageUrls = [];
 
       function scene() { return manifest.scenes[sceneIndex]; }
       function clamp(value, minimum, maximum) { return Math.max(minimum, Math.min(value, maximum)); }
       function framePercentage(frame, current = scene()) {
         return current.frameCount > 1 ? frame / (current.frameCount - 1) * 100 : 0;
-      }
-      function cutAtFrame(current, frame) {
-        return current.cuts.find(cut => cut.frame === frame);
       }
       function loopStartFrame(current, cut) {
         const previous = [...current.cuts].reverse().find(item => item.frame < cut.frame);
@@ -209,7 +219,8 @@
         timelineRevealed = false;
         playButton.textContent = "❚❚";
         updateTimeline();
-        nextFrameAt = performance.now();
+        playbackStartedAt = performance.now();
+        playbackStartFrame = frameIndex;
         animationHandle = requestAnimationFrame(tick);
       }
       function togglePlayback() {
@@ -219,21 +230,13 @@
       }
       function tick(now) {
         if (!playing) return;
-        if (now >= nextFrameAt) {
-          if (frameIndex >= scene().frameCount - 1) { pause(); return; }
-          frameIndex += 1;
-          const cut = cutAtFrame(scene(), frameIndex);
-          if (cut?.loop) {
-            frameIndex = loopStartFrame(scene(), cut);
-            render().catch(console.error);
-            nextFrameAt += 1000 / scene().fps;
-            animationHandle = requestAnimationFrame(tick);
-            return;
-          }
+        const elapsedFrames = Math.floor((now - playbackStartedAt) * scene().fps / 1000);
+        const target = GlissadeMorphRuntime.advancePlaybackFrame(scene(), playbackStartFrame, elapsedFrames);
+        if (target.frame !== frameIndex) {
+          frameIndex = target.frame;
           render().catch(console.error);
-          if (cut) { pause(); return; }
-          nextFrameAt += 1000 / scene().fps;
         }
+        if (target.cut || target.ended) { pause(); return; }
         animationHandle = requestAnimationFrame(tick);
       }
       function resetRapidForward() {
@@ -299,12 +302,19 @@
       }
       function toggleOverview() { overview.hidden = !overview.hidden; }
       function renderOverview() {
+        for (const url of overviewImageUrls.splice(0)) URL.revokeObjectURL(url);
         overviewGrid.replaceChildren(...manifest.scenes.map((item, index) => {
           const button = document.createElement("button");
           button.className = "overview-item" + (index === sceneIndex ? " active" : "");
           const image = document.createElement("img");
-          image.src = item.frames[0];
           image.alt = "";
+          stageRenderer.frameText(item, 0)
+            .then(source => {
+              const url = URL.createObjectURL(new Blob([source], { type: "image/svg+xml" }));
+              overviewImageUrls.push(url);
+              image.src = url;
+            })
+            .catch(console.error);
           const label = document.createElement("span");
           label.textContent = (index + 1) + ". " + item.name;
           button.append(image, label);
@@ -317,6 +327,16 @@
       document.querySelector('[data-action="next"]').addEventListener("click", continueForward);
       document.querySelector('[data-action="overview"]').addEventListener("click", toggleOverview);
       document.querySelector(".overview-close").addEventListener("click", toggleOverview);
+      const pauseWhenHiddenInput = document.querySelector('[data-setting="pause-when-hidden"]');
+      const pauseWhenBlurredInput = document.querySelector('[data-setting="pause-when-blurred"]');
+      pauseWhenHiddenInput.addEventListener("change", () => {
+        pauseWhenHidden = pauseWhenHiddenInput.checked;
+        try { localStorage.setItem("glissade-pause-when-hidden", String(pauseWhenHidden)); } catch {}
+      });
+      pauseWhenBlurredInput.addEventListener("change", () => {
+        pauseWhenBlurred = pauseWhenBlurredInput.checked;
+        try { localStorage.setItem("glissade-pause-when-blurred", String(pauseWhenBlurred)); } catch {}
+      });
       playButton.addEventListener("click", togglePlayback);
       timelineTrack.addEventListener("pointerdown", event => {
         scrubbing = true;
@@ -343,6 +363,12 @@
         else if (event.key === "End") selectScene(manifest.scenes.length - 1);
       });
       window.addEventListener("resize", () => fitStage());
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && pauseWhenHidden && playing) pause(true);
+      });
+      window.addEventListener("blur", () => {
+        if (pauseWhenBlurred && playing) pause(true);
+      });
 
       let resolveDebugReady;
       const debugReady = new Promise(resolve => { resolveDebugReady = resolve; });
@@ -394,6 +420,18 @@
 
       getManifest().then(value => {
         manifest = value;
+        let savedPauseWhenHidden;
+        let savedPauseWhenBlurred;
+        try { savedPauseWhenHidden = localStorage.getItem("glissade-pause-when-hidden"); } catch {}
+        try { savedPauseWhenBlurred = localStorage.getItem("glissade-pause-when-blurred"); } catch {}
+        pauseWhenHidden = savedPauseWhenHidden === null || savedPauseWhenHidden === undefined
+          ? manifest.pauseWhenHidden !== false
+          : savedPauseWhenHidden !== "false";
+        pauseWhenBlurred = savedPauseWhenBlurred === null || savedPauseWhenBlurred === undefined
+          ? manifest.pauseWhenBlurred === true
+          : savedPauseWhenBlurred === "true";
+        pauseWhenHiddenInput.checked = pauseWhenHidden;
+        pauseWhenBlurredInput.checked = pauseWhenBlurred;
         const requested = Number(location.hash.slice(1));
         sceneIndex = requested > 0 ? clamp(requested - 1, 0, manifest.scenes.length - 1) : 0;
         renderOverview();

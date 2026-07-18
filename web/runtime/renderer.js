@@ -15,6 +15,7 @@
     morphSelector,
     smoothRate,
     sceneKeyframes,
+    advancePlaybackFrame,
     segmentForFrame,
     planGeometryMorph,
     makeGeometryOverlay,
@@ -697,6 +698,10 @@
       return this.currentSize;
     }
 
+    frameText(scene, frameIndex) {
+      return this.store.loadText(scene.frames[frameIndex], scene.frames);
+    }
+
     prefetch(scene, frameIndex) {
       const source = scene.frames[frameIndex];
       if (source) this.store.loadText(source, scene.frames).catch(() => {});
@@ -712,6 +717,7 @@
       return new StageRenderer(stage, options);
     },
     sceneKeyframes,
+    advancePlaybackFrame,
     segmentForFrame,
   };
 })();
