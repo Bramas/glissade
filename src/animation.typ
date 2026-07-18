@@ -371,6 +371,7 @@
 
   let selected = sys.inputs.at("glissade-slide", default: "")
   let effective-fps = int(sys.inputs.at("fps", default: str(fps)))
+  let forced-fps = sys.inputs.at("glissade-force-fps", default: "")
   for (offset, item) in definitions.enumerate() {
     let index = offset + 1
     if selected == "" or selected == item.id or selected == str(index) {
@@ -381,7 +382,13 @@
         title: item.title,
         autoplay: item.autoplay,
         frozen-counters: item.frozen-counters,
-        fps: if item.fps < 0 { effective-fps } else { item.fps },
+        fps: if forced-fps != "" {
+          int(forced-fps)
+        } else if item.fps < 0 {
+          effective-fps
+        } else {
+          item.fps
+        },
       )
     }
   }

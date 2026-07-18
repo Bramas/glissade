@@ -11,8 +11,7 @@ Glissade focuses on three things:
 - a practical presentation workflow with live rebuilding, navigation, and
   portable HTML output.
 
-[Documentation](https://bramas.github.io/glissade/) ·
-[PDF manual](https://bramas.github.io/glissade/manual.pdf) ·
+[Documentation](https://bramas.github.io/glissade/docs.html) ·
 [Examples](examples)
 
 ## Quick start

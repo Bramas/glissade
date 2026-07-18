@@ -269,6 +269,7 @@ def handle_slides(args):
                     "compile",
                     os.path.join(dir_path, input),
                     "--input", "fps=0",
+                    "--input", "glissade-force-fps=0",
                     "--input", f"scene={index+1}",
                     "--input", f"total_scenes={total_scenes}",
                     output

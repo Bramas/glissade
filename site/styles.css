@@ -124,9 +124,10 @@ footer { min-height: 100px; display: flex; align-items: center; justify-content:
 .live-example, .example-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(330px, 1fr); gap: 14px; width: 100%; min-width: 0; margin: 28px 0 18px; }
 .live-code, .live-result { min-width: 0; overflow: hidden; border: 1px solid var(--ink); border-radius: 8px; background: white; box-shadow: 6px 6px 0 var(--accent-soft); }
 .live-code { background: var(--ink); }
-.example-bar { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--line); color: #5a6562; font-size: 12px; font-weight: 750; }
+.example-bar { min-height: 42px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--line); color: #5a6562; font-size: 12px; font-weight: 750; }
 .live-code .example-bar { border-color: rgba(255,255,255,.12); color: #aab6b2; }
 .example-bar span, .example-bar b { overflow-wrap: anywhere; }
+.example-bar span:first-child { margin-right: auto; }
 .example-bar a { color: var(--teal); text-decoration: none; }
 .live-example pre, .example-card pre { width: 100%; min-width: 0; height: 100%; min-height: 360px; margin: 0; border-radius: 0; }
 .example-card .live-result { display: grid; grid-template-rows: 42px 1fr; background: #101419; }

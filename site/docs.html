@@ -11,12 +11,14 @@
 <body class="docs-page">
   <header class="nav shell">
     <a class="wordmark" href="./">glissade<span>.</span></a>
-    <nav><a class="active" href="docs.html">Docs</a><a href="playground.html">Playground</a><a href="manual.pdf">Manual</a><a href="example.html">Example</a><a class="github" href="https://github.com/Bramas/glissade">GitHub ↗</a></nav>
+    <nav><a class="active" href="docs.html">Docs</a><a href="playground.html">Playground</a><a href="example.html">Example</a><a class="github" href="https://github.com/Bramas/glissade">GitHub ↗</a></nav>
   </header>
   <main class="docs shell">
     <aside>
       <span>Documentation</span>
       <a href="#getting-started">Getting started</a>
+      <a href="#state">Animation state</a>
+      <a href="#primitives">Primitive reference</a>
       <a href="#animate">animate</a>
       <a href="#meanwhile">meanwhile</a>
       <a href="#sequence">then, wait, cut</a>
@@ -25,6 +27,7 @@
       <a href="#formula-morph">formula morphing</a>
       <a href="#create">create</a>
       <a href="#metadata">slide metadata</a>
+      <a href="#playback">playback</a>
       <a href="#export">export</a>
     </aside>
     <article>
@@ -50,6 +53,44 @@
   ]
   #finish()
 ]</code></pre>
+        <p>Every slide needs a final <code>finish()</code>. The deck-level FPS is used unless a slide provides its own <code>fps</code>. During export, the command-line <code>--fps</code> value becomes the default supplied to Typst.</p>
+      </section>
+
+      <section id="state" class="doc-section">
+        <h2>Animation state and interpolation</h2>
+        <p>State names are local to a slide. Declare an initial value with <code>init</code>, change it with an animation primitive, and read it with <code>a("name")</code> inside <code>context</code>. A state must keep a compatible type for its entire timeline.</p>
+        <p>Glissade interpolates integers, floats, lengths, ratios, angles, arrays, and functions whose result has a supported type. Arrays must keep compatible element types. Content is held at its previous value until the transition completes; use <code>glissade-morph</code> when content should transform visually in the browser.</p>
+        <pre><code class="language-typst">#init(x: 0pt, opacity: 20%, samples: (0.0, 1.0))
+#animate(
+  x: 8cm,
+  opacity: 100%,
+  samples: (1.0, 0.0),
+  duration: .8,
+)
+
+#context {
+  place(dx: a("x"))[
+    #text(fill: black.transparentize(100% - a("opacity")))[Hello]
+  ]
+}</code></pre>
+        <p>If a state is first introduced by <code>animate</code>, Glissade infers a zero-like starting value. Explicit <code>init</code> is preferable when that inferred value would be unclear.</p>
+      </section>
+
+      <section id="primitives" class="doc-section">
+        <h2>Animation primitive reference</h2>
+        <p><code>animate</code> starts a new timeline block. <code>meanwhile</code> places another animation at the start of the current block, while <code>then</code> appends it after the current block’s existing content. <code>wait</code> extends a block without changing state, and <code>cut</code> creates a presenter boundary at its end.</p>
+        <pre><code class="language-typst">#animate(
+  x: 8cm,
+  hold: .2,        // delay before interpolation
+  duration: .8,    // interpolation time
+  dwell: .3,       // hold the final value
+  transition: smooth,
+)
+#meanwhile(opacity: 100%, duration: .8)
+#then(color: blue, duration: .4)
+#wait(duration: .5)
+#cut(loop: false)</code></pre>
+        <p>Pass <code>block</code> to <code>animate</code> or <code>wait</code> only when you need explicit block placement. Most decks are clearer when they rely on the implicit sequence. <code>create</code> is a convenience for content state: it initializes the state as empty and animates it in with <code>draw-border-then-fill</code> by default.</p>
       </section>
 
       <section id="animate" class="doc-section">
@@ -73,7 +114,7 @@
 ]</code></pre>
           </div>
           <div class="live-result">
-            <div class="example-bar"><span>Result</span><a href="examples/animate-width.html">open</a></div>
+            <div class="example-bar"><span>Result</span><a href="examples/animate-width.html" target="_blank" rel="noopener">HTML ↗</a><a href="examples/animate-width.pdf" target="_blank" rel="noopener">PDF ↗</a><a href="examples/animate-width.typ" target="_blank" rel="noopener">Source ↗</a></div>
             <iframe data-src="examples/animate-width.html" title="Rendered animate width example" loading="lazy"></iframe>
           </div>
         </div>
@@ -101,7 +142,7 @@
 ]</code></pre>
           </div>
           <div class="live-result">
-            <div class="example-bar"><span>Result</span><a href="examples/meanwhile.html">open</a></div>
+            <div class="example-bar"><span>Result</span><a href="examples/meanwhile.html" target="_blank" rel="noopener">HTML ↗</a><a href="examples/meanwhile.pdf" target="_blank" rel="noopener">PDF ↗</a><a href="examples/meanwhile.typ" target="_blank" rel="noopener">Source ↗</a></div>
             <iframe data-src="examples/meanwhile.html" title="Rendered meanwhile example" loading="lazy"></iframe>
           </div>
         </div>
@@ -126,7 +167,7 @@
 ]</code></pre>
           </div>
           <div class="live-result">
-            <div class="example-bar"><span>Result</span><a href="examples/then-wait-cut.html">open</a></div>
+            <div class="example-bar"><span>Result</span><a href="examples/then-wait-cut.html" target="_blank" rel="noopener">HTML ↗</a><a href="examples/then-wait-cut.pdf" target="_blank" rel="noopener">PDF ↗</a><a href="examples/then-wait-cut.typ" target="_blank" rel="noopener">Source ↗</a></div>
             <iframe data-src="examples/then-wait-cut.html" title="Rendered sequence example" loading="lazy"></iframe>
           </div>
         </div>
@@ -154,7 +195,7 @@
 ]</code></pre>
           </div>
           <div class="live-result">
-            <div class="example-bar"><span>Result</span><a href="examples/loop.html">open</a></div>
+            <div class="example-bar"><span>Result</span><a href="examples/loop.html" target="_blank" rel="noopener">HTML ↗</a><a href="examples/loop.pdf" target="_blank" rel="noopener">PDF ↗</a><a href="examples/loop.typ" target="_blank" rel="noopener">Source ↗</a></div>
             <iframe data-src="examples/loop.html" title="Rendered loop example" loading="lazy"></iframe>
           </div>
         </div>
@@ -180,7 +221,7 @@
 ]</code></pre>
           </div>
           <div class="live-result">
-            <div class="example-bar"><span>Result</span><a href="examples/transitions.html">open</a></div>
+            <div class="example-bar"><span>Result</span><a href="examples/transitions.html" target="_blank" rel="noopener">HTML ↗</a><a href="examples/transitions.pdf" target="_blank" rel="noopener">PDF ↗</a><a href="examples/transitions.typ" target="_blank" rel="noopener">Source ↗</a></div>
             <iframe data-src="examples/transitions.html" title="Rendered transitions example" loading="lazy"></iframe>
           </div>
         </div>
@@ -207,7 +248,7 @@
 ]</code></pre>
           </div>
           <div class="live-result">
-            <div class="example-bar"><span>Result</span><a href="examples/formula-morph.html">open</a></div>
+            <div class="example-bar"><span>Result</span><a href="examples/formula-morph.html" target="_blank" rel="noopener">HTML ↗</a><a href="examples/formula-morph.pdf" target="_blank" rel="noopener">PDF ↗</a><a href="examples/formula-morph.typ" target="_blank" rel="noopener">Source ↗</a></div>
             <iframe data-src="examples/formula-morph.html" title="Rendered formula morph example" loading="lazy"></iframe>
           </div>
         </div>
@@ -236,7 +277,7 @@
 ]</code></pre>
           </div>
           <div class="live-result">
-            <div class="example-bar"><span>Result</span><a href="examples/create-reveal.html">open</a></div>
+            <div class="example-bar"><span>Result</span><a href="examples/create-reveal.html" target="_blank" rel="noopener">HTML ↗</a><a href="examples/create-reveal.pdf" target="_blank" rel="noopener">PDF ↗</a><a href="examples/create-reveal.typ" target="_blank" rel="noopener">Source ↗</a></div>
             <iframe data-src="examples/create-reveal.html" title="Rendered create reveal example" loading="lazy"></iframe>
           </div>
         </div>
@@ -263,10 +304,23 @@
 ]</code></pre>
           </div>
           <div class="live-result">
-            <div class="example-bar"><span>Result</span><a href="examples/slide-metadata.html">open</a></div>
+            <div class="example-bar"><span>Result</span><a href="examples/slide-metadata.html" target="_blank" rel="noopener">HTML ↗</a><a href="examples/slide-metadata.pdf" target="_blank" rel="noopener">PDF ↗</a><a href="examples/slide-metadata.typ" target="_blank" rel="noopener">Source ↗</a></div>
             <iframe data-src="examples/slide-metadata.html" title="Rendered slide metadata example" loading="lazy"></iframe>
           </div>
         </div>
+      </section>
+
+      <section id="playback" class="doc-section">
+        <h2>Present and navigate</h2>
+        <p>The HTML viewer schedules logical frames from elapsed time. If the browser renders more slowly than the selected FPS, it skips intermediate frames instead of slowing the animation. It still stops exactly at non-looping cuts. Loop cuts repeat their preceding segment until you continue.</p>
+        <ul>
+          <li><strong>Right / Page Down:</strong> start or continue; press rapidly to step through keyframes.</li>
+          <li><strong>Left / Page Up:</strong> return to the current or previous animation boundary.</li>
+          <li><strong>Space:</strong> play or pause.</li>
+          <li><strong>O:</strong> open the slide overview and playback preferences.</li>
+          <li><strong>F:</strong> enter fullscreen.</li>
+        </ul>
+        <p>The overview can pause playback when the tab is hidden or when the window loses focus. These preferences are stored in the browser. Generated manifests may provide defaults with <code>pauseWhenHidden</code> and <code>pauseWhenBlurred</code>.</p>
       </section>
 
       <section id="export" class="doc-section">
@@ -277,7 +331,9 @@ python3 bin/glissade.py --root . slides.typ dev --fps 12
 
 # Self-contained HTML presentation
 python3 bin/glissade.py --root . slides.typ html --fps 24 --title "My talk"</code></pre>
-        <p>The full <a href="manual.pdf">PDF manual</a> goes deeper into supported value types, generated metadata, export flags, and the lower-level Kino-compatible outputs.</p>
+        <p><code>--root</code> sets the Typst project root and is important when slides import files outside their own directory. Both commands also accept <code>--ppi</code> and <code>--cut {all,scene,none}</code>; use <code>--host</code> and <code>--port</code> to change the dev server address.</p>
+        <p>HTML output embeds, minifies, gzip-compresses, and delta-optimizes SVG frames by default. Use <code>--no-embed-frames</code> for an HTML file accompanied by a frames directory, <code>--no-compress-frames</code> or <code>--no-optimize-frames</code> while inspecting generated assets, and <code>--no-minify-svg</code> while debugging SVG markup. Run <code>python3 bin/glissade.py slides.typ html --help</code> for the complete current option list.</p>
+        <p>The older <code>slides</code>, <code>video</code>, and <code>revealjs</code> outputs remain available for compatibility. The recommended Glissade workflow is <code>dev</code> while authoring and <code>html</code> for presenting or sharing.</p>
       </section>
     </article>
   </main>
