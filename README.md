@@ -50,6 +50,15 @@ python3 bin/glissade.py --root . slides.typ dev --fps 12
 The editor runs at `http://127.0.0.1:8765` and provides live rebuilding, a
 draggable playhead, animation blocks, cut markers, and per-slide compilation.
 
+Export video with FFmpeg when a non-interactive rendition is useful:
+
+```bash
+python3 bin/glissade.py --root . slides.typ video --fps 24 --cut none
+```
+
+Use `--cut scene` for one file per slide or `--cut all` for one file per
+presenter segment.
+
 ## Browser-native morphing
 
 `glissade-morph` connects Typst animation state to the browser renderer.

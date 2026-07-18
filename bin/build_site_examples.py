@@ -1,10 +1,4 @@
-#!/usr/bin/env -S uv run
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#   "pypdf",
-# ]
-# ///
+#!/usr/bin/env python3
 
 from pathlib import Path
 import subprocess
@@ -30,7 +24,22 @@ def build(source: Path) -> None:
         cwd=ROOT,
         check=True,
     )
-    subprocess.run([*common, "slides"], cwd=ROOT, check=True)
+    subprocess.run(
+        [
+            "typst",
+            "compile",
+            str(source),
+            str(source.with_suffix(".pdf")),
+            "--root",
+            str(ROOT),
+            "--input",
+            "fps=0",
+            "--input",
+            "glissade-force-fps=0",
+        ],
+        cwd=ROOT,
+        check=True,
+    )
     print(f"Built {source.stem}.html and {source.stem}.pdf")
 
 

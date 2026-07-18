@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build:playground-lib": "node bin/build-playground-library.mjs",
-    "build:examples": "uv run bin/build_site_examples.py",
+    "build:examples": "python3 bin/build_site_examples.py",
     "build": "bun run web/build.mjs",
     "check": "bun run web/build.mjs --check"
   }

@@ -3,7 +3,6 @@
 *.png
 *.mp4
 *.html
-!revealjs.html
 !bin/assets/
 !bin/assets/*.html
 !site/*.html

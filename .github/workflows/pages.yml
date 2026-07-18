@@ -29,7 +29,6 @@ jobs:
 
       - name: Build documentation
         run: |
-          python3 -m pip install pypdf
           python3 bin/glissade.py --root . examples/slides.typ html --fps 25 --title "Glissade example"
           python3 bin/build_site_examples.py
           node bin/build-playground-library.mjs

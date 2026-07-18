@@ -16,7 +16,6 @@
             typst
             typstyle
             python3
-            python3Packages.pypdf
             ruff
             mpv
             gifski
