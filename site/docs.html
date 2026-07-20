@@ -51,9 +51,8 @@
   #context [
     #rect(width: a("width"), height: 1cm)
   ]
-  #finish()
 ]</code></pre>
-        <p>Every slide needs a final <code>finish()</code>. For ordinary Typst/PDF rendering, a slide-level <code>fps</code> overrides the deck FPS. The <code>html</code>, <code>dev</code>, and <code>video</code> commands instead use their command-line <code>--fps</code> value for every slide, defaulting to 30.</p>
+        <p>The animation finishes automatically when the <code>slide</code> block closes. For ordinary Typst/PDF rendering, a slide-level <code>fps</code> overrides the deck FPS. The <code>html</code>, <code>dev</code>, and <code>video</code> commands instead use their command-line <code>--fps</code> value for every slide, defaulting to 30.</p>
       </section>
 
       <section id="state" class="doc-section">

@@ -11,6 +11,3 @@
 // #animate(block: 2, x: 2)
 // #then(z: 3)
 // #meanwhile(y: 2)
-
-
-#finish()

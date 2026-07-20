@@ -22,5 +22,4 @@
     #context [#glissade-morph("card")]
   ]
 
-  #finish()
 ]

@@ -31,9 +31,10 @@ Glissade focuses on three things:
   #context {
     rect(width: a("width"), height: 1cm, fill: blue)
   }
-  #finish()
 ]
 ```
+
+The animation ends with the slide body; no explicit terminator is needed.
 
 Export it as a self-contained presentation:
 

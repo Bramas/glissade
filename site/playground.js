@@ -13,7 +13,6 @@
     #context [
       a value : #a("a")
     ]
-    #finish()
 ]`;
 
   const mainSample = defaultExample;

@@ -12,5 +12,3 @@
 #then(x: 9cm, transition: concat(quad, circ))
 
 #context place(dx: a("x"))[#circle(fill: blue)]
-
-#finish()

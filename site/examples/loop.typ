@@ -18,5 +18,4 @@
     #rect(width: a("width"), height: 40pt, radius: 20pt, fill: rgb("#19a974"))
   ]
 
-  #finish()
 ]

@@ -5,9 +5,6 @@
 #import "utils.typ": get_block_duration, get_default_dict, get_scaler
 #import "transitions.typ": get_transition
 
-/// Terminates the animation. Mandatory.
-#let finish() = metadata(("glissade_operation": (kind: "finish")))
-
 // Main function for computing `a`("x")
 #let build_mapping(variables, block, name) = {
   let name_dict = variables.at(name, default: get_default_dict())
@@ -214,7 +211,7 @@
   ]))
 }
 
-/// The main show rule. Must be applied before any animation primitive is used. The body must contain a call to @finish.
+/// The main show rule. Must be applied before any animation primitive is used.
 #let animation(
   /// -> content
   body,
@@ -302,7 +299,8 @@
   loop: false,
 ) = metadata(("glissade_operation": (kind: "cut", loop: loop)))
 
-/// Collects one logical slide for the `deck` show rule.
+/// Collects one logical slide for the `deck` show rule. The animation ends
+/// automatically at the end of the slide body.
 #let slide(
   body,
   id: auto,

@@ -5,7 +5,7 @@
     .replaceAll(">", "&gt;");
 
   const typstKeywords = new Set([
-    "align", "animate", "circle", "context", "create", "cut", "deck", "finish",
+    "align", "animate", "circle", "context", "create", "cut", "deck",
     "formula", "grid", "import", "init", "line", "meanwhile", "part", "place",
     "rect", "set", "show", "slide", "text", "then", "v", "wait",
   ]);

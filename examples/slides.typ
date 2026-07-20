@@ -47,7 +47,6 @@
     ]
     align(center, line(length: a("x") * 8mm, stroke: 3pt + accent))
   }
-  #finish()
 ```
 
 You can decide the number of frame per second this wil generate, by default it is 1 fps, with at least one frame at the begining and end of each slide (if different).
@@ -61,7 +60,6 @@ You can decide the number of frame per second this wil generate, by default it i
     ]
     align(center, line(length: a("x") * 8mm, stroke: 3pt + accent))
   }
-  #finish()
 ]
 
 
@@ -98,7 +96,6 @@ Your variables can be used in any package, including ctez. For instance:
       }
     })
   }
-  #finish()
 ```]
 
   #init(n: 4.0)
@@ -127,7 +124,6 @@ Your variables can be used in any package, including ctez. For instance:
     }
   ]
 
-  #finish()
 ]
 
 
@@ -157,7 +153,6 @@ Your variables can be used in any package, including ctez. For instance:
     fill: blue,
   )
 }
-#finish()
 ```
     ],
     [
@@ -170,7 +165,6 @@ Your variables can be used in any package, including ctez. For instance:
         )
       }
     ])
-  #finish()
 ]
 
 #import "@preview/mannot:0.4.0": *
@@ -201,7 +195,6 @@ Your variables can be used in any package, including ctez. For instance:
   Creation and morphing of formulas (and other objects) is done by using `#glissade-morph("f")` to show the object. Morphing animation are performed only in the custom export of the presentation. In pdf, objects are simply replaced by the new one.
 
   In the formula above, "= o =" is not a marked part so it will fade out and in during the animation. $a$ and $b$ are marked parts so they will move into place. $a$ appears two time so we gave a key to the second one so it will no collide with the first one.
-  #finish()
 ]
 
 #slide(
@@ -243,7 +236,6 @@ Your variables can be used in any package, including ctez. For instance:
     align(center, glissade-morph("draw-state2"))
   }
   
-#finish()
 ```
     ],[
   #context {
@@ -251,7 +243,6 @@ Your variables can be used in any package, including ctez. For instance:
     align(center, glissade-morph("draw-state2"))
   }
   ])
-  #finish()
 ]
 
 
@@ -308,7 +299,6 @@ Your variables can be used in any package, including ctez. For instance:
     }
   })
 }
-#finish()
 
 ```
 ], [
@@ -327,7 +317,6 @@ Your variables can be used in any package, including ctez. For instance:
       }
     })
   }
-  #finish()
 
     ]
   )

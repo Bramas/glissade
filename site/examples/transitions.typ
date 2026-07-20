@@ -29,5 +29,4 @@
     #row("sin", 128pt, a("sin-x"), rgb("#b24a7b"))
   ]
 
-  #finish()
 ]

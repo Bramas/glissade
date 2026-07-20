@@ -24,6 +24,3 @@
   // evaluate y
   rect(width: w, height: a("y")(h))
 }
-
-// mandatory
-#finish()

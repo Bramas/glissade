@@ -38,7 +38,3 @@
   // uranus(a("t"))
   // neptune(a("t"))
 }
-
-#finish()
-
-
