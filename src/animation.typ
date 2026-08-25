@@ -130,6 +130,81 @@
   if blocks.len() == 0 { 0 } else { calc.max(..blocks) }
 }
 
+#let _timeline-blocks(variables, fps, cut-blocks: (), loop-blocks: ()) = {
+  let max-block = _max-block(variables)
+  let effective-cuts = cut-blocks
+  if max-block > 0 and not max-block in effective-cuts {
+    effective-cuts = effective-cuts + (max-block,)
+  }
+  let elapsed = 0
+  let total-frames = 0
+  let blocks = ()
+  for b in range(1, max-block + 1) {
+    let duration = get_block_duration(variables, b)
+    let frames = int(calc.round(fps * duration))
+    blocks.push((
+      "index": b,
+      "start": elapsed,
+      "end": elapsed + duration,
+      "duration": duration,
+      "start_frame": total-frames,
+      "end_frame": total-frames + frames,
+      "cut": b in effective-cuts,
+      "loop": b in loop-blocks,
+    ))
+    elapsed += duration
+    total-frames += frames
+  }
+  (
+    blocks: blocks,
+    duration: elapsed,
+    frames: total-frames + 1,
+  )
+}
+
+#let _render-frame-content(
+  body,
+  id,
+  index,
+  variables,
+  frame,
+  fps,
+  marker: none,
+) = {
+  let max-block = _max-block(variables)
+  let block-index = 1
+  let time = 0
+  if max-block > 0 {
+    let offset = 0
+    for b in range(1, max-block + 1) {
+      let duration = get_block_duration(variables, b)
+      let frames = int(calc.round(fps * duration))
+      if frame < offset + frames or b == max-block {
+        block-index = b
+        time = if frames == 0 {
+          duration
+        } else {
+          duration * calc.min(frames, frame - offset) / frames
+        }
+        break
+      }
+      offset += frames
+    }
+  }
+  [
+    #active-slide.update(_ => id)
+    #slide-scope(id)
+    #metadata(("glissade_animation_scope": (
+      variables: variables,
+      block: block-index,
+      time: time,
+      index: index,
+    )))
+    #if marker != none { metadata(marker) }
+    #body
+  ]
+}
+
 #let _render-slideshow(body, id, index, variables, frozen-counters: ()) = {
   let max_block = _max-block(variables)
   for b in range(1, max_block + 2) {
@@ -292,6 +367,96 @@
   }
 }
 
+/// Embeds a Glissade timeline in a Touying slide. Bind Touying's public
+/// `touying-fn-wrapper` once, then use the result like a content function:
+/// `#let glissade-animation = touying-animation.with(touying-fn-wrapper)`.
+#let touying-animation(
+  touying-fn-wrapper,
+  body,
+  /// Identifier for this embedded timeline. Keep it unique when a document
+  /// contains multiple Touying animations.
+  id: "animation",
+  /// Frames per second reserved as Touying subslides.
+  fps: -1,
+) = {
+  let forced-fps = sys.inputs.at("glissade-force-fps", default: "")
+  if forced-fps != "" {
+    fps = int(forced-fps)
+  } else if fps < 0 {
+    fps = int(sys.inputs.at("fps", default: 30))
+  }
+  assert(fps > 0, message: "touying-animation requires fps greater than zero")
+  let built = build-timeline(body)
+  let timeline = _timeline-blocks(
+    built.timeline,
+    fps,
+    cut-blocks: built.cuts,
+    loop-blocks: built.loops,
+  )
+  let render(
+    self: none,
+    body,
+    variables,
+    timeline,
+    id,
+    fps,
+    start: 1,
+  ) = {
+    let local-frame = calc.max(
+      0,
+      calc.min(timeline.frames - 1, self.subslide - start),
+    )
+    let rendered = _render-frame-content(
+      body,
+      id,
+      1,
+      variables,
+      local-frame,
+      fps,
+      marker: if self.subslide >= start
+        and self.subslide < start + timeline.frames {
+        (
+          "glissade_touying_frame": (
+            id: id,
+            frame: local-frame,
+            frames: timeline.frames,
+            fps: fps,
+            duration: timeline.duration,
+            blocks: timeline.blocks,
+          ),
+        )
+      } else {
+        none
+      },
+    )
+    if self.subslide < start {
+      (self.methods.cover.with(self: self))(rendered)
+    } else {
+      rendered
+    }
+  }
+  touying-fn-wrapper(
+    render,
+    last-subslide: start => (
+      start + timeline.frames - 1,
+      (start: start),
+    ),
+    body,
+    built.timeline,
+    timeline,
+    id,
+    fps,
+  )
+}
+
+/// Creates a Glissade animation function with document-wide Touying defaults.
+/// The returned function can still receive per-animation arguments such as
+/// `id` or an overriding `fps`.
+#let touying(touying-fn-wrapper, fps: 30) = {
+  assert(fps > 0, message: "touying requires fps greater than zero")
+  touying-animation.with(touying-fn-wrapper, fps: fps)
+}
+
 /// Add a cut at the end of the current block.
 #let cut(
   /// Whether the pre-cut segment should loop during browser playback.
@@ -352,6 +517,12 @@
 /// default frame rate used by an ordinary `typst compile`.
 #let deck(body, fps: 5) = {
   let definitions = _collect-slides(body)
+  assert(
+    definitions.len() > 0,
+    message: "Glissade deck found no Glissade slide definitions. "
+      + "In a Touying presentation, keep the Touying theme as the document show rule "
+      + "and set fps on touying-animation instead.",
+  )
   let normalized = ()
   let used-ids = (:)
   for (offset, item) in definitions.enumerate() {

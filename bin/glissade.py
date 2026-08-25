@@ -576,11 +576,13 @@ def _extract_slide_morph_specs(metadata):
         if item.get("glissade-morph-root"):
             morph_id = item.get("id")
             morph_effect = item.get("effect")
-            morph_specs[pending_slide_id].append({
+            spec = {
                 "id": None if morph_id is None else str(morph_id),
                 "state": item.get("state"),
                 "effect": None if morph_effect is None else str(morph_effect),
-            })
+            }
+            if spec not in morph_specs[pending_slide_id]:
+                morph_specs[pending_slide_id].append(spec)
     return morph_specs
 
 
@@ -728,6 +730,282 @@ def _read_morph_runtime_source():
     ]
     return "\n".join(path.read_text(encoding="utf-8") for path in parts)
 
+
+def _tag_svg_frame(
+    frame_path,
+    *,
+    variables,
+    blocks,
+    frame_index,
+    morph_specs,
+    log,
+):
+    """Attach formula-part and morph identifiers to one rendered SVG frame."""
+    try:
+        content = frame_path.read_text(encoding="utf-8")
+        part_specs = _frame_formula_parts(variables, blocks, frame_index)
+        active_morph_specs = []
+        frame_block, frame_time = _frame_block_and_time(blocks, frame_index)
+        for item in morph_specs:
+            morph_id = item.get("id")
+            if morph_id is None:
+                continue
+            state = item.get("state")
+            effect = item.get("effect")
+            if state is not None:
+                effect = _transition_effect_for_frame(
+                    variables.get(str(state), {}),
+                    frame_block,
+                    frame_time,
+                )
+            active_morph_specs.append({
+                "id": morph_id if morph_id.startswith(svg_tagger.MORPH_ID_PREFIX)
+                else f"{svg_tagger.MORPH_ID_PREFIX}{_sanitize_formula_part_token(morph_id)}",
+                "name": morph_id.removeprefix(svg_tagger.MORPH_ID_PREFIX)
+                if morph_id.startswith(svg_tagger.MORPH_ID_PREFIX)
+                else str(morph_id),
+                "effect": effect,
+            })
+        if active_morph_specs:
+            expanded_parts = []
+            for morph in active_morph_specs:
+                morph_suffix = morph["id"].removeprefix(svg_tagger.MORPH_ID_PREFIX)
+                for part in part_specs:
+                    expanded_parts.append({
+                        "id": (
+                            f"{svg_tagger.PART_ID_PREFIX}{morph_suffix}-"
+                            f"{part['id'].removeprefix(svg_tagger.PART_ID_PREFIX)}"
+                        ),
+                        "state": part["state"],
+                        "key": part["key"],
+                        "morph": morph["name"],
+                    })
+            part_specs = expanded_parts
+        tagged = svg_tagger.tag_svg_groups(
+            content,
+            part_specs=part_specs,
+            morph_specs=active_morph_specs,
+        )
+        frame_path.write_text(tagged, encoding="utf-8")
+    except Exception as error:
+        log(f"Warning: Could not tag {frame_path.name}: {error}")
+
+
+def _touying_page_records(metadata):
+    """Collect laid-out Touying page, slide, and Glissade-frame markers."""
+    pages = []
+    current = None
+    for item in metadata:
+        if item.get("kind") == "touying-new-page":
+            current = {
+                "new_slide": False,
+                "new_subslide": False,
+                "logical_slide": None,
+                "overlay": None,
+                "glissade_frame": None,
+            }
+            pages.append(current)
+        elif current is not None:
+            if item.get("kind") == "touying-new-slide":
+                current["new_slide"] = True
+            elif item.get("kind") == "touying-new-subslide":
+                current["new_subslide"] = True
+            elif item.get("t") == "LogicalSlide":
+                current["logical_slide"] = int(item["v"])
+            elif item.get("t") == "Overlay":
+                current["overlay"] = int(item["v"])
+            elif "glissade_touying_frame" in item:
+                current["glissade_frame"] = item["glissade_touying_frame"]
+    return pages
+
+
+def _touying_scene_groups(pages):
+    groups = []
+    current = []
+    current_logical_slide = None
+    for page in pages:
+        logical_slide = page.get("logical_slide")
+        starts_slide = page.get("new_slide")
+        if (
+            current
+            and (
+                starts_slide
+                or (
+                    logical_slide is not None
+                    and current_logical_slide is not None
+                    and logical_slide != current_logical_slide
+                )
+            )
+        ):
+            groups.append(current)
+            current = []
+        if not current:
+            current_logical_slide = logical_slide
+        current.append(page)
+    if current:
+        groups.append(current)
+    return groups
+
+
+def _compile_touying_svg_project(
+    args,
+    output_directory,
+    metadata,
+    manifest,
+    *,
+    slide_variables,
+    slide_morph_specs,
+    log,
+):
+    """Compile a Touying-owned deck and map its subslides to Glissade scenes."""
+    page_records = _touying_page_records(metadata)
+    if not page_records:
+        raise ValueError("No Glissade or Touying slides found")
+
+    compile_started = time.perf_counter()
+    source_pattern = str(output_directory / "touying-frame-{0p}.svg")
+    for old_frame in output_directory.glob("touying-frame-*.svg"):
+        old_frame.unlink()
+    run_typst(args, [
+        "typst", "compile", args.input, source_pattern,
+        "--input", f"fps={args.fps}",
+        "--input", f"glissade-force-fps={args.fps}",
+    ])
+    source_paths = sorted(
+        output_directory.glob("touying-frame-*.svg"),
+        key=frame_number,
+    )
+    if len(source_paths) != len(page_records):
+        raise RuntimeError(
+            "Touying metadata described "
+            f"{len(page_records)} pages, but Typst rendered {len(source_paths)} SVGs"
+        )
+    log(
+        f"Compiled {len(source_paths)} Touying subslide(s) in "
+        f"{time.perf_counter() - compile_started:.2f}s"
+    )
+
+    source_index = 0
+    groups = _touying_scene_groups(page_records)
+    for scene_position, pages in enumerate(groups, start=1):
+        scene_id = f"touying-slide-{scene_position}"
+        frames = []
+        blocks = []
+        cuts = []
+        morph_animations = []
+        keyframes = {0, max(0, len(pages) - 1)}
+
+        for local_index, page in enumerate(pages):
+            source_path = source_paths[source_index]
+            source_index += 1
+            marker = page.get("glissade_frame")
+            if marker is not None:
+                animation_id = str(marker.get("id", "animation"))
+                _tag_svg_frame(
+                    source_path,
+                    variables=slide_variables.get(animation_id, {}),
+                    blocks=marker.get("blocks", []),
+                    frame_index=int(marker.get("frame", 0)),
+                    morph_specs=slide_morph_specs.get(animation_id, []),
+                    log=log,
+                )
+            frame_name = (
+                f"slide-{scene_position:03d}-{scene_id}"
+                f"-frame-{local_index + 1}.svg"
+            )
+            frame_path = output_directory / frame_name
+            frame_path.write_bytes(source_path.read_bytes())
+            frames.append(f"/frames/{frame_name}?v={manifest['version']}")
+
+            if marker is None:
+                cuts.append({
+                    "frame": local_index,
+                    "time": local_index / args.fps,
+                    "loop": False,
+                })
+                keyframes.add(local_index)
+                continue
+
+            marker_frame = int(marker.get("frame", 0))
+            if marker_frame == 0:
+                animation_id = str(marker.get("id", "animation"))
+                for morph in _morph_animations(
+                    slide_morph_specs.get(animation_id, []),
+                    slide_variables.get(animation_id, {}),
+                    marker.get("blocks", []),
+                    int(marker.get("fps", args.fps)),
+                ):
+                    shifted = dict(morph)
+                    shifted["start_frame"] += local_index
+                    shifted["end_frame"] += local_index
+                    morph_animations.append(shifted)
+                for source_block in marker.get("blocks", []):
+                    block = dict(source_block)
+                    block["animation"] = str(marker.get("id", "animation"))
+                    block["start_frame"] = (
+                        local_index + int(source_block.get("start_frame", 0))
+                    )
+                    block["end_frame"] = (
+                        local_index + int(source_block.get("end_frame", 0))
+                    )
+                    block["start"] = block["start_frame"] / args.fps
+                    block["end"] = block["end_frame"] / args.fps
+                    blocks.append(block)
+                    keyframes.update((block["start_frame"], block["end_frame"]))
+
+            for source_block in marker.get("blocks", []):
+                if (
+                    source_block.get("cut")
+                    and marker_frame == int(source_block.get("end_frame", -1))
+                ):
+                    cuts.append({
+                        "frame": local_index,
+                        "time": local_index / args.fps,
+                        "loop": bool(source_block.get("loop", False)),
+                    })
+                    keyframes.add(local_index)
+            if (
+                marker_frame == int(marker.get("frames", 1)) - 1
+                and (not cuts or cuts[-1]["frame"] != local_index)
+            ):
+                cuts.append({
+                    "frame": local_index,
+                    "time": local_index / args.fps,
+                    "loop": False,
+                })
+                keyframes.add(local_index)
+
+        final_frame = max(0, len(frames) - 1)
+        if not cuts or cuts[-1]["frame"] != final_frame:
+            cuts.append({
+                "frame": final_frame,
+                "time": final_frame / args.fps,
+                "loop": False,
+            })
+            keyframes.add(final_frame)
+
+        manifest["scenes"].append({
+            "id": scene_id,
+            "index": scene_position - 1,
+            "name": f"Slide {scene_position}",
+            "source": os.path.basename(args.input),
+            "autoplay": False,
+            "fps": args.fps,
+            "duration": final_frame / args.fps,
+            "frameCount": len(frames),
+            "frames": frames,
+            "blocks": blocks,
+            "cuts": cuts,
+            "keyframes": sorted(keyframes),
+            "morphAnimations": morph_animations,
+        })
+
+    for source_path in source_paths:
+        source_path.unlink()
+    log(f"Discovered {len(groups)} Touying slide(s)")
+    return manifest
+
+
 def compile_svg_project(args, output_directory, selected_ids=None, log=None):
     """Compile slide definitions from one Typst document to SVG frames."""
     log = log or (lambda message: None)
@@ -754,9 +1032,22 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
         capture_output=True,
     )
     metadata = json.loads(query.stdout)
+    timelines = [item["glissade_timeline"] for item in metadata if "glissade_timeline" in item]
     slide_variables = _extract_slide_variables(metadata)
     slide_morph_specs = _extract_slide_morph_specs(metadata)
-    timelines = [item["glissade_timeline"] for item in metadata if "glissade_timeline" in item]
+    if not timelines and any(
+        item.get("kind") in ("touying-new-slide", "touying-new-subslide")
+        for item in metadata
+    ):
+        return _compile_touying_svg_project(
+            args,
+            output_directory,
+            metadata,
+            manifest,
+            slide_variables=slide_variables,
+            slide_morph_specs=slide_morph_specs,
+            log=log,
+        )
     log(f"Discovered {len(timelines)} slide(s) in {time.perf_counter() - query_started:.2f}s")
     slide_ids = [str(timeline["id"]) for timeline in timelines]
     duplicate_ids = sorted({slide_id for slide_id in slide_ids if slide_ids.count(slide_id) > 1})
@@ -791,51 +1082,14 @@ def compile_svg_project(args, output_directory, selected_ids=None, log=None):
 
         # Tag SVG groups with formula part IDs.
         for frame_index, frame_path in enumerate(paths):
-            try:
-                content = frame_path.read_text(encoding='utf-8')
-                part_specs = _frame_formula_parts(
-                    slide_variables.get(slide_id, {}),
-                    timeline.get("blocks", []),
-                    frame_index,
-                )
-                morph_specs = []
-                frame_block, frame_time = _frame_block_and_time(
-                    timeline.get("blocks", []), frame_index
-                )
-                for item in slide_morph_specs.get(slide_id, []):
-                    morph_id = item.get("id")
-                    if morph_id is None:
-                        continue
-                    state = item.get("state")
-                    effect = item.get("effect")
-                    if state is not None:
-                        effect = _transition_effect_for_frame(
-                            slide_variables.get(slide_id, {}).get(str(state), {}),
-                            frame_block,
-                            frame_time,
-                        )
-                    morph_specs.append({
-                        "id": morph_id if morph_id.startswith(svg_tagger.MORPH_ID_PREFIX)
-                        else f"{svg_tagger.MORPH_ID_PREFIX}{_sanitize_formula_part_token(morph_id)}",
-                        "name": morph_id.removeprefix(svg_tagger.MORPH_ID_PREFIX) if morph_id.startswith(svg_tagger.MORPH_ID_PREFIX) else str(morph_id),
-                        "effect": effect,
-                    })
-                if morph_specs:
-                    expanded_parts = []
-                    for morph in morph_specs:
-                        morph_suffix = morph["id"].removeprefix(svg_tagger.MORPH_ID_PREFIX)
-                        for part in part_specs:
-                            expanded_parts.append({
-                                "id": f"{svg_tagger.PART_ID_PREFIX}{morph_suffix}-{part['id'].removeprefix(svg_tagger.PART_ID_PREFIX)}",
-                                "state": part["state"],
-                                "key": part["key"],
-                                "morph": morph["name"],
-                            })
-                    part_specs = expanded_parts
-                tagged = svg_tagger.tag_svg_groups(content, part_specs=part_specs, morph_specs=morph_specs)
-                frame_path.write_text(tagged, encoding='utf-8')
-            except Exception as e:
-                log(f"Warning: Could not tag {frame_path.name}: {e}")
+            _tag_svg_frame(
+                frame_path,
+                variables=slide_variables.get(slide_id, {}),
+                blocks=timeline.get("blocks", []),
+                frame_index=frame_index,
+                morph_specs=slide_morph_specs.get(slide_id, []),
+                log=log,
+            )
         
         expected_frames = int(timeline.get("frames", len(paths)))
         if should_compile and len(paths) > expected_frames:

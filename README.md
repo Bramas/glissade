@@ -51,6 +51,52 @@ python3 bin/glissade.py --root . slides.typ dev --fps 12
 The editor runs at `http://127.0.0.1:8765` and provides live rebuilding, a
 draggable playhead, animation blocks, cut markers, and per-slide compilation.
 
+## Touying integration
+
+Touying can own the presentation structure and theme while Glissade supplies
+continuous animation segments. Bind Touying's public function wrapper once,
+then place Glissade animations between ordinary Touying pauses:
+
+```typ
+#import "@preview/touying:0.7.3": *
+#import themes.simple: *
+#import "@preview/glissade:0.1.0" as glissade
+
+#show: simple-theme.with(aspect-ratio: "16-9")
+#let glissade-animation = glissade.touying(
+  touying-fn-wrapper,
+  fps: 12,
+)
+
+== Mixed animation
+
+Touying content
+#pause
+
+#glissade-animation(id: "moving-circle")[
+  #glissade.init(x: 0pt)
+  #glissade.animate(x: 100pt)
+  #context {
+    move(dx: glissade.a("x"), circle(radius: 10pt))
+  }
+]
+
+#pause
+Another Touying reveal
+```
+
+The `html` and `dev` commands detect Touying metadata automatically. Native
+Touying subslides—including `pause`, `uncover`, and `only` states—become
+presenter cuts. The subslides reserved by `touying-animation` play continuously
+between those cuts. Touying remains responsible for complete page layout,
+themes, counters, headers, and footers.
+
+Do not add `#show: glissade.deck` to a Touying document: both functions are
+document-level renderers. `glissade.touying` sets the default FPS for every
+embedded animation in an ordinary `typst compile`. Pass `fps` directly to one
+`glissade-animation` call to override it locally. Glissade's `html`,
+`dev`, and `video` commands use their `--fps` option for all embedded animations.
+
 Export video with FFmpeg when a non-interactive rendition is useful:
 
 ```bash

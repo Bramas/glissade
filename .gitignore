@@ -11,5 +11,6 @@
 site/glissade.generated.typ
 !web/**/*.html
 reveal.js-master/
+.vscode/
 __pycache__/
 .DS_Store
