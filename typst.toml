@@ -8,4 +8,4 @@ description = "Create animated presentations in Typst and export them to the web
 repository = "https://github.com/Bramas/glissade"
 keywords = ["animation", "video", "slide", "slides", "lecture", "manim", "beamer", "ffmpeg", "talk"]
 categories = ["presentation", "scripting", "fun"]
-exclude = [ "docs", "examples"]
+exclude = ["docs", "examples", "glissade", "bin", "web", "site", "tests", ".github", ".venv", "dist", "build", "pyproject.toml", "package.json"]

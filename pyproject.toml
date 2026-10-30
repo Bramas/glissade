@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glissade"
+version = "0.1.0"
+description = "Export animated Typst presentations to portable HTML and video"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{name = "Quentin Bramas"}]
+dependencies = []
+
+[project.scripts]
+glissade = "glissade.cli:main"
+
+[project.optional-dependencies]
+test = ["playwright==1.58.0"]
+
+[tool.setuptools]
+packages = ["glissade"]
+
+[tool.setuptools.package-data]
+glissade = ["assets/*.html", "assets/*.js"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+

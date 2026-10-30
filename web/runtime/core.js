@@ -2,6 +2,82 @@
   const runtime = globalThis.__glissadeMorphRuntime || (globalThis.__glissadeMorphRuntime = {});
   const SVG_NS = "http://www.w3.org/2000/svg";
 
+  class BoundedCache {
+    constructor(maxEntries = 120, maxBytes = Infinity) {
+      this.entries = new Map();
+      this.maxEntries = maxEntries;
+      this.maxBytes = maxBytes;
+      this.bytes = 0;
+    }
+    get size() { return this.entries.size; }
+    has(key) { return this.entries.has(key); }
+    get(key) {
+      const entry = this.entries.get(key);
+      if (!entry) return undefined;
+      this.entries.delete(key);
+      this.entries.set(key, entry);
+      return entry.value;
+    }
+    set(key, value, bytes = 0) {
+      this.delete(key);
+      this.entries.set(key, { value, bytes });
+      this.bytes += bytes;
+      while (this.entries.size > this.maxEntries || this.bytes > this.maxBytes) {
+        this.delete(this.entries.keys().next().value);
+      }
+      return this;
+    }
+    delete(key) {
+      const entry = this.entries.get(key);
+      if (!entry) return;
+      this.bytes -= entry.bytes;
+      this.entries.delete(key);
+    }
+    clear() { this.entries.clear(); this.bytes = 0; }
+  }
+
+  function memoizeAsync(cache, key, factory, weigh = () => 0) {
+    if (cache.has(key)) return cache.get(key);
+    const promise = Promise.resolve().then(factory).then(value => {
+      if (cache.get(key) === promise) cache.set(key, promise, weigh(value));
+      return value;
+    }).catch(error => {
+      if (cache.get(key) === promise) cache.delete(key);
+      throw error;
+    });
+    cache.set(key, promise);
+    return promise;
+  }
+
+  function validateManifest(manifest) {
+    // Older standalone exports predate schemaVersion and remain readable.
+    if ((manifest?.schemaVersion ?? 1) !== 1) throw new Error("Unsupported Glissade manifest schema");
+    if (!manifest?.scenes?.length) throw new Error("Presentation contains no slides");
+    const ids = new Set();
+    for (const scene of manifest.scenes) {
+      if (typeof scene.id !== "string") throw new Error("Invalid slide ID");
+      if (ids.has(scene.id)) throw new Error("Duplicate slide ID");
+      ids.add(scene.id);
+      if (!(scene.fps > 0) || !Number.isFinite(scene.fps)
+          || !Number.isInteger(scene.frameCount) || scene.frameCount < 1
+          || scene.frames?.length !== scene.frameCount) throw new Error("Invalid slide frames or FPS");
+      if (!Number.isFinite(scene.duration) || scene.duration < 0) throw new Error("Invalid slide duration");
+      for (const [index, source] of scene.frames.entries()) {
+        if (typeof source === "string") continue;
+        if (source?.kind !== "svg-delta-v1" || !Number.isInteger(source.base)
+            || source.base < 0 || source.base >= index || !Array.isArray(source.patches)) throw new Error("Invalid SVG delta base");
+        if (source.patches.some(patch => !Array.isArray(patch.path) || !patch.path.length
+            || typeof patch.svg !== "string" || patch.path.some(value => !Number.isInteger(value) || value < 0))) throw new Error("Invalid SVG delta patch");
+      }
+      for (const boundaries of [scene.keyframes, scene.cuts?.map(cut => cut.frame)]) {
+        if (!Array.isArray(boundaries) || boundaries.some((value, index) =>
+          !Number.isInteger(value) || value < 0 || value >= scene.frameCount
+          || (index > 0 && value <= boundaries[index - 1]))) throw new Error("Invalid slide boundaries");
+      }
+    }
+    return manifest;
+  }
+
   function clamp(value, minimum, maximum) {
     return Math.max(minimum, Math.min(value, maximum));
   }
@@ -71,7 +147,7 @@
 
   async function decodeDataUri(source) {
     const svgPrefix = "data:image/svg+xml;base64,";
-    if (source.startsWith(svgPrefix)) return atob(source.slice(svgPrefix.length));
+    if (source.startsWith(svgPrefix)) return new TextDecoder().decode(base64Bytes(source.slice(svgPrefix.length)));
     const gzipPrefix = "data:application/gzip;base64,";
     if (source.startsWith(gzipPrefix)) {
       return decompressGzip(base64Bytes(source.slice(gzipPrefix.length)));
@@ -233,6 +309,9 @@
 
   Object.assign(runtime, {
     SVG_NS,
+    BoundedCache,
+    memoizeAsync,
+    validateManifest,
     clamp,
     lerp,
     smoothRate,

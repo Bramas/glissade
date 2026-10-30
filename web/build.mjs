@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..");
-const outputDirectory = resolve(root, "bin/assets");
+const outputDirectory = resolve(root, "glissade/assets");
 const check = process.argv.includes("--check");
 
 const runtimeBuild = await Bun.build({
@@ -66,5 +66,32 @@ async function buildTemplate(name) {
   }
 }
 
+if (check) {
+  for (const path of [resolve(outputDirectory, "runtime.js"), resolve(root, "site/runtime.js")]) {
+    if (await readFile(path, "utf8").catch(() => "") !== runtime) {
+      console.error(`Outdated generated asset: ${path}`);
+      process.exitCode = 1;
+    }
+  }
+} else {
+  await mkdir(outputDirectory, { recursive: true });
+  await writeFile(resolve(outputDirectory, "runtime.js"), runtime);
+  await writeFile(resolve(root, "site/runtime.js"), runtime);
+}
+
 await buildTemplate("present");
 await buildTemplate("editor");
+
+const bridgeBuild = await Bun.build({
+  entrypoints: [resolve(import.meta.dir, "playground/bridge.js")],
+  target: "browser", minify: true, write: false,
+});
+if (!bridgeBuild.success) throw new Error(bridgeBuild.logs.join("\n"));
+const bridge = await bridgeBuild.outputs[0].text();
+const bridgePath = resolve(root, "site/playground-bridge.js");
+if (check) {
+  if (await readFile(bridgePath, "utf8").catch(() => "") !== bridge) {
+    console.error(`Outdated generated asset: ${bridgePath}`);
+    process.exitCode = 1;
+  }
+} else await writeFile(bridgePath, bridge);

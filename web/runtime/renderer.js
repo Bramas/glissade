@@ -2,6 +2,9 @@
   const runtime = globalThis.__glissadeMorphRuntime || (globalThis.__glissadeMorphRuntime = {});
   const {
     SVG_NS,
+    BoundedCache,
+    memoizeAsync,
+    validateManifest,
     parseSvgMarkup,
     decodeDataUri,
     decompressGzip,
@@ -370,14 +373,24 @@
 
   class SvgFrameStore {
     constructor() {
-      this.textCache = new Map();
-      this.analysisCache = new Map();
-      this.planCache = new Map();
+      this.textCache = new BoundedCache(120, 32 * 1024 * 1024);
+      this.analysisCache = new BoundedCache(64);
+      this.planCache = new BoundedCache(32);
+    }
+
+    clear() {
+      this.textCache.clear();
+      this.analysisCache.clear();
+      this.planCache.clear();
+    }
+
+    stats() {
+      return { textEntries: this.textCache.size, textBytes: this.textCache.bytes,
+        analysisEntries: this.analysisCache.size, planEntries: this.planCache.size };
     }
 
     async loadText(source, frames = null) {
-      if (!this.textCache.has(source)) {
-        this.textCache.set(source, (async () => {
+      return memoizeAsync(this.textCache, source, async () => {
           if (source && typeof source === "object") {
             if (source.kind !== "svg-delta-v1") {
               throw new Error("Unsupported Glissade frame source: " + source.kind);
@@ -397,9 +410,7 @@
             return decompressGzip(new Uint8Array(await response.arrayBuffer()));
           }
           return response.text();
-        })());
-      }
-      return this.textCache.get(source);
+      }, text => text.length * 2);
     }
 
     async instantiate(source, frames = null) {
@@ -407,23 +418,19 @@
     }
 
     async analyzed(source, sandbox, frames = null) {
-      if (!this.analysisCache.has(source)) {
-        this.analysisCache.set(source, (async () => {
+      return memoizeAsync(this.analysisCache, source, async () => {
           const svg = await this.instantiate(source, frames);
           sandbox.replaceChildren(svg);
           const analysis = analyzeSvg(svg);
           const size = intrinsicSize(svg);
           sandbox.replaceChildren();
           return { analysis, size };
-        })());
-      }
-      return this.analysisCache.get(source);
+      });
     }
 
     async segmentPlan(startSource, endSource, sandbox, frames = null) {
       const cacheKey = frameSourceKey(startSource) + "::" + frameSourceKey(endSource);
-      if (!this.planCache.has(cacheKey)) {
-        this.planCache.set(cacheKey, (async () => {
+      return memoizeAsync(this.planCache, cacheKey, async () => {
           const [startData, endData] = await Promise.all([
             this.analyzed(startSource, sandbox, frames),
             this.analyzed(endSource, sandbox, frames),
@@ -498,9 +505,7 @@
             compositeTransforms,
             allMatches: matches,
           };
-        })());
-      }
-      return this.planCache.get(cacheKey);
+      });
     }
   }
 
@@ -694,6 +699,11 @@
       return size;
     }
 
+    clear() {
+      this.renderToken += 1;
+      this.store.clear();
+    }
+
     getSize() {
       return this.currentSize;
     }
@@ -713,6 +723,8 @@
   }
 
   globalThis.GlissadeMorphRuntime = {
+    validateManifest,
+    SvgFrameStore,
     createStageRenderer(stage, options) {
       return new StageRenderer(stage, options);
     },

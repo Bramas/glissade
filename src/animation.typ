@@ -23,7 +23,7 @@
         if hold <= time {
           if time < hold + duration + dwell {
             trans = get_transition(trans)
-            time = calc.min(1, calc.max(0, time - hold) / duration)
+            time = if duration == 0 { 1 } else { calc.min(1, calc.max(0, time - hold) / duration) }
             return scaler(start_value_bis, end_value, trans(time))
           } else { start_value_bis = end_value }
         } else { break }
@@ -130,6 +130,13 @@
   if blocks.len() == 0 { 0 } else { calc.max(..blocks) }
 }
 
+// Positive durations always reserve at least one interval. Zero-duration
+// transitions update state at the boundary without consuming playback time.
+#let _block-frames(duration, fps) = {
+  assert(duration >= 0, message: "animation duration must be nonnegative")
+  if duration == 0 or fps == 0 { 0 } else { calc.max(1, int(calc.round(fps * duration))) }
+}
+
 #let _timeline-blocks(variables, fps, cut-blocks: (), loop-blocks: ()) = {
   let max-block = _max-block(variables)
   let effective-cuts = cut-blocks
@@ -141,7 +148,7 @@
   let blocks = ()
   for b in range(1, max-block + 1) {
     let duration = get_block_duration(variables, b)
-    let frames = int(calc.round(fps * duration))
+    let frames = _block-frames(duration, fps)
     blocks.push((
       "index": b,
       "start": elapsed,
@@ -178,7 +185,7 @@
     let offset = 0
     for b in range(1, max-block + 1) {
       let duration = get_block_duration(variables, b)
-      let frames = int(calc.round(fps * duration))
+      let frames = _block-frames(duration, fps)
       if frame < offset + frames or b == max-block {
         block-index = b
         time = if frames == 0 {
@@ -235,7 +242,7 @@
   for b in range(1, max_block + 1) {
     let duration = get_block_duration(variables, b)
 
-    let frames = int(calc.round(fps * duration))
+    let frames = _block-frames(duration, fps)
     blocks.push((
       "index": b,
       "start": elapsed,
@@ -331,12 +338,12 @@
 
       for b in range(1, max_block + 1) {
         let duration = get_block_duration(variables, b)
-        let frames = int(calc.round(fps * duration))
+        let frames = _block-frames(duration, fps)
         local_frames += frames
 
         let rendered-frames = if b == max_block { frames + 1 } else { frames }
         for frame in range(rendered-frames) {
-          let new_time = (duration * frame) / frames
+          let new_time = if frames == 0 { duration } else { (duration * frame) / frames }
           page(_frame([
             #active-slide.update(_ => id)
             #slide-scope(id)

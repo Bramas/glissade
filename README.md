@@ -14,7 +14,27 @@ Glissade focuses on three things:
 [Documentation](https://bramas.github.io/glissade/docs.html) ·
 [Examples](examples)
 
+A complete [20-minute conference example](examples/standup-gathering) presents
+myopic robots and stand-up gathering, with checked execution traces, a short
+Simulant demo and English speaker notes.
+
 ## Quick start
+
+The CLI requires Python 3.10 or newer and Typst on `PATH`. Video export also
+requires FFmpeg. The pinned development toolchain uses Typst 0.14.2 and Bun
+1.3.6; Bun is only needed when changing the browser sources.
+
+Install the command from a checkout:
+
+```bash
+uv tool install .
+glissade --help
+```
+
+Alternatively, use `pipx install .`, or keep running `python3 bin/glissade.py`
+without installation. In the commands below, `glissade` can replace
+`python3 bin/glissade.py`. The installed command includes its browser assets
+and has no Python runtime dependencies.
 
 ```typ
 #import "@preview/glissade:0.1.0": *
@@ -141,15 +161,74 @@ contains the runtime and compressed SVG frames in one portable file. By default,
 HTML export stores smaller SVG deltas for intermediate frames when that is more
 compact than keeping complete SVGs; use `--no-optimize-frames` to disable this.
 
+`--title "My talk"` sets the HTML title. With `--no-embed-frames`, `slides.html`
+uses its own `slides.frames/` directory, so exporting another deck beside it
+does not overwrite its images. Serve external-frame exports over HTTP;
+self-contained exports can be opened directly as local files.
+
+The dev editor watches Typst files, images, fonts and common data files under
+`--root`. Failed builds keep the previous working preview. Successful builds
+are published together with their manifest, and old temporary builds are
+cleaned up automatically.
+
+Video export uses Typst's raster frames, including native Touying subslides.
+Browser-generated morph and drawing interpolation are available in HTML and
+the playground; they are not baked into the video export.
+
+## Browser playground
+
+The playground supports Glissade decks, semantic formula parts,
+`glissade-morph`, and `create` through the same renderer as exported HTML.
+Use **Try a formula morph** for a complete example. Playback pauses at cuts;
+the frame controls also let you inspect transitions manually. Touying decks
+and arbitrary local file imports remain CLI workflows.
+
+The compiler and renderer CDN URLs are pinned to typst.ts 0.7.0. The playground
+requires a network connection for these components and their fonts.
+
 ## Development
 
+Python responsibilities are split between `glissade/compiler.py` (scene
+discovery and SVG/PNG compilation), `frames.py` (SVG deltas), `manifest.py`
+(format validation), `live.py` (preview server), and `cli.py` (exports).
+The `bin/` entry points remain available for repository use.
+
 The readable browser sources live under `web/`. Bun bundles them into the
-checked-in templates under `bin/assets/`:
+checked-in templates under `glissade/assets/` and the playground assets:
 
 ```bash
 bun run build
 bun run check
+bun run build:playground-lib
+bun test tests/runtime.test.js
+python3 -m unittest discover -s tests -v
 ```
+
+Run the browser integration tests after installing the optional test tools:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e '.[test]'
+.venv/bin/python -m playwright install chromium
+GLISSADE_BROWSER_TESTS=1 .venv/bin/python -m unittest discover -s tests -p test_browser.py -v
+```
+
+Pull requests run asset checks, runtime and compiler tests, real-browser morph
+and playground tests, video export checks, and a distribution build. The
+[manifest contract](docs/manifest.md) describes timing and compatibility rules.
+
+Measure a generated 20-slide deck and optionally browser memory:
+
+```bash
+python3 bin/benchmark.py --slides 20 --fps 12 --output /tmp/glissade-benchmark.json
+.venv/bin/python bin/benchmark.py --slides 20 --fps 12 --browser
+```
+
+The report records compilation time, export time, SVG/HTML size and, with
+`--browser`, sampled JS heap and cache usage. Frame text caches retain at most
+120 entries and 32 MiB of decoded text; analysis and morph-plan caches retain
+64 and 32 entries. Reloading the live manifest clears these caches. These are
+cache budgets, not a limit on the whole browser's memory.
 
 The exact-frame runtime inspector is useful when debugging morphs:
 

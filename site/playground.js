@@ -16,6 +16,16 @@
 ]`;
 
   const mainSample = defaultExample;
+  const morphExample = `#import "glissade.typ": *
+#set page(width: 128mm, height: 96mm, margin: 10mm)
+#set text(size: 22pt)
+#show: deck.with(fps: 12)
+#slide[
+  = Formula morph
+  #init(eq: formula($part(a) = part(b)$))
+  #animate(eq: formula($part(b) = part(a) / (1+c)$))
+  #context glissade-morph("eq")
+]`;
 
   const input = document.querySelector("#typst-source");
   const highlightLayer = document.querySelector(".editor-highlight");
@@ -33,6 +43,7 @@
   let compilerReady = false;
   let frameState = null;
   let frameTimer = 0;
+  let playbackVersion = 0;
 
   function setStatus(text, mode = "") {
     status.textContent = text;
@@ -42,6 +53,9 @@
   function showMessage(text, mode = "") {
     stopFrames();
     frameControls.hidden = true;
+    if (stageRenderer) stageRenderer.clear();
+    stageRenderer = null;
+    frameState = null;
     preview.innerHTML = "";
     const message = document.createElement("div");
     message.className = "preview-message" + (mode ? " " + mode : "");
@@ -50,12 +64,13 @@
   }
 
   function loadSource() {
-    input.value = localStorage.getItem("glissade.playground.source.main") || mainSample;
+    try { input.value = localStorage.getItem("glissade.playground.source.main") || mainSample; }
+    catch { input.value = mainSample; }
     updateHighlight();
   }
 
   function persistSource() {
-    localStorage.setItem("glissade.playground.source.main", input.value);
+    try { localStorage.setItem("glissade.playground.source.main", input.value); } catch {}
   }
 
   function updateHighlight() {
@@ -69,133 +84,93 @@
     return input.value.replace(/^\s*#import\s+"glissade\.typ"\s*:\s*\*\s*$/m, bundledLibrary);
   }
 
-  function detectFps(source) {
-    const match = source.match(/deck\.with\s*\([^)]*\bfps\s*:\s*(\d+(?:\.\d+)?)/);
-    return match ? Math.max(1, Number(match[1])) : 5;
-  }
-
-  function parseTranslate(transform) {
-    const total = { x: 0, y: 0 };
-    for (const match of String(transform || "").matchAll(/translate\(\s*([-\d.]+)(?:[\s,]+([-\d.]+))?/g)) {
-      total.x += Number(match[1]) || 0;
-      total.y += Number(match[2]) || 0;
-    }
-    return total;
-  }
-
-  function fitPreviewSvg(svg, width, height) {
-    if (!svg || !width || !height) return;
-    const styles = getComputedStyle(preview);
-    const pixels = value => Number(String(value || "0").replace("px", "")) || 0;
-    const availableWidth = preview.clientWidth - pixels(styles.paddingLeft) - pixels(styles.paddingRight);
-    const availableHeight = preview.clientHeight - pixels(styles.paddingTop) - pixels(styles.paddingBottom);
-    const scale = Math.min(availableWidth / width, availableHeight / height);
-    if (!Number.isFinite(scale) || scale <= 0) return;
-    const fittedWidth = Math.max(1, Math.floor(width * scale));
-    const fittedHeight = Math.max(1, Math.floor(height * scale));
-    svg.style.width = `${fittedWidth}px`;
-    svg.style.height = `${fittedHeight}px`;
-  }
-
   function refitPreview() {
-    const svg = preview.querySelector("svg");
-    if (!svg) return;
-    if (frameState) {
-      const box = frameState.pageBoxes[frameState.index];
-      fitPreviewSvg(svg, box?.width, box?.height);
-      return;
-    }
-    const page = svg.querySelector(".typst-page");
-    fitPreviewSvg(
-      svg,
-      Number(page?.dataset.pageWidth) || Number(svg.dataset.width) || Number(svg.getAttribute("width")),
-      Number(page?.dataset.pageHeight) || Number(svg.dataset.height) || Number(svg.getAttribute("height")),
-    );
+    const stack = preview.querySelector(".glissade-stage-stack");
+    if (!stack) return;
+    const scale = Math.min((preview.clientWidth - 56) / Number(stack.dataset.glissadeWidth),
+      (preview.clientHeight - 56) / Number(stack.dataset.glissadeHeight));
+    stack.style.width = Number(stack.dataset.glissadeWidth) * scale + "px";
+    stack.style.height = Number(stack.dataset.glissadeHeight) * scale + "px";
   }
+
+  let stageRenderer = null;
+  let manifest = null;
+  let compileQueue = Promise.resolve();
 
   function stopFrames() {
-    clearInterval(frameTimer);
+    playbackVersion += 1;
+    cancelAnimationFrame(frameTimer);
     frameTimer = 0;
     if (framePlayButton) framePlayButton.textContent = "\u25b6";
   }
 
-  function showFrame(index) {
-    if (!frameState) return;
-    const { svg, pages, originals, pageBoxes } = frameState;
-    frameState.index = (index + pages.length) % pages.length;
-    pages.forEach((page, pageIndex) => {
-      page.hidden = pageIndex !== frameState.index;
-      page.style.display = pageIndex === frameState.index ? "" : "none";
-      page.setAttribute("transform", originals[pageIndex]);
-    });
-    const page = pages[frameState.index];
-    const box = pageBoxes[frameState.index];
-    if (box) {
-      const shiftX = -box.x;
-      const shiftY = -box.y;
-      const original = originals[frameState.index];
-      page.setAttribute("transform", `translate(${shiftX} ${shiftY}) ${original}`.trim());
-      svg.setAttribute("viewBox", `0 0 ${box.width} ${box.height}`);
-      svg.setAttribute("width", box.width);
-      svg.setAttribute("height", box.height);
-      fitPreviewSvg(svg, box.width, box.height);
-    }
-    frameStatus.textContent = `Frame ${frameState.index + 1} / ${pages.length} · ${frameState.fps} fps`;
+  async function showFrame(index) {
+    if (!frameState || !stageRenderer) return;
+    const currentState = frameState;
+    const renderer = stageRenderer;
+    frameState.index = Math.max(0, Math.min(index, frameState.frames.length - 1));
+    const requestedIndex = frameState.index;
+    const { scene, frame } = frameState.frames[frameState.index];
+    await stageRenderer.render(scene, frame);
+    if (frameState !== currentState || stageRenderer !== renderer || frameState.index !== requestedIndex) return;
+    refitPreview();
+    frameStatus.textContent = `Slide ${scene.index + 1} · Frame ${frame + 1} / ${scene.frameCount} · ${scene.fps} fps`;
   }
 
-  function setupFrames() {
+  async function setupFrames(value) {
     stopFrames();
-    const svg = preview.querySelector("svg");
-    if (!svg) {
-      frameControls.hidden = true;
-      frameState = null;
-      return;
-    }
-    const pages = [...svg.querySelectorAll(".typst-page")];
-    if (pages.length <= 1) {
-      frameControls.hidden = true;
-      frameState = null;
-      refitPreview();
-      return;
-    }
-    const originals = pages.map(page => page.getAttribute("transform") || "");
-    const pageBoxes = pages.map(page => {
-      const translation = parseTranslate(page.getAttribute("transform"));
-      return {
-        x: translation.x,
-        y: translation.y,
-        width: Math.max(1, Number(page.dataset.pageWidth) || Number(svg.dataset.width) || 1),
-        height: Math.max(1, Number(page.dataset.pageHeight) || Number(svg.dataset.height) / pages.length || 1),
-      };
-    });
-    frameState = {
-      svg,
-      pages,
-      originals,
-      pageBoxes,
-      fps: detectFps(input.value),
-      index: 0,
-    };
-    frameControls.hidden = false;
-    showFrame(0);
+    manifest = value;
+    if (stageRenderer) stageRenderer.clear();
+    preview.replaceChildren();
+    stageRenderer = GlissadeMorphRuntime.createStageRenderer(preview);
+    frameState = { index: 0, frames: manifest.scenes.flatMap(scene =>
+      scene.frames.map((_, frame) => ({ scene, frame }))) };
+    frameControls.hidden = frameState.frames.length <= 1;
+    await showFrame(0);
   }
 
   function toggleFrames() {
     if (!frameState) return;
-    if (frameTimer) {
-      stopFrames();
-      return;
+    if (frameTimer) { stopFrames(); return; }
+    if (frameState.index >= frameState.frames.length - 1) showFrame(0).catch(showCompileError);
+    else {
+      const current = frameState.frames[frameState.index];
+      if (current.frame === current.scene.frameCount - 1) showFrame(frameState.index + 1).catch(showCompileError);
     }
     framePlayButton.textContent = "\u275a\u275a";
-    frameTimer = setInterval(() => showFrame(frameState.index + 1), 1000 / frameState.fps);
+    const startedAt = performance.now();
+    const startIndex = frameState.index;
+    const version = ++playbackVersion;
+    const tick = async now => {
+      if (!frameTimer || !frameState || version !== playbackVersion) return;
+      const initial = frameState.frames[startIndex];
+      const steps = Math.floor((now - startedAt) * initial.scene.fps / 1000);
+      const target = GlissadeMorphRuntime.advancePlaybackFrame(initial.scene, initial.frame, steps);
+      const index = startIndex - initial.frame + target.frame;
+      try {
+        if (index !== frameState.index) await showFrame(index);
+        if (!frameTimer || version !== playbackVersion) return;
+        if (target.cut || target.ended) { stopFrames(); return; }
+        frameTimer = requestAnimationFrame(tick);
+      } catch (error) { showCompileError(error); }
+    };
+    frameTimer = requestAnimationFrame(tick);
+  }
+
+  function showCompileError(error) {
+    stopFrames();
+    setStatus("Compile error", "error");
+    showMessage(String(error?.message || error), "error");
   }
 
   function scheduleCompile(delay = 350) {
+    compileVersion += 1;
     clearTimeout(compileTimer);
     compileTimer = setTimeout(compile, delay);
   }
 
   async function compile() {
+    clearTimeout(compileTimer);
     persistSource();
     if (!bundledLibrary) {
       setStatus("Loading glissade.typ…");
@@ -208,18 +183,21 @@
     }
 
     const version = ++compileVersion;
-    setStatus("Compiling…");
-    try {
-      const svg = await globalThis.$typst.svg({ mainContent: compilerInput() });
+    const source = compilerInput();
+    compileQueue = compileQueue.catch(() => {}).then(async () => {
       if (version !== compileVersion) return;
-      preview.innerHTML = svg;
-      setupFrames();
-      setStatus("Rendered");
-    } catch (error) {
-      if (version !== compileVersion) return;
-      setStatus("Compile error", "error");
-      showMessage(String(error?.message || error), "error");
-    }
+      setStatus("Compiling…");
+      try {
+        const value = await GlissadePlaygroundBridge.compile(source);
+        if (version !== compileVersion) return;
+        await setupFrames(value);
+        if (version !== compileVersion) return;
+        setStatus("Rendered");
+      } catch (error) {
+        if (version === compileVersion) showCompileError(error);
+      }
+    });
+    return compileQueue;
   }
 
   function markReady() {
@@ -227,13 +205,13 @@
     if (globalThis.$typst?.setCompilerInitOptions) {
       globalThis.$typst.setCompilerInitOptions({
         getModule: () =>
-          "https://cdn.jsdelivr.net/npm/@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_web_compiler_bg.wasm",
+          "https://cdn.jsdelivr.net/npm/@myriaddreamin/typst-ts-web-compiler@0.7.0/pkg/typst_ts_web_compiler_bg.wasm",
       });
     }
     if (globalThis.$typst?.setRendererInitOptions) {
       globalThis.$typst.setRendererInitOptions({
         getModule: () =>
-          "https://cdn.jsdelivr.net/npm/@myriaddreamin/typst-ts-renderer/pkg/typst_ts_renderer_bg.wasm",
+          "https://cdn.jsdelivr.net/npm/@myriaddreamin/typst-ts-renderer@0.7.0/pkg/typst_ts_renderer_bg.wasm",
       });
     }
     setStatus("Ready");
@@ -265,6 +243,11 @@
     highlightLayer.scrollLeft = input.scrollLeft;
   });
   compileButton.addEventListener("click", compile);
+  document.querySelector('[data-action="morph-example"]').addEventListener("click", () => {
+    input.value = morphExample;
+    updateHighlight();
+    scheduleCompile(0);
+  });
   defaultButton.addEventListener("click", () => {
     input.value = defaultExample;
     persistSource();
@@ -279,11 +262,11 @@
   });
   document.querySelector('[data-frame-action="previous"]').addEventListener("click", () => {
     stopFrames();
-    if (frameState) showFrame(frameState.index - 1);
+    if (frameState) showFrame(frameState.index - 1).catch(showCompileError);
   });
   document.querySelector('[data-frame-action="next"]').addEventListener("click", () => {
     stopFrames();
-    if (frameState) showFrame(frameState.index + 1);
+    if (frameState) showFrame(frameState.index + 1).catch(showCompileError);
   });
   framePlayButton.addEventListener("click", toggleFrames);
   window.addEventListener("resize", refitPreview);

@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
   <script
     type="module"
-    src="https://cdn.jsdelivr.net/npm/@myriaddreamin/typst.ts/dist/esm/contrib/all-in-one-lite.bundle.js"
+    src="https://cdn.jsdelivr.net/npm/@myriaddreamin/typst.ts@0.7.0/dist/esm/contrib/all-in-one-lite.bundle.js"
     id="typst"
   ></script>
 </head>
@@ -31,14 +31,13 @@
       </div>
       <div class="playground-actions">
         <button class="button secondary" type="button" data-action="default-example">Load default example</button>
+        <button class="button secondary" type="button" data-action="morph-example">Try a formula morph</button>
         <button class="button secondary" type="button" data-action="reset">Reset</button>
         <button class="button primary" type="button" data-action="compile">Compile</button>
       </div>
     </section>
 
-    <p class="playground-warning">
-      <strong>Playground limitation:</strong> <code>glissade-morph</code> does not work in this browser preview yet.
-    </p>
+    <p class="playground-warning">Try formulas with <code>glissade-morph</code> and <code>part</code>, or use <code>create</code> for drawing effects. Playback pauses at cuts.</p>
 
     <section class="playground-grid" aria-label="Typst editor and rendered preview">
       <div class="editor-pane">
@@ -67,6 +66,8 @@
   </main>
 
   <script src="highlight.js"></script>
+  <script src="runtime.js"></script>
+  <script src="playground-bridge.js"></script>
   <script src="playground.js"></script>
 </body>
 </html>

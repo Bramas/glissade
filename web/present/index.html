@@ -426,6 +426,7 @@
       const debugReady = new Promise(resolve => { resolveDebugReady = resolve; });
       globalThis.GlissadeDebug = {
         ready: debugReady,
+        cacheStats() { return stageRenderer.store.stats(); },
         async renderFrame(sceneReference, requestedFrame) {
           await debugReady;
           const requestedScene = typeof sceneReference === "number"
@@ -471,7 +472,8 @@
       };
 
       getManifest().then(value => {
-        manifest = value;
+        manifest = GlissadeMorphRuntime.validateManifest(value);
+        document.querySelector(".progress").hidden = manifest.progress === false;
         let savedPauseWhenHidden;
         let savedPauseWhenBlurred;
         try { savedPauseWhenHidden = localStorage.getItem("glissade-pause-when-hidden"); } catch {}

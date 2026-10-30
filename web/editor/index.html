@@ -344,8 +344,10 @@
       async function loadManifest(preservePosition = false) {
         try {
           const oldScene = sceneIndex;
+          const oldId = manifest?.scenes[sceneIndex]?.id;
           const oldFrame = frameIndex;
-          manifest = await getManifest();
+          manifest = GlissadeMorphRuntime.validateManifest(await getManifest());
+          stageRenderer.clear();
           if (savedPauseWhenHidden === null || savedPauseWhenHidden === undefined) {
             pauseWhenHidden = manifest.pauseWhenHidden !== false;
             elements.pauseWhenHidden.checked = pauseWhenHidden;
@@ -355,7 +357,8 @@
             elements.pauseWhenBlurred.checked = pauseWhenBlurred;
           }
           hideError();
-          sceneIndex = clamp(oldScene, 0, manifest.scenes.length - 1);
+          const preserved = manifest.scenes.findIndex(scene => scene.id === oldId);
+          sceneIndex = preserved >= 0 ? preserved : clamp(oldScene, 0, manifest.scenes.length - 1);
           frameIndex = preservePosition ? clamp(oldFrame, 0, manifest.scenes[sceneIndex].frameCount - 1) : 0;
           selectScene(sceneIndex, true);
         } catch (error) { showError(String(error)); }

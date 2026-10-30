@@ -3,8 +3,7 @@
 *.png
 *.mp4
 *.html
-!bin/assets/
-!bin/assets/*.html
+!glissade/assets/*.html
 !site/*.html
 !site/examples/*.html
 !site/examples/*.pdf
@@ -14,3 +13,8 @@ reveal.js-master/
 .vscode/
 __pycache__/
 .DS_Store
+.venv/
+*.egg-info/
+dist/
+build/
+*.frames/

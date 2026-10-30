@@ -359,6 +359,7 @@ Another Touying reveal</code></pre>
 
       <section id="export" class="doc-section">
         <h2>Export and preview</h2>
+        <p>Install the command from a checkout with <code>uv tool install .</code> or <code>pipx install .</code>. It requires Python 3.10+ and Typst on your PATH; FFmpeg is needed for video. You can then use <code>glissade</code> in place of <code>python3 bin/glissade.py</code>.</p>
         <p>The command-line bridge compiles Typst, reads Glissade metadata, extracts SVG frames, and packages the browser runtime. Use <code>dev</code> while authoring and <code>html</code> when you want a portable presentation.</p>
         <pre><code class="language-bash"># Live editor
 python3 bin/glissade.py --root . slides.typ dev --fps 12
@@ -369,8 +370,9 @@ python3 bin/glissade.py --root . slides.typ html --fps 24 --title "My talk"
 # MP4 video, split at every cut
 python3 bin/glissade.py --root . slides.typ video --fps 24 --cut all</code></pre>
         <p><code>--root</code> sets the Typst project root and is important when slides import files outside their own directory. Both commands also accept <code>--ppi</code> and <code>--cut {all,scene,none}</code>; use <code>--host</code> and <code>--port</code> to change the dev server address.</p>
-        <p>HTML output embeds, minifies, gzip-compresses, and delta-optimizes SVG frames by default. Use <code>--no-embed-frames</code> for an HTML file accompanied by a frames directory, <code>--no-compress-frames</code> or <code>--no-optimize-frames</code> while inspecting generated assets, and <code>--no-minify-svg</code> while debugging SVG markup. Run <code>python3 bin/glissade.py slides.typ html --help</code> for the complete current option list.</p>
-        <p>Video export requires FFmpeg. Use <code>--cut none</code> for one video containing the complete deck, <code>--cut scene</code> for one file per slide, or <code>--cut all</code> for one file per presenter segment. MP4 output uses H.264 with a browser-compatible pixel format.</p>
+        <p>HTML output embeds, minifies, gzip-compresses, and delta-optimizes SVG frames by default. Use <code>--no-embed-frames</code> for <code>slides.html</code> accompanied by its own <code>slides.frames/</code> directory (serve this variant over HTTP), <code>--no-compress-frames</code> or <code>--no-optimize-frames</code> while inspecting generated assets, and <code>--no-minify-svg</code> while debugging SVG markup. Run <code>python3 bin/glissade.py slides.typ html --help</code> for the complete current option list.</p>
+        <p>Video export requires FFmpeg. Use <code>--cut none</code> for one video containing the complete deck, <code>--cut scene</code> for one file per slide, or <code>--cut all</code> for one file per presenter segment. MP4 output uses H.264 with a browser-compatible pixel format. Video uses Typst raster frames; browser morph and drawing interpolation are available in HTML and the playground.</p>
+        <p>The live editor watches images, fonts and common data files alongside Typst sources, and retains the previous preview when compilation fails. The playground supports Glissade decks with <code>glissade-morph</code>, semantic <code>part</code> markers and <code>create</code>; Touying and arbitrary local imports remain CLI workflows.</p>
       </section>
     </article>
   </main>

@@ -5,6 +5,9 @@
     "build:playground-lib": "node bin/build-playground-library.mjs",
     "build:examples": "python3 bin/build_site_examples.py",
     "build": "bun run web/build.mjs",
-    "check": "bun run web/build.mjs --check"
+    "check": "bun run web/build.mjs --check",
+    "test": "bun test tests/runtime.test.js",
+    "test:python": "python3 -m unittest discover -s tests -v",
+    "benchmark": "python3 bin/benchmark.py"
   }
 }

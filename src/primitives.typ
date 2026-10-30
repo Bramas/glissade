@@ -91,6 +91,7 @@
 }
 
 #let _add(timeline, block, args, hold, duration, dwell, transition, morph-effect, mode) = {
+  assert(hold >= 0 and duration >= 0 and dwell >= 0, message: "hold, duration and dwell must be nonnegative")
   let shift = if mode == "append" { get_block_duration(timeline, block) } else { 0 }
   for (name, value) in args {
     let name-dict = timeline.at(name, default: get_default_dict(type: value))
