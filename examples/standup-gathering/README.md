@@ -1,13 +1,23 @@
 # Stand-Up Indulgent Gathering on Lines
 
 A 20-minute English conference example for an audience working on mobile robots
-and mobile agents. It uses a 16:9 layout, 19 main slides and four optional backup
+and mobile agents. It uses a 16:9 layout, 27 main slides and five optional backup
 slides, using Touying’s simple theme, native `pause` overlays and embedded Glissade
-animations. The layout uses white paper, black serif text and unboxed definitions.
+animations. The layout uses white paper, Libertinus Serif, unboxed definitions
+and restrained blue emphasis. A large opening title, light rules, shared result
+tables and fixed-width execution metrics keep the deck consistent. Blue denotes
+robots, green marks observations and movement, and red crosses mark crashes.
 
-The talk introduces explicit computational models and Simulant, reserves 90
-seconds for a live demo, explains why reusable model components help formal
-verification, then focuses on the first two **oblivious** SUIG algorithms.
+The opening first introduces Simulant's model–algorithm–experiment structure,
+then maps familiar literature assumptions to its space, frame, sensor, storage,
+scheduler and component declarations. It compares OBLOT, FSTA, FCOM and LUMI,
+plus persistent mobile agents and black-hole search. These are graph instances
+of the capability choices, not executions of planar paper algorithms.
+The talk reserves 90 seconds for a live demo, explains why reusable model
+components help formal verification, then focuses on the first two
+**oblivious** SUIG algorithms. The expanded introduction keeps the 20-minute
+slot by shortening the execution commentary; the notes total 18:45 plus a
+1:15 reserve, with the demo starting at 7:00.
 The two-color algorithm is intentionally outside its scope.
 
 ## Build and present
@@ -32,7 +42,7 @@ python3 bin/glissade.py --root . --timeout 300 \
 
 Open `talk.html` directly in a modern browser. Right/Page Down runs to the next
 speaker cut; Left goes back; O opens the overview; F toggles fullscreen.
-The incorrect border-only strategy on slide 9 loops; Right exits its loop.
+The incorrect border-only strategy on slide 17 loops; Right exits its loop.
 Intermediate robot positions are visual interpolation between atomic synchronous
 moves. The `handout=true` mode keeps Touying’s last overlay, removes the animation
 operations and retains one page per logical slide. Static explanations use
@@ -55,6 +65,8 @@ review the PDF after changing them.
 
 - `talk.typ`: Touying slides, pauses and the named animation segments.
 - `theme.typ`: Touying configuration, Glissade wrapper and line drawings.
+- `models.sim`: original, reusable graph-model compositions for the introduction;
+  imports the external Simulant standard library and is not needed to build the deck.
 - `traces.json`: recorded executions, chosen rules and public-source hashes.
 - `export-traces.mjs`: reproducibly reads the external public Simulant project.
 - `speaker-notes.md`: English narration, timing and technical qualifications.
@@ -84,6 +96,24 @@ The intentionally incorrect border-only counterexample is separately generated
 and labelled. It is not attributed to either paper algorithm.
 
 ## Scientific scope
+
+The opening's model taxonomy follows Flocchini, Santoro and Wada,
+[OPODIS 2019, §2](https://doi.org/10.4230/LIPIcs.OPODIS.2019.25).
+The examples use the public Simulant library at
+[`bf63fcc`](https://github.com/bramas/simulant/tree/bf63fcc2784a23bbf8e1d15ed811743f0a72fea2/packages/stdlib/sim).
+OBLOT/FSTA/FCOM/LUMI share an oblivious algorithm core; finite light storage
+and the sensor list define the extra capabilities. `otherColors` is an original
+sensor that excludes the observer, including when robots share a node.
+The four robot compositions assume algorithm `Pub` and `Mem` are `Unit`, so no
+extra persistent algorithm state bypasses the finite-light construction.
+`agentsWithMemory` instead permits general persistent program state.
+
+The standard `.sim` engine executes graphs. `Euclidean.Plane` is an interface;
+continuous geometry, planar frame similarities and non-rigid planar motion are
+not supplied by these examples. Graph ASYNC separates Look/Compute/Move events
+but still uses atomic edge moves. No planar computational-power theorem or
+algorithm correctness result is claimed for the introductory compositions.
+See `speaker-notes.md` and backup B5 for the full source list.
 
 Algorithm numbering follows the local journal manuscript translated by the
 public Simulant project:

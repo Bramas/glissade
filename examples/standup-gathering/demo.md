@@ -36,7 +36,7 @@ No part of the presentation depends on a running server or an internet connectio
 
 ## Offline fallback
 
-Stay on slide 5. Its two reveal points replay the same crash scenario at rounds
-2 and 5 from the exported engine trace. Then refer back to slides 3 and 4 for
+Stay on slide 13. Its two reveal points replay the same crash scenario at rounds
+2 and 5 from the exported engine trace. Then refer back to slides 11 and 12 for
 source composition and Lean proof obligations. This takes the same 90 seconds
 without any website.

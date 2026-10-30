@@ -9,22 +9,47 @@
 #let teal = rgb("#075e47")
 #let coral = rgb("#ad2424")
 #let paper = white
-#let edge = rgb("#555555")
+#let muted = rgb("#4c5665")
+#let rule = rgb("#ccd3dc")
+#let edge = rgb("#8793a3")
 #let handout = sys.inputs.at("handout", default: "false") == "true"
 #let recordings = json("traces.json").traces
 
-#let small(body) = text(size: 21pt, fill: black, body)
-#let remark(body) = block(above: 10pt, below: 0pt, text(size: 25pt, body))
+#let small(body) = text(size: 21pt, fill: muted, body)
+#let remark(body) = block(above: 10pt, below: 0pt, text(size: 29pt, fill: blue, body))
+
+// The two result slides share the same geometry and emphasis.
+#let results-table() = {
+  show table.cell.where(x: 0): set text(fill: blue, weight: "bold")
+  table(
+    columns: (155pt, 1.2fr, 1fr), inset: (x: 16pt, y: 24pt),
+    stroke: none,
+    table.header(
+      ..([Algorithm], [Visibility], [Initial configurations]).map(body =>
+        table.cell(text(size: 22pt, weight: "bold", fill: muted, body))),
+    ),
+    table.hline(stroke: 1pt + ink),
+    [1], [$phi >= max(4, H_"init" + 3)$], [$O_"init"$ odd or $M_"init"$ odd],
+    table.hline(stroke: 0.6pt + rule),
+    [2], [$phi >= max(4, H_"init" + 1)$], [$O_"init"$ odd],
+    table.hline(stroke: 1pt + ink),
+  )
+}
 
 // Touying owns logical slides and pause overlays; Glissade renders only the
 // continuous animation inside an animated slide.
 #let robot-animation = glissade.touying(touying.touying-fn-wrapper, fps: 12)
-#let talk-slide(n, id, title, animated: false, body) = theme-slide[
+#let talk-slide(n, id, title, animated: false, opening: false, body) = theme-slide(setting: body => {
+  set text(size: 27pt)
+  body
+})[
   #metadata((standup_slide: (id: id, title: title, number: str(n))))
-  #text(size: 37pt, weight: "bold", title)
-  #v(5pt)
-  #line(length: 100%, stroke: 0.7pt + black)
-  #v(16pt)
+  #if not opening {
+    text(size: 40pt, weight: "bold", title)
+    v(8pt)
+    line(length: 100%, stroke: 0.7pt + rule)
+    v(20pt)
+  }
   #if animated { robot-animation(id: id, body) } else { body }
 ]
 
@@ -72,15 +97,15 @@
     if radius != none and observer != none {
       let a = calc.max(low, observer - radius)
       let b = calc.min(high, observer + radius)
-      rect((x(a) - 10, 18), (x(b) + 10, 112), fill: blue.lighten(96%), stroke: 1.4pt + blue)
+      rect((x(a) - 10, 18), (x(b) + 10, 112), fill: blue.lighten(94%), stroke: 1.2pt + blue)
     }
     if highlight != none {
-      rect((x(highlight.at(0)) - 15, 23), (x(highlight.at(1)) + 15, 95), fill: none, stroke: 1.4pt + black)
+      rect((x(highlight.at(0)) - 15, 23), (x(highlight.at(1)) + 15, 95), fill: none, stroke: 1.4pt + teal)
     }
     line((-8, 49), (width + 8, 49), stroke: 1.4pt + edge)
     for node in range(low, high + 1) {
       circle((x(node), 49), radius: 4, fill: white, stroke: 1pt + edge)
-      if labels { content((x(node), 13), text(size: 15pt, fill: black)[#node]) }
+      if labels { content((x(node), 13), text(size: 17pt, fill: muted)[#node]) }
     }
     let used = ()
     for (i, p) in positions.enumerate() {
@@ -91,18 +116,18 @@
         let failed = same.filter(j => crashed.len() > j and crashed.at(j)).len()
         circle((x(p), 49), radius: size, fill: if failed == same.len() { coral } else { blue }, stroke: 2pt + white)
         if same.len() > 1 {
-          content((x(p), 84), text(size: 16pt, weight: "bold", fill: ink)[×#same.len()])
+          content((x(p), 84), text(size: 18pt, weight: "bold", fill: ink)[×#same.len()])
         }
         if failed > 0 {
           line((x(p) - size * 0.45, 49 - size * 0.45), (x(p) + size * 0.45, 49 + size * 0.45), stroke: 2.2pt + white)
           line((x(p) - size * 0.45, 49 + size * 0.45), (x(p) + size * 0.45, 49 - size * 0.45), stroke: 2.2pt + white)
-          content((x(p), 113), text(size: 16pt, fill: coral, weight: "bold")[crash])
+          content((x(p), 113), text(size: 18pt, fill: coral, weight: "bold")[crash])
         }
       }
     }
     if observer != none {
       circle((x(observer), 49), radius: size + 6, stroke: 2.5pt + teal)
-      content((x(observer), 130), text(size: 15pt, fill: teal, weight: "bold")[observer])
+      content((x(observer), 130), text(size: 18pt, fill: teal, weight: "bold")[observer])
     }
     for (i, movement) in arrows.enumerate() {
       let start = movement.at(0)
@@ -124,11 +149,13 @@
   line-view(frame.positions, low: low, high: high, width: width, crashed: frame.crashed)
   if metrics {
     v(4pt)
+    line(length: width * 1pt, stroke: 0.6pt + rule)
+    v(6pt)
     // Reserve each metric's width so transition arrows and changing digits
     // cannot move the following labels, including in the two-column slide.
     small(grid(
       columns: (170pt, 80pt, 80pt, 80pt), column-gutter: 24pt,
-      if frame.transition { [Round #frame.round → #(frame.round + 1)] } else { [Round #frame.round] },
+      text(fill: blue, weight: "bold", if frame.transition { [Round #frame.round → #(frame.round + 1)] } else { [Round #frame.round] }),
       $phi = #trace.phi$,
       $O_t = #frame.occupied$,
       $D_t = #frame.diameter$,

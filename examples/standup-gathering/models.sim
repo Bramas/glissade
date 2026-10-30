@@ -1,0 +1,43 @@
+/-! Original model-composition examples for the presentation's introduction.
+These are graph instances of capability choices from the robot literature,
+not translations or correctness proofs of the planar algorithms.
+For oblot/fsta/fcom/lumi, algorithms must leave Pub and Mem as Unit;
+the finite light component is their only persistent state.
+Checked against Simulant bf63fcc2784a23bbf8e1d15ed811743f0a72fea2.
+The imported standard library is CeCILL-B; it is not vendored here. -/
+
+import "std/models.sim"
+
+def ringRobots : Model :=
+  obliviousRobots (Graphs.Cycle (param N))
+    Observe.full Frames.isomorphisms [occupied]
+    (scheduler := Schedulers.SSync)
+
+-- A finite light stores state; the sensors decide who can read it.
+def robotFamily (sensors : List Sensor) (storage : List Component := []) : Model :=
+  obliviousRobots (Graphs.Cycle (param N))
+    Observe.full Frames.isomorphisms sensors
+    (components := storage)
+
+sensor otherColors (L : Look) (l : Loc) : List Nat :=
+  (range L.world.colorCount).filter fun c =>
+    (L.occupants l).any fun a =>
+      present a ∧ a ≠ L.me ∧ a.light = c
+
+def oblot : Model := robotFamily [occupied]
+def fsta : Model := robotFamily [occupied, ownLight] [Storage.Lights 2]
+def fcom : Model := robotFamily [occupied, otherColors] [Storage.Lights 2]
+def lumi : Model := robotFamily [colors, ownLight] [Storage.Lights 2]
+
+def ringAgents : Model :=
+  blackHoleSearch (Graphs.Cycle (param N)) .initiallyPresent .unknown
+
+def dynamicRingAgents : Model :=
+  blackHoleSearch (Graphs.Dynamic (Graphs.Cycle (param N)) 1)
+    .initiallyPresent .unknown
+
+def lineRobots : Model :=
+  obliviousRobots Graphs.Line
+    (Observe.radius (param phi))
+    Frames.isomorphisms [occupied]
+    (components := [Faults.CrashAt])
