@@ -22,14 +22,15 @@
         "fps": {"type": "number", "exclusiveMinimum": 0},
         "duration": {"type": "number", "minimum": 0},
         "frameCount": {"type": "integer", "minimum": 1},
+        "sharedSvg": {"type": "string", "pattern": "^data:application/(gzip|json);base64,"},
         "frames": {"type": "array", "minItems": 1, "items": {"oneOf": [
           {"type": "string"},
           {"type": "object", "required": ["kind", "base", "patches"], "properties": {
             "kind": {"const": "svg-delta-v1"}, "base": {"$ref": "#/$defs/frame"},
-            "patches": {"type": "array", "items": {"type": "object", "required": ["path", "svg"], "properties": {
+            "patches": {"oneOf": [{"$ref": "#/$defs/frame"}, {"type": "array", "items": {"type": "object", "required": ["path", "svg"], "properties": {
               "path": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/frame"}},
               "svg": {"type": "string"}
-            }}}
+            }}}]}
           }}
         ]}},
         "keyframes": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/frame"}},

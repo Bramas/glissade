@@ -70,3 +70,38 @@ test("manifest rejects cyclic SVG deltas before they can hang playback", () => {
   expect(() => validateManifest({ scenes: [{ id: "a", duration: 1, fps: 2,
     frameCount: 1, frames: [{ kind: "svg-delta-v1", base: 0, patches: [] }], cuts: [], keyframes: [0] }] })).toThrow("delta base");
 });
+
+test("shared SVG payloads decode lazily, stay bounded and clear with frame caches", async () => {
+  const { gzipSync } = await import("node:zlib");
+  const shared = { glyphs: ['<symbol id="été"/>'], patches: [[{ path: [0], svg: "<g/>" }]] };
+  const source = "data:application/gzip;base64," + gzipSync(JSON.stringify(shared)).toString("base64");
+  const store = new SvgFrameStore();
+  expect(store.stats().sharedEntries).toBe(0);
+  expect(await store.sharedData(source)).toEqual(shared);
+  expect(await store.sharedData(source)).toBe(await store.sharedData(source));
+  expect(store.stats().sharedEntries).toBe(1);
+  expect(store.stats().sharedBytes).toBeGreaterThan(0);
+  for (let index = 0; index < 12; index++) {
+    const payload = "data:application/json;base64," + Buffer.from(JSON.stringify({ glyphs: [String(index)], patches: [] })).toString("base64");
+    await store.sharedData(payload);
+  }
+  expect(store.stats().sharedEntries).toBeLessThanOrEqual(8);
+  store.clear();
+  expect(store.stats().sharedBytes).toBe(0);
+});
+
+test("shared frame caches keep scenes with identical placeholders separate", async () => {
+  const store = new SvgFrameStore();
+  const source = "data:image/svg+xml;base64," + btoa('<svg/>');
+  const framesA = [source], framesB = [source];
+  expect(store.sourceKey(source, framesA, "a")).not.toBe(store.sourceKey(source, framesB, "b"));
+  expect(store.sourceKey(source, framesA, "a")).toBe(store.sourceKey(source, framesA, "a"));
+});
+
+test("manifest accepts shared patches and rejects missing shared payloads", () => {
+  const scene = { id: "a", duration: 1, fps: 2, frameCount: 2,
+    frames: ["first.svg", { kind: "svg-delta-v1", base: 0, patches: 0 }], cuts: [], keyframes: [0, 1] };
+  expect(() => validateManifest({ scenes: [scene] })).toThrow("delta patches");
+  scene.sharedSvg = "data:application/gzip;base64,eA==";
+  expect(validateManifest({ scenes: [scene] }).scenes[0]).toBe(scene);
+});

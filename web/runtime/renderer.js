@@ -65,6 +65,19 @@
     return new XMLSerializer().serializeToString(svg);
   }
 
+  function restoreSharedGlyphs(text, glyphs) {
+    if (!text.includes("data-glissade-glyph")) return text;
+    const svg = parseSvgMarkup(text);
+    for (const placeholder of svg.querySelectorAll("symbol[data-glissade-glyph]")) {
+      const index = Number(placeholder.getAttribute("data-glissade-glyph"));
+      if (!Number.isInteger(index) || index < 0 || typeof glyphs?.[index] !== "string") {
+        throw new Error("Invalid shared SVG glyph reference");
+      }
+      placeholder.replaceWith(parseSvgFragment(glyphs[index]));
+    }
+    return new XMLSerializer().serializeToString(svg);
+  }
+
   function partSelector(key) {
     return '[data-glissade-part="true"][data-glissade-part-key="' + CSS.escape(key) + '"]';
   }
@@ -376,21 +389,49 @@
       this.textCache = new BoundedCache(120, 32 * 1024 * 1024);
       this.analysisCache = new BoundedCache(64);
       this.planCache = new BoundedCache(32);
+      this.sharedCache = new BoundedCache(8, 8 * 1024 * 1024);
+      this.frameContexts = new WeakMap();
+      this.nextFrameContext = 0;
     }
 
     clear() {
       this.textCache.clear();
       this.analysisCache.clear();
       this.planCache.clear();
+      this.sharedCache.clear();
     }
 
     stats() {
       return { textEntries: this.textCache.size, textBytes: this.textCache.bytes,
-        analysisEntries: this.analysisCache.size, planEntries: this.planCache.size };
+        analysisEntries: this.analysisCache.size, planEntries: this.planCache.size,
+        sharedEntries: this.sharedCache.size, sharedBytes: this.sharedCache.bytes };
     }
 
-    async loadText(source, frames = null) {
-      return memoizeAsync(this.textCache, source, async () => {
+    sourceKey(source, frames, sharedSvg) {
+      if (!sharedSvg) return source;
+      if (!frames) throw new Error("Shared SVG data requires a slide's frames");
+      if (!this.frameContexts.has(frames)) this.frameContexts.set(frames, ++this.nextFrameContext);
+      return this.frameContexts.get(frames) + ":" + frameSourceKey(source);
+    }
+
+    async sharedData(source) {
+      if (!source) return null;
+      return memoizeAsync(this.sharedCache, source, async () => {
+        const text = await decodeDataUri(source);
+        const data = JSON.parse(text);
+        if (!Array.isArray(data?.glyphs) || data.glyphs.some(glyph => typeof glyph !== "string")
+            || !Array.isArray(data.patches) || data.patches.some(patches => !Array.isArray(patches))) {
+          throw new Error("Invalid shared SVG payload");
+        }
+        return data;
+      }, data => JSON.stringify(data).length * 2);
+    }
+
+    async loadText(source, frames = null, sharedSvg = null) {
+      const key = this.sourceKey(source, frames, sharedSvg);
+      return memoizeAsync(this.textCache, key, async () => {
+          const shared = await this.sharedData(sharedSvg);
+          let text;
           if (source && typeof source === "object") {
             if (source.kind !== "svg-delta-v1") {
               throw new Error("Unsupported Glissade frame source: " + source.kind);
@@ -398,28 +439,34 @@
             if (!frames || !Number.isInteger(source.base) || !frames[source.base]) {
               throw new Error("Invalid Glissade SVG delta base");
             }
-            return applySvgDelta(await this.loadText(frames[source.base], frames), source);
+            const patches = Array.isArray(source.patches) ? source.patches : shared?.patches[source.patches];
+            if (!Array.isArray(patches) || patches.some(patch => !Array.isArray(patch?.path)
+                || !patch.path.length || patch.path.some(index => !Number.isInteger(index) || index < 0)
+                || typeof patch.svg !== "string")) throw new Error("Invalid SVG delta patches");
+            text = applySvgDelta(await this.loadText(frames[source.base], frames, sharedSvg), { patches });
+          } else {
+            text = await decodeDataUri(source);
+            if (text === null) {
+              const response = await fetch(source);
+              if (!response.ok) {
+                throw new Error("Failed to load frame " + source + ": " + response.status);
+              }
+              text = source.split("?", 1)[0].endsWith(".svg.gz")
+                ? await decompressGzip(new Uint8Array(await response.arrayBuffer()))
+                : await response.text();
+            }
           }
-          const inline = await decodeDataUri(source);
-          if (inline !== null) return inline;
-          const response = await fetch(source);
-          if (!response.ok) {
-            throw new Error("Failed to load frame " + source + ": " + response.status);
-          }
-          if (source.split("?", 1)[0].endsWith(".svg.gz")) {
-            return decompressGzip(new Uint8Array(await response.arrayBuffer()));
-          }
-          return response.text();
+          return restoreSharedGlyphs(text, shared?.glyphs);
       }, text => text.length * 2);
     }
 
-    async instantiate(source, frames = null) {
-      return parseSvgMarkup(await this.loadText(source, frames));
+    async instantiate(source, frames = null, sharedSvg = null) {
+      return parseSvgMarkup(await this.loadText(source, frames, sharedSvg));
     }
 
-    async analyzed(source, sandbox, frames = null) {
-      return memoizeAsync(this.analysisCache, source, async () => {
-          const svg = await this.instantiate(source, frames);
+    async analyzed(source, sandbox, frames = null, sharedSvg = null) {
+      return memoizeAsync(this.analysisCache, this.sourceKey(source, frames, sharedSvg), async () => {
+          const svg = await this.instantiate(source, frames, sharedSvg);
           sandbox.replaceChildren(svg);
           const analysis = analyzeSvg(svg);
           const size = intrinsicSize(svg);
@@ -428,17 +475,18 @@
       });
     }
 
-    async segmentPlan(startSource, endSource, sandbox, frames = null) {
-      const cacheKey = frameSourceKey(startSource) + "::" + frameSourceKey(endSource);
+    async segmentPlan(startSource, endSource, sandbox, frames = null, sharedSvg = null) {
+      const cacheKey = frameSourceKey(this.sourceKey(startSource, frames, sharedSvg))
+        + "::" + frameSourceKey(this.sourceKey(endSource, frames, sharedSvg));
       return memoizeAsync(this.planCache, cacheKey, async () => {
           const [startData, endData] = await Promise.all([
-            this.analyzed(startSource, sandbox, frames),
-            this.analyzed(endSource, sandbox, frames),
+            this.analyzed(startSource, sandbox, frames, sharedSvg),
+            this.analyzed(endSource, sandbox, frames, sharedSvg),
           ]);
           const morphEvents = collectMorphMatches(startData.analysis, endData.analysis);
           const matches = morphEvents.matches;
-          const startSvg = await this.instantiate(startSource, frames);
-          const endSvg = await this.instantiate(endSource, frames);
+          const startSvg = await this.instantiate(startSource, frames, sharedSvg);
+          const endSvg = await this.instantiate(endSource, frames, sharedSvg);
           sandbox.replaceChildren(startSvg, endSvg);
           const geometryPlans = [];
           const drawPlans = [];
@@ -524,7 +572,7 @@
     async render(scene, frameIndex) {
       const token = ++this.renderToken;
       const source = scene.frames[frameIndex];
-      const baseSvg = await this.store.instantiate(source, scene.frames);
+      const baseSvg = await this.store.instantiate(source, scene.frames, scene.sharedSvg);
       if (token !== this.renderToken) return this.currentSize;
 
       const size = intrinsicSize(baseSvg);
@@ -546,6 +594,7 @@
           scene.frames[segment.endFrame],
           this.sandbox,
           scene.frames,
+          scene.sharedSvg,
         );
         if (token !== this.renderToken) return this.currentSize;
         if (plan.allMatches.length > 0) {
@@ -594,7 +643,7 @@
             if (partPlan.fallbacks.length > 0) {
               const startIds = new Set(partPlan.fallbacks.map(item => item.startId));
               const startOverlay = prepareElementOverlaySvg(
-                await this.store.instantiate(scene.frames[segment.startFrame], scene.frames),
+                await this.store.instantiate(scene.frames[segment.startFrame], scene.frames, scene.sharedSvg),
                 startIds,
               );
               startOverlay.classList.add("glissade-stage-overlay", "glissade-stage-overlay-start", "glissade-stage-overlay-parts");
@@ -617,11 +666,11 @@
             for (const match of plan.fallbackMatches) {
               const allowedRootIds = new Set([match.rootId]);
               const startOverlay = prepareOverlaySvg(
-                await this.store.instantiate(scene.frames[segment.startFrame], scene.frames),
+                await this.store.instantiate(scene.frames[segment.startFrame], scene.frames, scene.sharedSvg),
                 allowedRootIds,
               );
               const endOverlay = prepareOverlaySvg(
-                await this.store.instantiate(scene.frames[segment.endFrame], scene.frames),
+                await this.store.instantiate(scene.frames[segment.endFrame], scene.frames, scene.sharedSvg),
                 allowedRootIds,
               );
               startOverlay.classList.add("glissade-stage-overlay", "glissade-stage-overlay-start");
@@ -665,7 +714,7 @@
           }
           if (plan.enteringFallbacks.length > 0) {
             const allowedRootIds = new Set(plan.enteringFallbacks.map(match => match.rootId));
-            const endOverlay = prepareOverlaySvg(await this.store.instantiate(scene.frames[segment.endFrame], scene.frames), allowedRootIds);
+            const endOverlay = prepareOverlaySvg(await this.store.instantiate(scene.frames[segment.endFrame], scene.frames, scene.sharedSvg), allowedRootIds);
             endOverlay.classList.add("glissade-stage-overlay", "glissade-stage-overlay-end");
             for (const match of plan.enteringFallbacks) {
               const endRoot = endOverlay.querySelector(morphSelector(match.rootId));
@@ -677,7 +726,7 @@
           }
           if (plan.leavingFallbacks.length > 0) {
             const allowedRootIds = new Set(plan.leavingFallbacks.map(match => match.rootId));
-            const startOverlay = prepareOverlaySvg(await this.store.instantiate(scene.frames[segment.startFrame], scene.frames), allowedRootIds);
+            const startOverlay = prepareOverlaySvg(await this.store.instantiate(scene.frames[segment.startFrame], scene.frames, scene.sharedSvg), allowedRootIds);
             startOverlay.classList.add("glissade-stage-overlay", "glissade-stage-overlay-start");
             for (const match of plan.leavingFallbacks) {
               const startRoot = startOverlay.querySelector(morphSelector(match.rootId));
@@ -709,16 +758,16 @@
     }
 
     frameText(scene, frameIndex) {
-      return this.store.loadText(scene.frames[frameIndex], scene.frames);
+      return this.store.loadText(scene.frames[frameIndex], scene.frames, scene.sharedSvg);
     }
 
     prefetch(scene, frameIndex) {
       const source = scene.frames[frameIndex];
-      if (source) this.store.loadText(source, scene.frames).catch(() => {});
+      if (source) this.store.loadText(source, scene.frames, scene.sharedSvg).catch(() => {});
       const segment = segmentForFrame(scene, frameIndex);
       if (!segment) return;
-      this.store.loadText(scene.frames[segment.startFrame], scene.frames).catch(() => {});
-      this.store.loadText(scene.frames[segment.endFrame], scene.frames).catch(() => {});
+      this.store.loadText(scene.frames[segment.startFrame], scene.frames, scene.sharedSvg).catch(() => {});
+      this.store.loadText(scene.frames[segment.endFrame], scene.frames, scene.sharedSvg).catch(() => {});
     }
   }
 

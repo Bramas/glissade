@@ -62,11 +62,15 @@
           || !Number.isInteger(scene.frameCount) || scene.frameCount < 1
           || scene.frames?.length !== scene.frameCount) throw new Error("Invalid slide frames or FPS");
       if (!Number.isFinite(scene.duration) || scene.duration < 0) throw new Error("Invalid slide duration");
+      if (scene.sharedSvg !== undefined && (typeof scene.sharedSvg !== "string"
+          || !/^data:application\/(?:gzip|json);base64,/.test(scene.sharedSvg))) throw new Error("Invalid shared SVG payload");
       for (const [index, source] of scene.frames.entries()) {
         if (typeof source === "string") continue;
         if (source?.kind !== "svg-delta-v1" || !Number.isInteger(source.base)
-            || source.base < 0 || source.base >= index || !Array.isArray(source.patches)) throw new Error("Invalid SVG delta base");
-        if (source.patches.some(patch => !Array.isArray(patch.path) || !patch.path.length
+            || source.base < 0 || source.base >= index) throw new Error("Invalid SVG delta base");
+        if (Number.isInteger(source.patches) && source.patches >= 0 && scene.sharedSvg) continue;
+        if (!Array.isArray(source.patches)) throw new Error("Invalid SVG delta patches");
+        if (source.patches.some(patch => !Array.isArray(patch?.path) || !patch.path.length
             || typeof patch.svg !== "string" || patch.path.some(value => !Number.isInteger(value) || value < 0))) throw new Error("Invalid SVG delta patch");
       }
       for (const boundaries of [scene.keyframes, scene.cuts?.map(cut => cut.frame)]) {
@@ -148,6 +152,8 @@
   async function decodeDataUri(source) {
     const svgPrefix = "data:image/svg+xml;base64,";
     if (source.startsWith(svgPrefix)) return new TextDecoder().decode(base64Bytes(source.slice(svgPrefix.length)));
+    const jsonPrefix = "data:application/json;base64,";
+    if (source.startsWith(jsonPrefix)) return new TextDecoder().decode(base64Bytes(source.slice(jsonPrefix.length)));
     const gzipPrefix = "data:application/gzip;base64,";
     if (source.startsWith(gzipPrefix)) {
       return decompressGzip(base64Bytes(source.slice(gzipPrefix.length)));

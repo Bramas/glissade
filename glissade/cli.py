@@ -15,7 +15,13 @@ from urllib.parse import quote
 
 from . import svg_tagger
 from .compiler import assert_installed, compile_project, compile_svg_project
-from .frames import _is_frame_delta, _optimize_scene_frames, _source_frame_name
+from .frames import (
+    _is_frame_delta,
+    _optimize_scene_frames,
+    _pack_scene_svg,
+    _share_scene_glyphs,
+    _source_frame_name,
+)
 from .live import handle_dev
 from .manifest import validate_manifest
 
@@ -120,6 +126,13 @@ Examples:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="gzip SVG frames and decompress them lazily in the browser (default: enabled)",
+    )
+
+    html_parser.add_argument(
+        "--share-glyphs",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="store repeated SVG glyph definitions once per slide (default: enabled)",
     )
 
     html_parser.add_argument(
@@ -337,9 +350,15 @@ def handle_html(args):
                         encoding="utf-8",
                     )
 
-            if args.optimize_frames:
-                for scene in manifest["scenes"]:
+            for scene in manifest["scenes"]:
+                glyphs = (
+                    _share_scene_glyphs(scene, temporary_directory)
+                    if args.share_glyphs
+                    else []
+                )
+                if args.optimize_frames:
                     _optimize_scene_frames(scene, temporary_directory)
+                _pack_scene_svg(scene, glyphs, args.compress_frames)
 
             if args.embed_frames:
                 # Embed frames as base64

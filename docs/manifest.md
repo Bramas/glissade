@@ -21,6 +21,25 @@ A delta references an earlier frame of the **same scene** through its `base`
 index. Its patches replace SVG element subtrees addressed by child-index paths.
 The encoder anchors deltas at complete keyframes, avoiding unbounded chains.
 
+An exported scene can additionally contain `sharedSvg`, a gzip or JSON base64
+data URI holding `{"glyphs": [...], "patches": [...]}`. `glyphs` contains SVG
+symbol markup; `patches` contains arrays of delta patches. A delta's `patches`
+can be either an inline array (the original format) or a nonnegative index into
+this shared patch table. The browser decodes shared data only when loading a
+frame of that scene, using a bounded cache (8 entries, 8 MiB of decoded JSON).
+
+Repeated Typst glyph symbols are stored once per scene. Frame SVGs and delta
+fragments use `<symbol data-glissade-glyph="N"/>` placeholders in their place.
+The loader replaces each placeholder with `glyphs[N]` before rendering, analysis,
+or overview serialization. Each placeholder occupies exactly one SVG child,
+preserving delta paths. Definitions with the same ID but different markup have
+separate entries; glyph IDs and their per-frame scope are preserved. Symbols
+outside Typst's `<defs id="glyph">` remain untouched.
+
+`--no-share-glyphs` disables glyph sharing; `--no-compress-frames` keeps shared
+glyphs as plain JSON base64 and deltas as inline arrays, requiring no gzip
+decoder. Older exports without shared data remain readable by the runtime.
+
 ## Timing and boundaries
 
 - Time, hold, duration and dwell use seconds. Negative timings are rejected.

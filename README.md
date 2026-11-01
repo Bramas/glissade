@@ -160,6 +160,10 @@ Playback pauses at every `cut()` and at the final frame. The generated HTML
 contains the runtime and compressed SVG frames in one portable file. By default,
 HTML export stores smaller SVG deltas for intermediate frames when that is more
 compact than keeping complete SVGs; use `--no-optimize-frames` to disable this.
+Repeated text glyphs are shared per slide, and delta patches are compressed
+together. Shared data is decoded only when the slide is needed. Use
+`--no-share-glyphs` to disable glyph sharing or `--no-compress-frames` to disable
+gzip compression for both frames and shared data.
 
 `--title "My talk"` sets the HTML title. With `--no-embed-frames`, `slides.html`
 uses its own `slides.frames/` directory, so exporting another deck beside it
@@ -229,6 +233,8 @@ The report records compilation time, export time, SVG/HTML size and, with
 120 entries and 32 MiB of decoded text; analysis and morph-plan caches retain
 64 and 32 entries. Reloading the live manifest clears these caches. These are
 cache budgets, not a limit on the whole browser's memory.
+Decoded shared glyph and delta data has a separate cache of at most 8 entries
+and 8 MiB.
 
 The exact-frame runtime inspector is useful when debugging morphs:
 

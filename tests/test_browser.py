@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from urllib.parse import unquote, urlparse
+from unittest.mock import patch
 
 from glissade.cli import create_parser, handle_html
 
@@ -135,6 +136,68 @@ class BrowserTests(unittest.TestCase):
             0,
         )
         self.assertFalse(self.errors)
+
+    def test_shared_glyphs_and_compressed_deltas_match_original_pixels(self):
+        import json
+
+        def compile_fixture(args, directory):
+            scenes = []
+            for index, color in enumerate(["red", "blue"]):
+                frames = []
+                for frame in range(4):
+                    name = f"slide-{index}-frame-{frame}.svg"
+                    glyph_color = color if frame % 2 == 0 else "green"
+                    # Identical symbol IDs and placeholders in different scenes
+                    # must retain their own outlines and colors in the caches.
+                    svg = (
+                        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">'
+                        f'<g transform="translate({frame * 10} 0)"><use href="#g1"/></g>'
+                        f'<defs id="glyph"><symbol id="g1" overflow="visible"><path fill="{glyph_color}" '
+                        'd="M10 10H40V50H10Z"/></symbol></defs></svg>'
+                    )
+                    (Path(directory) / name).write_text(svg)
+                    frames.append(f"/frames/{name}")
+                scenes.append({"id": str(index), "index": index, "name": color, "fps": 3,
+                               "duration": 1, "frameCount": 4, "frames": frames,
+                               "keyframes": [0, 3], "cuts": [], "blocks": [], "morphAnimations": []})
+            return {"schemaVersion": 1, "version": "fixture", "title": "Fixture", "fps": 3, "scenes": scenes}
+
+        def export(name, *options):
+            source = self.directory / f"{name}.typ"
+            source.write_text("")
+            args = create_parser().parse_args([str(source), "html", *options])
+            with patch("glissade.cli.compile_svg_project", side_effect=compile_fixture):
+                self.assertEqual(handle_html(args), 0)
+
+        def capture(name):
+            self.page.goto(f"https://glissade.test/{name}.html?glissade-debug=1")
+            self.page.evaluate("GlissadeDebug.ready")
+            screenshots = []
+            for scene in range(2):
+                for frame in range(4):
+                    self.page.evaluate("([s, f]) => GlissadeDebug.renderFrame(s, f)", [scene, frame])
+                    self.assertEqual(self.page.locator("[data-glissade-glyph]").count(), 0)
+                    screenshots.append(self.page.locator(".glissade-stage-stack").screenshot())
+            self.assertFalse(self.errors)
+            return screenshots
+
+        export("original", "--no-share-glyphs", "--no-optimize-frames")
+        reference = capture("original")
+        self.assertNotEqual(reference[0], reference[4])
+        for options in [[], ["--no-embed-frames"], ["--no-compress-frames"],
+                        ["--no-optimize-frames"], ["--no-share-glyphs"]]:
+            with self.subTest(options=options):
+                export("packed", *options)
+                self.assertEqual(capture("packed"), reference)
+                text = (self.directory / "packed.html").read_text()
+                # Inspect the actual wire format, not just an equivalent SVG.
+                start = text.index('Promise.resolve({') + len('Promise.resolve(')
+                manifest, _ = json.JSONDecoder().raw_decode(text[start:])
+                if not options:
+                    self.assertTrue(all("sharedSvg" in scene for scene in manifest["scenes"]))
+                    self.assertTrue(any(type(frame.get("patches")) is int
+                                        for scene in manifest["scenes"] for frame in scene["frames"]
+                                        if isinstance(frame, dict)))
 
 
 if __name__ == "__main__":

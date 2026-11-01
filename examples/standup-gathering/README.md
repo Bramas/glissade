@@ -28,7 +28,7 @@ From the Glissade repository root:
 # Animated, self-contained presentation. Typst and Python 3.10+ are required.
 python3 bin/glissade.py --root . --timeout 300 \
   examples/standup-gathering/talk.typ html --fps 12 \
-  --no-optimize-frames --title 'Stand-Up Indulgent Gathering'
+  --title 'Stand-Up Indulgent Gathering'
 
 # One static final state per slide, including the backups.
 typst compile examples/standup-gathering/talk.typ \
@@ -51,9 +51,9 @@ Touying `#pause`; continuous robot motion uses `glissade.touying`.
 A full 12-fps build lays out several hundred Touying subslides; the timeout
 allows for this. Use `--fps 2` for a faster draft while editing.
 
-This content has many outlined text glyphs. `--no-optimize-frames` is deliberate:
-gzip-compressed full SVG frames are smaller here than the current uncompressed
-JSON delta representation. Generated HTML/PDF outputs follow the repository's
+This content has many outlined text glyphs. The HTML exporter shares repeated
+glyph definitions per slide and compresses delta patches together by default.
+Generated HTML/PDF outputs follow the repository's
 normal ignore rules; the sources and trace data are the reproducible example.
 
 The diagrams use CeTZ 0.5.1. Typst downloads it on the first build if necessary;

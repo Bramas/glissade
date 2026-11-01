@@ -4,6 +4,8 @@ import math
 import time
 from pathlib import Path
 
+from .frames import _decode_shared_svg
+
 SCHEMA_VERSION = 1
 
 
@@ -38,6 +40,20 @@ def validate_manifest(manifest):
             raise ValueError("FPS must be greater than zero")
         if not math.isfinite(scene["duration"]) or scene["duration"] < 0:
             raise ValueError("Duration must be nonnegative")
+        shared = {"glyphs": [], "patches": []}
+        if "sharedSvg" in scene:
+            try:
+                shared = _decode_shared_svg(scene["sharedSvg"])
+                if (
+                    not isinstance(shared, dict)
+                    or not isinstance(shared.get("glyphs"), list)
+                    or any(not isinstance(glyph, str) for glyph in shared["glyphs"])
+                    or not isinstance(shared.get("patches"), list)
+                    or any(not isinstance(patches, list) for patches in shared["patches"])
+                ):
+                    raise ValueError("Invalid shared SVG payload")
+            except Exception as error:
+                raise ValueError("Invalid shared SVG payload") from error
         for index, source in enumerate(scene["frames"]):
             if isinstance(source, str):
                 continue
@@ -46,14 +62,20 @@ def validate_manifest(manifest):
                 or source.get("kind") != "svg-delta-v1"
                 or not isinstance(source.get("base"), int)
                 or not 0 <= source["base"] < index
-                or not isinstance(source.get("patches"), list)
             ):
                 raise ValueError(
                     "SVG deltas must reference an earlier frame of the same slide"
                 )
-            for patch in source.get("patches", []):
+            patches = source.get("patches")
+            if type(patches) is int and 0 <= patches < len(shared["patches"]):
+                patches = shared["patches"][patches]
+            if not isinstance(patches, list):
+                raise ValueError("Invalid SVG delta patches or shared patch reference")
+            for patch in patches:
                 if (
-                    not patch.get("path")
+                    not isinstance(patch, dict)
+                    or not isinstance(patch.get("path"), list)
+                    or not patch["path"]
                     or not isinstance(patch.get("svg"), str)
                     or any(
                         not isinstance(item, int) or item < 0 for item in patch["path"]
