@@ -204,14 +204,14 @@
     ("space", "Graphs.Dynamic (Graphs.Cycle (param n)) 1"),
     ("observation", "Observe.radius 1"),
     ("frames", "Frames.identity"),
-    ("sensors", "[occupied, edgeTo]"),
+    ("sensors", "[otherStates, edgeTo]"),
     ("memory", ".persistent"),
     ("scheduler", "Schedulers.FSync"),
     ("components", "[]"),
   ), side: [
     #lead[Mobile agents with memory, on a ring that may miss one edge per round.]
     #v(18pt)
-    #note[They see their neighbors, and which edges are present.]
+    #note[They read the states of the agents on their node, and which edges are present.]
   ]),
 )
 

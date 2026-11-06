@@ -36,12 +36,14 @@ def luminousRobots : Model where
   components := [Storage.Lights 3]
 
 /-- Mobile agents with memory on a ring that may miss one edge per round. They
-see their own node and their neighbors, and whether each edge is present. -/
+read the public states of the other agents on their node, and whether the edge
+to each neighbor is present. Port numbers are the order of a node's neighbors,
+kept as they are by `Frames.identity`. -/
 def dynamicRingAgents : Model where
   space := Graphs.Dynamic (Graphs.Cycle (param n)) 1
   observation := Observe.radius 1
   frames := Frames.identity
-  sensors := [occupied, edgeTo]
+  sensors := [otherStates, edgeTo]
   memory := .persistent
   scheduler := Schedulers.FSync
   components := []
