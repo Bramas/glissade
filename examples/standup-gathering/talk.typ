@@ -589,11 +589,12 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
 ]
 
 // ===================================================== 4. Open problems ====
-#section-slide([04], [Open problems], [Two cells of the map are still empty])
+#section-slide([04], [Open problems], [Two open cases])
 
 #slide(title: [Open problems])[
+  #v(1fr)
   #grid(columns: (auto, 1fr), column-gutter: 46pt, align: horizon,
-    results-map(focus: ((4, 0), (5, 0), (6, 0), (2, 1)), dim-others: true),
+    results-map(focus: ((4, 0), (5, 0), (6, 0), (2, 1)), dim-others: true, cell: 88pt),
     [
       #stack(spacing: 30pt,
         [#pill(color: amber)[1] #h(8pt) $phi = H$ for $H >= 4$ \ #note[impossible for $H in {2, 3}$, proved by hand]],
@@ -602,28 +603,65 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
       )
     ],
   )
+  #v(1fr)
 ]
 
-#slide(title: [Open problem 1: $phi = H$])[
-  #grid(columns: (1fr, 1fr), column-gutter: 46pt,
-    [
-      #eyebrow(color: amber)[Crashes force rules]
-      #v(10pt)
-      #line-view((0, 3, 6), low: -1, high: 7, width: 500, crashed: (false, true, false), views: ((0, 3),),
-        tags: ((0, [must move →], amber),))
-      #v(8pt)
-      #text(size: 24pt)[Middle robot crashed: a border that sees one robot must move towards it, or gathering never happens.]
-    ],
-    [
-      #eyebrow(color: alert)[… until a symmetry]
-      #v(10pt)
-      #line-view((0, 1, 2, 5, 7), low: -1, high: 8, width: 500, arrows: ((0, 1, accent), (7, 6, accent)))
-      #line-view((1, 1, 2, 5, 6), low: -1, high: 8, width: 500, highlight: (1, 6), highlight-color: alert)
-      #text(size: 24pt)[$H = 3$: if the robot at 2 stays, forced rules give $X X dot dot X X$. Its other choices fail too.]
-    ],
-  )
+// The proof for H = phi = 3 (case "idle" of the paper): assume the robot at
+// node 2 stays; forced rules decide every other robot, and the next
+// configuration is edge-symmetric.
+#let h3-steps = (
+  (node: 2, tag: [stays?], color: amber, move: 0,
+    reason: [Assume it stays.]),
+  (node: 0, tag: [→], color: accent, move: 1,
+    reason: [Border of $X X X$: moves in, or $X X X$ with its middle crashed never gathers.]),
+  (node: 1, tag: [stays], color: accent, move: 0,
+    reason: [Middle of $X X X$: stays, or $X X X$ becomes $X X$, edge-symmetric.]),
+  (node: 5, tag: [stays], color: accent, move: 0,
+    reason: [Sees $X dot dot [X] dot X$: stays, or another configuration disconnects.]),
+  (node: 7, tag: [←], color: accent, move: -1,
+    reason: [Sees one robot, two hops away: moves to it, or $X dot X$ with its middle crashed never gathers.]),
+)
+
+#slide(title: [Open problem 1: $phi = H$], id: "open-h3")[
+  #let last = h3-steps.len()
+  #init(t: if handout { float(last) } else { 0.0 })
+  #if not handout {
+    for target in range(1, last + 1) {
+      animate(t: float(target), duration: if target == last { 1.0 } else { 0.5 }, transition: "linear")
+      cut()
+    }
+  }
+  #context {
+    let t = a("t")
+    let travel = ease(t, last - 1, last)
+    let start = (0, 1, 2, 5, 7)
+    let positions = start.map(p => {
+      let step = h3-steps.find(s => s.node == p)
+      p + step.move * travel
+    })
+    let shown(k) = if k == 0 { 1 } else { ease(t, k - 1, k) }
+    let tags = if t < last - 1 + 0.05 {
+      h3-steps.enumerate().map(((k, s)) => (s.node, s.tag, alpha(s.color, shown(k)), "above"))
+    } else { () }
+    let done = ease(t, last - 0.3, last)
+    grid(columns: (1fr, 210pt), column-gutter: 10pt, align: horizon,
+      line-view(positions, low: -2, high: 9, width: 900, labels: true, height: 130,
+        views: if t < last - 1 + 0.05 { ((2, 3),) } else { () }, tags: tags,
+        highlight: if done > 0 { (1, 6) } else { none }, highlight-color: alpha(alert, done)),
+      if done > 0.5 { symmetry-badge((1, 2, 5, 6)) } else { text(size: 19pt, weight: "bold", fill: muted)[$H = phi = 3$] },
+    )
+    v(12pt)
+    set text(size: 22pt)
+    grid(columns: (92pt, 1fr), row-gutter: 12pt, align: horizon,
+      ..h3-steps.enumerate().map(((k, s)) => (
+        pill(color: alpha(s.color, shown(k)), fill: alpha(s.color, shown(k) * 0.12))[node #s.node],
+        text(fill: alpha(ink, shown(k)), s.reason),
+      )).flatten(),
+      [], text(fill: alpha(alert, done), weight: "bold")[$X X dot dot X X$ is edge-symmetric: gathering fails. Moving left or right fails too.],
+    )
+  }
   #v(1fr)
-  The proofs for $H = 2, 3$ chain such forced rules by hand. For $H >= 4$ the views multiply, and we have no general construction yet.
+  #note[$H = 2, 3$: every choice ends this way, by hand. For $H >= 4$ some rules are still forced (a robot that sees only one robot, farther than $phi slash 2$, must move to it), but we have no general chain.]
 ]
 
 #slide(title: [Open problem 2: $H = 2$, $phi = 3$])[
