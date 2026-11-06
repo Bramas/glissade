@@ -38,9 +38,7 @@
 
 /// Returns the morph effect attached to the active transition for a state.
 #let animation-effect(name) = {
-  let scopes = query(selector(metadata).before(here())).filter(element => (
-    type(element.value) == dictionary and "glissade_animation_scope" in element.value
-  ))
+  let scopes = query(selector(<glissade-animation-scope>).before(here()))
   assert(scopes.len() > 0, message: "animation-effect() must be evaluated inside a Glissade slide frame")
   let scope = scopes.last().value.glissade_animation_scope
   let name-dict = scope.variables.at(name, default: (:))
@@ -60,9 +58,7 @@
   /// -> str
   name,
 ) = {
-  let scopes = query(selector(metadata).before(here())).filter(element => (
-    type(element.value) == dictionary and "glissade_animation_scope" in element.value
-  ))
+  let scopes = query(selector(<glissade-animation-scope>).before(here()))
   assert(scopes.len() > 0, message: "a() must be evaluated inside a Glissade slide frame")
   let scope = scopes.last().value.glissade_animation_scope
   build_mapping(scope.variables, scope.block, name)(scope.time)
@@ -70,9 +66,7 @@
 
 /// Returns the one-based logical slide number for the current frame.
 #let slide-number() = {
-  let scopes = query(selector(metadata).before(here())).filter(element => (
-    type(element.value) == dictionary and "glissade_animation_scope" in element.value
-  ))
+  let scopes = query(selector(<glissade-animation-scope>).before(here()))
   assert(scopes.len() > 0, message: "slide-number() must be used inside a Glissade slide")
   scopes.last().value.glissade_animation_scope.index
 }
@@ -206,7 +200,7 @@
       block: block-index,
       time: time,
       index: index,
-    )))
+    ))) <glissade-animation-scope>
     #if marker != none { metadata(marker) }
     #body
   ]
@@ -218,7 +212,7 @@
     page(_frame([
       #active-slide.update(_ => id)
       #slide-scope(id)
-      #metadata(("glissade_animation_scope": (variables: variables, block: b, time: 0, index: index)))
+      #metadata(("glissade_animation_scope": (variables: variables, block: b, time: 0, index: index))) <glissade-animation-scope>
       #metadata(("glissade_new_frame": true))
       #_frame-preamble(id, frozen-counters, first: b == 1)
       #body
@@ -288,7 +282,7 @@
   page(_frame([
     #active-slide.update(_ => id)
     #slide-scope(id)
-    #metadata(("glissade_animation_scope": (variables: variables, block: 1, time: 0, index: index)))
+    #metadata(("glissade_animation_scope": (variables: variables, block: 1, time: 0, index: index))) <glissade-animation-scope>
     #body
   ]))
 }
@@ -322,7 +316,7 @@
           #active-slide.update(_ => id)
           #slide-scope(id)
           #metadata(("glissade_frame": 0, "glissade_slide": id))
-          #metadata(("glissade_animation_scope": (variables: variables, block: 1, time: 0, index: index)))
+          #metadata(("glissade_animation_scope": (variables: variables, block: 1, time: 0, index: index))) <glissade-animation-scope>
           #metadata(("glissade_new_frame": true))
           #_frame-preamble(id, frozen-counters, first: true)
           #body
@@ -348,7 +342,7 @@
             #active-slide.update(_ => id)
             #slide-scope(id)
             #metadata(("glissade_frame": frame, "glissade_slide": id))
-            #metadata(("glissade_animation_scope": (variables: variables, block: b, time: new_time, index: index)))
+            #metadata(("glissade_animation_scope": (variables: variables, block: b, time: new_time, index: index))) <glissade-animation-scope>
             #metadata(("glissade_new_frame": true))
             #_frame-preamble(id, frozen-counters, first: b == 1 and frame == 0)
             #body
