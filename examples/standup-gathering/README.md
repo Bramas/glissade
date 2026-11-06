@@ -4,11 +4,13 @@ A conference talk (16:9, about twenty minutes) built with Touying and Glissade.
 It follows a talk that presents stand-up indulgent gathering (SUIG) in the usual
 way, with the two-color algorithm and the oblivious $H + 3$ algorithm. This one:
 
-1. introduces [Simulant](https://bramas.github.io/simulant/) and shows how the
-   usual assumptions of robot papers (space, visibility, orientation, memory,
-   multiplicity, synchrony, crashes) are arguments of one `.sim` definition;
-2. writes the whole SUIG setting with myopic robots as one block that reuses
-   those pieces, and the theorem's hypotheses as the experiment's domain;
+1. introduces [Simulant](https://bramas.github.io/simulant/) and builds a model
+   one assumption at a time: each row of the usual list (topology, visibility,
+   orientation, multiplicity detection, memory, synchrony, faults) shows the
+   standard library definitions it can be, and the chosen one becomes a
+   `field := value` line. Three variants then change a few fields;
+2. writes the SUIG setting with myopic robots as the same seven fields, and the
+   theorem's hypotheses as the experiment's domain;
 3. presents the oblivious algorithm for $\varphi \ge \max(4, H_{init} + 1)$:
    why merging three occupied nodes into one is dangerous for myopic robots,
    and the three small rules that repair it, each shown *without* and *with*;
@@ -16,9 +18,10 @@ way, with the two-color algorithm and the oblivious $H + 3$ algorithm. This one:
    $\varphi = 3$.
 
 The theme (`theme.typ`) is written from scratch on top of Touying: white page,
-Lato with New Computer Modern math, a section label above each title, a thin
-progress line, and one meaning per color (blue robots, teal views and moves, red
-crashes and failures, amber open questions). `.sim` code is highlighted with
+Lato with New Computer Modern math, short titles, the section name in the footer
+corner, a thin progress line, and one meaning per color (blue robots, teal views
+and moves, red crashes and failures, amber open questions). On slides with two
+executions, they play one after the other, never at the same time. `.sim` code is highlighted with
 `sim.sublime-syntax` and `sim.tmTheme`.
 
 ## Build
@@ -26,7 +29,7 @@ crashes and failures, amber open questions). `.sim` code is highlighted with
 From the Glissade repository root:
 
 ```sh
-# Animated, self-contained presentation (about 1.5 minutes).
+# Animated, self-contained presentation (about one minute).
 python3 bin/glissade.py --root . --timeout 600 \
   examples/standup-gathering/talk.typ html --fps 12 \
   --title 'Simulant and myopic stand-up indulgent gathering'
@@ -45,10 +48,10 @@ The deck needs Typst 0.14, Touying 0.7.3, CeTZ 0.5.1 and the Lato font.
 ## Files
 
 - `talk.typ`: the slides.
-- `theme.typ`: the Touying theme, the drawings of robots on a line, the rule
-  pictograms and the map of solved and open cases.
-- `models.sim`: the original model compositions shown in the first part. They
-  compile against the public Simulant standard library.
+- `theme.typ`: the Touying theme, the model builder, the drawings of robots on
+  a line, the rule pictograms and the map of solved and open cases.
+- `models.sim`: the five models shown on the slides, in `field := value` form.
+  They compile against the public Simulant standard library.
 - `traces.json`: the executions drawn in the talk, recorded by the simulator.
 - `export-traces.mjs`: regenerates or checks `traces.json`.
 - `sim.sublime-syntax`, `sim.tmTheme`: highlighting for `.sim` code.
@@ -98,6 +101,8 @@ for the audience; robots observe only occupancy within radius $\varphi$.
   impossibility of $\varphi = H$ is proved for $H \in \{2, 3\}$. The two open
   cases are conjectures: the slides show forced rules from the proofs and
   drafts, not complete arguments.
+- The standard library definitions on the option cards are excerpts: `…`
+  marks omitted lines, and the display labels of `choose` are left out.
 - Simulant's exploration follows every adversary choice up to a bound, and its
   Lean export gives definitions. Neither is presented as a machine-checked proof
   of the theorem.

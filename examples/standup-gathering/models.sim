@@ -1,26 +1,58 @@
-/-! Original model compositions shown in the talk. Each one is the sentence a
-paper would write, as a Simulant declaration. They only compose the public
-Simulant standard library (CeCILL-B, not vendored here). -/
+/-! The models built on the slides. Each field is one assumption a paper states in
+its model section. They only use the public Simulant standard library (CeCILL-B,
+not vendored here). -/
 
 import "std/models.sim"
 
-/-- "Oblivious anonymous robots on a ring of n nodes, with chirality, unlimited
-visibility and weak multiplicity detection, under an SSYNC scheduler." -/
-def ringRobots : Model :=
-  obliviousRobots (Graphs.Cycle (param n))
-    Observe.full Frames.identity [occupied]
-    (scheduler := Schedulers.SSync)
+/-- Oblivious robots on a ring of n nodes, with chirality, full visibility and
+strong multiplicity detection, under SSYNC. Built field by field in the talk. -/
+def ringRobots : Model where
+  space := Graphs.Cycle (param n)
+  observation := Observe.full
+  frames := Frames.identity
+  sensors := [count]
+  memory := .oblivious
+  scheduler := Schedulers.SSync
+  components := []
 
-/-- The same robots with a light of three colors that every robot can read. -/
-def luminousRobots : Model :=
-  obliviousRobots (Graphs.Cycle (param n))
-    Observe.full Frames.identity [colors, ownLight]
-    (components := [Storage.Lights 3])
-    (scheduler := Schedulers.SSync)
+/-- The same robots, asynchronous. -/
+def asyncRingRobots : Model where
+  space := Graphs.Cycle (param n)
+  observation := Observe.full
+  frames := Frames.identity
+  sensors := [count]
+  memory := .oblivious
+  scheduler := Schedulers.Async
+  components := []
 
-/-- "Myopic disoriented robots on a line, under FSYNC, that may crash at one
-location": the setting of stand-up indulgent gathering. -/
-def myopicRobots : Model :=
-  obliviousRobots Graphs.Line
-    (Observe.radius (param phi)) Frames.isomorphisms [occupied]
-    (components := [Faults.CrashAt])
+/-- The same asynchronous robots, with a light of three colors (luminous robots). -/
+def luminousRobots : Model where
+  space := Graphs.Cycle (param n)
+  observation := Observe.full
+  frames := Frames.identity
+  sensors := [count, colors, ownLight]
+  memory := .oblivious
+  scheduler := Schedulers.Async
+  components := [Storage.Lights 3]
+
+/-- Mobile agents with memory on a ring that may miss one edge per round. They
+see their own node and their neighbors, and whether each edge is present. -/
+def dynamicRingAgents : Model where
+  space := Graphs.Dynamic (Graphs.Cycle (param n)) 1
+  observation := Observe.radius 1
+  frames := Frames.identity
+  sensors := [occupied, edgeTo]
+  memory := .persistent
+  scheduler := Schedulers.FSync
+  components := []
+
+/-- Myopic disoriented robots on a line, without multiplicity detection, under
+FSYNC, that may crash at one node: the setting of stand-up indulgent gathering. -/
+def myopicRobots : Model where
+  space := Graphs.Line
+  observation := Observe.radius (param phi)
+  frames := Frames.isomorphisms
+  sensors := [occupied]
+  memory := .oblivious
+  scheduler := Schedulers.FSync
+  components := [Faults.CrashAt]

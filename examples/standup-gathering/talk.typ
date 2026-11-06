@@ -5,16 +5,6 @@
 #show: suig-theme.with(footer: [Quentin Bramas · Simulant and myopic stand-up indulgent gathering])
 
 // ------------------------------------------------------------- helpers ------
-// One code line per row, with a colored label on the right. Rows have a fixed
-// height so that labels stay aligned with their line.
-#let annotated(rows, code-width: 680pt, row: 44pt) = {
-  let code = block(width: code-width, radius: 12pt, fill: tint, inset: (x: 24pt, y: 14pt),
-    stack(..rows.map(((line, _, _)) => box(height: row, align(horizon, text(size: 23pt, raw(line, lang: "sim")))))))
-  let labels = block(inset: (y: 14pt), stack(..rows.map(((_, label, color)) => box(height: row, align(horizon,
-    if label != none { pill(label, color: color) })))))
-  grid(columns: (auto, auto), column-gutter: 22pt, code, labels)
-}
-
 #let space-c = accent
 #let view-c = teal
 #let frame-c = rgb("#7a3ea8")
@@ -76,7 +66,7 @@
 // =========================================================== 1. Simulant ====
 #section-slide([01], [Simulant], [Robot models as executable declarations])
 
-#slide(title: [One description, three uses])[
+#slide(title: [Simulant])[
   Papers state their model in prose. Simulant states it in a `.sim` file.
   #v(34pt)
   #grid(columns: (1fr, 70pt, 1.15fr), align: horizon,
@@ -101,150 +91,175 @@
   #note[Open source · #link("https://bramas.github.io/simulant/")[bramas.github.io/simulant] · every execution in this talk is recorded from the simulator.]
 ]
 
-#slide(title: [The usual assumptions are arguments])[
-  #set text(size: 25pt)
-  #table(
-    columns: (1fr, 1.3fr), inset: (x: 14pt, y: 10pt), stroke: none,
-    table.header(eyebrow(color: muted)[In the paper], eyebrow(color: muted)[In `.sim`]),
-    table.hline(stroke: 1pt + hairline),
-    [robots on a ring / a line], [`Graphs.Cycle n` / `Graphs.Line`],
-    [unlimited / limited visibility $phi$], [`Observe.full` / `Observe.radius phi`],
-    [chirality / no common orientation], [`Frames.identity` / `Frames.isomorphisms`],
-    [oblivious / persistent memory], [`obliviousRobots` / `agentsWithMemory`],
-    [weak / strong multiplicity], [sensor `occupied` / sensor `count`],
-    [luminous, $k$ colors], [`Storage.Lights k` + sensor `colors`],
-    [FSYNC / SSYNC / ASYNC], [`Schedulers.FSync` / `SSync` / `Async`],
-    [crash faults], [`Faults.CrashStop f` / `Faults.CrashAt`],
-    table.hline(stroke: 1pt + hairline),
-  )
-  #v(4pt)
-  #note[Spaces, sensors, schedulers, faults and model families are short `.sim` definitions of the public standard library; observations and frames are built in.]
+// The assumptions of a model, as a paper lists them, with the standard
+// library definitions that implement each one. `pick` is the one we keep.
+#let choices = (
+  (label: [Topology], prose: [ring · line · dynamic ring], field: "space", pick: 0, options: (
+    (value: "Graphs.Cycle (param n)", caption: [a ring of $n$ nodes],
+      source: "def Graphs.Cycle (n : Nat) : Space where\n  vertices := range n\n  neighbors v := [(v + 1) % n, (v + n - 1) % n]\n  …"),
+    (value: "Graphs.Line", caption: [the infinite line],
+      source: "def Graphs.Line : Space where\n  Vertex := Int\n  neighbors v := [v + 1, v - 1]\n  …"),
+    (value: "Graphs.Dynamic (Graphs.Cycle (param n)) 1",
+      caption: [built in: the adversary removes up to one edge per round]),
+  )),
+  (label: [Visibility], prose: [full · up to $phi$ hops], field: "observation", pick: 0, options: (
+    (value: "Observe.full", caption: [built in: every node and edge of a finite space]),
+    (value: "Observe.radius (param phi)", caption: [built in: the nodes within $phi$ hops]),
+  )),
+  (label: [Orientation], prose: [chirality · per robot · none], field: "frames", pick: 0, options: (
+    (value: "Frames.identity", caption: [built in: the ports as they are, so all robots agree on clockwise]),
+    (value: "Frames.portPermutations .perRobot", caption: [built in: each robot permutes its ports once, for good]),
+    (value: "Frames.isomorphisms", caption: [built in: any isomorphism of the view, chosen again at each Look]),
+  )),
+  (label: [Multiplicity], prose: [none · weak · strong], field: "sensors", pick: 2, options: (
+    (value: "[occupied]", caption: [none],
+      source: "sensor occupied (L : Look) (l : Loc) : Bool :=\n  (L.occupants l).any present"),
+    (value: "[localMultiplicity]", caption: [weak, on the robot's own node only: one robot, or several]),
+    (value: "[count]", caption: [strong],
+      source: "sensor count (L : Look) (l : Loc) : Nat :=\n  (L.occupants l).count present"),
+  )),
+  (label: [Memory], prose: [oblivious · persistent · lights], field: "memory", pick: 0, options: (
+    (value: ".oblivious", caption: [built in: nothing is kept between two activations]),
+    (value: ".persistent", caption: [built in: a program counter and local variables persist]),
+    (value: "Storage.Lights k", caption: [a light, as a component],
+      source: "def Storage.Lights (colors : Nat) : Component where\n  Agent := { light : Nat }\n  actions := [action setLight : Option Nat := none]\n  …"),
+  )),
+  (label: [Synchrony], prose: [FSYNC · SSYNC · ASYNC], field: "scheduler", pick: 1,
+    footnote: [`choose` is the adversary: a simulation follows one choice, exploration all of them.],
+    options: (
+    (value: "Schedulers.FSync",
+      source: "def Schedulers.FSync : Scheduler where\n  fairness := .none\n  schedule C := { activate := C.eligible }"),
+    (value: "Schedulers.SSync",
+      source: "def Schedulers.SSync : Scheduler where\n  schedule C :=\n    let S := choose (nonemptySubsets C.eligible)\n    { activate := S }"),
+    (value: "Schedulers.Async", caption: [the same choice, but Look, Compute and Move are separate events]),
+  )),
+  (label: [Faults], prose: [none · crashes · at one node], field: "components", pick: 0, options: (
+    (value: "[]", caption: [no faults]),
+    (value: "[Faults.CrashStop 1]", caption: [one robot may crash, anywhere, at any time]),
+    (value: "[Faults.CrashAt]", caption: [crashes at one node],
+      source: "def Faults.CrashAt : Component where\n  World := { crashNode : Pos }\n  flags := [flag crashed visible, acts never]\n  …"),
+  )),
+)
+
+#let ring-sentence = [
+  #text(size: 28pt)[“Oblivious robots on a ring of $n$ nodes, with chirality, full visibility and strong multiplicity detection, under SSYNC.”]
+  #v(20pt)
+  #note[One declaration: simulated, explored and exported to Lean.]
 ]
 
-#slide(title: [A sentence becomes a definition])[
-  #text(size: 27pt)[“#text(fill: state-c)[Oblivious] anonymous robots on #text(fill: space-c)[a ring of $n$ nodes],
-    with #text(fill: frame-c)[chirality], #text(fill: view-c)[unlimited visibility]
-    and #text(fill: sense-c)[weak multiplicity detection], under #text(fill: sched-c)[an SSYNC scheduler].”]
-  #v(14pt)
-  #annotated((
-    ("def ringRobots : Model :=", none, ink),
-    ("  obliviousRobots", "memory", state-c),
-    ("    (Graphs.Cycle (param n))", "space", space-c),
-    ("    Observe.full", "visibility", view-c),
-    ("    Frames.identity", "orientation", frame-c),
-    ("    [occupied]", "sensors", sense-c),
-    ("    (scheduler := Schedulers.SSync)", "synchrony", sched-c),
-  ))
-  #pause
-  #note[Luminous robots: sensors `[colors, ownLight]` and `(components := [Storage.Lights 3])`.]
-]
-
-#slide(title: [Behind each name, a few lines])[
-  #grid(columns: (1.05fr, 1fr), column-gutter: 30pt,
-    [
-      #eyebrow(color: sense-c)[Sensors: what a robot learns]
-      #v(10pt)
-      #set text(size: 27pt)
-```sim
-sensor occupied (L : Look) (l : Loc) : Bool :=
-  (L.occupants l).any present
-
-sensor count (L : Look) (l : Loc) : Nat :=
-  (L.occupants l).count present
-```
-      #note[Weak vs. strong multiplicity: one word.]
-    ],
-    [
-      #eyebrow(color: sched-c)[Schedulers: who acts]
-      #v(10pt)
-      #set text(size: 26pt)
-```sim
-def Schedulers.FSync : Scheduler where
-  schedule C := { activate := C.eligible }
-
-def Schedulers.SSync : Scheduler where
-  schedule C :=
-    let S := choose (nonemptySubsets C.eligible)
-    { activate := S }
-```
-    ],
-  )
-  #pause
-  #v(30pt)
-  #card(fill: accent-soft, inset: 22pt)[
-    #em-accent[`choose` is the adversary.] A simulation follows one choice; exploration follows them all.
-  ]
-]
-
-#slide(title: [Faults are components])[
-  #v(1fr)
-  #grid(columns: (1.45fr, 1fr), column-gutter: 36pt, align: horizon,
-    [
-      #set text(size: 30pt)
-```sim
-def Faults.CrashAt : Component where
-  World := { crashNode : Pos }
-  flags := [flag crashed visible,
-            acts never]
-  init := { crashNode := param crashNode }
-  beforeMove C :=
-    let S := choose (subsets
-      (C.agents.filter fun a =>
-        correct a ∧ a.pos = C.world.crashNode))
-    { raise crashed := S }
-```
-    ],
-    [
-      #stack(spacing: 22pt,
-        [Crashes happen at *one node*, after Compute.],
-        [The adversary picks *which* robots crash, and *when*.],
-        [A crashed robot stays, and stays visible.],
-      )
+#slide(title: [Building a model], id: "build")[
+  #let last = 2 * choices.len() + 1
+  #init(t: if handout { float(last) } else { 0.0 })
+  #if not handout {
+    for target in range(1, last + 1) {
+      animate(t: float(target), duration: if calc.even(target) { 1.3 } else { 0.6 }, transition: "linear")
+      cut()
+    }
+  }
+  #context model-builder(choices, a("t"), name: "ringRobots",
+    intro: [
+      #lead[A paper fixes these choices in its model section.]
       #v(18pt)
-      #note[`Faults.CrashStop f` instead lets up to $f$ robots crash anywhere.]
+      #note[Simulant has a definition for each option. We pick one per row.]
     ],
+    outro: ring-sentence,
   )
-  #v(1fr)
+]
+
+// The model built above, then models that change some of its fields.
+#let ring-rows = (
+  ("space", "Graphs.Cycle (param n)"),
+  ("observation", "Observe.full"),
+  ("frames", "Frames.identity"),
+  ("sensors", "[count]"),
+  ("memory", ".oblivious"),
+  ("scheduler", "Schedulers.SSync"),
+  ("components", "[]"),
+)
+#let with-rows(rows, ..changes) = {
+  let changes = changes.named()
+  rows.map(((field, value)) => (field, changes.at(field, default: value)))
+}
+#let ring-model = (name: "ringRobots", rows: ring-rows, side: ring-sentence)
+
+#let async-rows = with-rows(ring-rows, scheduler: "Schedulers.Async")
+#let variant-models = (
+  ring-model,
+  (name: "asyncRingRobots", rows: async-rows, side: [
+    #lead[The same robots, asynchronous.]
+    #v(18pt)
+    #note[Look, Compute and Move become separate events.]
+  ]),
+  (name: "luminousRobots", rows: with-rows(async-rows, sensors: "[count, colors, ownLight]", components: "[Storage.Lights 3]"), side: [
+    #lead[… with a light of three colors.]
+    #v(18pt)
+    #note[A light is a component; two sensors read the colors.]
+  ]),
+  (name: "dynamicRingAgents", rows: (
+    ("space", "Graphs.Dynamic (Graphs.Cycle (param n)) 1"),
+    ("observation", "Observe.radius 1"),
+    ("frames", "Frames.identity"),
+    ("sensors", "[occupied, edgeTo]"),
+    ("memory", ".persistent"),
+    ("scheduler", "Schedulers.FSync"),
+    ("components", "[]"),
+  ), side: [
+    #lead[Mobile agents with memory, on a ring that may miss one edge per round.]
+    #v(18pt)
+    #note[They see their neighbors, and which edges are present.]
+  ]),
+)
+
+#slide(title: [Other models], id: "variants")[
+  #run(variant-models.len() - 1, duration: 0.9)
+  #context model-variants(variant-models, a("t"))
 ]
 
 // ================================================================ 2. SUIG ===
 #section-slide([02], [Stand-up indulgent gathering], [The setting of the previous talk, as one block of `.sim`])
 
-#slide(title: [The problem, in two pictures], id: "recap")[
-  #run(6, duration: 0.75, stops: (6,))
+#slide(title: [The problem], id: "recap")[
+  #run-phases(("plain", 4, (4,), false), ("crash", 6, (6,), false), duration: 0.75)
   #v(1fr)
   #context {
-    let t = a("t")
-    lane("gather", t, label: [no crash], label-color: accent)
+    lane("gather", a("plain"), label: [no crash], label-color: accent, badge: "count")
     v(14pt)
-    lane("gather-crash", t, label: [crash at one node], label-color: alert)
+    lane("gather-crash", a("crash"), label: [crash at one node], label-color: alert, badge: "count")
   }
   #v(40pt)
   Without crash, gather anywhere. With crashes, *all correct robots gather at the crash node*.
   #v(10pt)
-  #note[FSYNC · oblivious · disoriented · visibility radius $phi$ · weak multiplicity. Numbers in the discs are for us, not for the robots.]
+  #note[FSYNC · oblivious · disoriented · visibility radius $phi$ · no multiplicity detection. Numbers in the discs are for us, not for the robots.]
   #v(1fr)
 ]
 
-#slide(title: [The whole setting is one definition])[
-  #annotated((
-    ("def myopicRobots : Model :=", none, ink),
-    ("  obliviousRobots", "oblivious", state-c),
-    ("    Graphs.Line", "a line", space-c),
-    ("    (Observe.radius (param phi))", "myopic", view-c),
-    ("    Frames.isomorphisms", "disoriented", frame-c),
-    ("    [occupied]", "weak multiplicity", sense-c),
-    ("    (components := [Faults.CrashAt])", "crashes at one node", fault-c),
-  ), code-width: 700pt)
-  #note[FSYNC is the default scheduler of `obliviousRobots`.]
-  #pause
-  #v(1fr)
-  #card(inset: 20pt)[
-    The public project's `lineModel` is this definition with one switch: `[colors]` and `Storage.Lights 2` give the *two-color* algorithm of the previous talk.
-  ]
+#let suig-models = (
+  ring-model,
+  (name: "myopicRobots", rows: (
+    ("space", "Graphs.Line"),
+    ("observation", "Observe.radius (param phi)"),
+    ("frames", "Frames.isomorphisms"),
+    ("sensors", "[occupied]"),
+    ("memory", ".oblivious"),
+    ("scheduler", "Schedulers.FSync"),
+    ("components", "[Faults.CrashAt]"),
+  ), tags: (
+    ([a line], space-c),
+    ([myopic], view-c),
+    ([disoriented], frame-c),
+    ([no multiplicity detection], sense-c),
+    ([oblivious], state-c),
+    ([FSYNC], sched-c),
+    ([crashes at one node], fault-c),
+  )),
+)
+
+#slide(title: [The model], id: "suig-model")[
+  #run(1, duration: 1.0)
+  #context model-variants(suig-models, a("t"))
 ]
 
-#slide(title: [The theorem's hypotheses are the experiment's domain])[
+#slide(title: [The experiment])[
   #grid(columns: (1.5fr, 1fr), column-gutter: 34pt, align: top,
     [
       #set text(size: 31pt)
@@ -271,12 +286,12 @@ experiment hPlusOne where
         [#pill(color: accent)[task] #h(6pt) all robots on one node],
       )
       #v(24pt)
-      #note[Crashed robots stay present, so `Gathering` already means “at the crash node”. Robots never read $phi$: it only reaches `Observe.radius`.]
+      #note[`lineModel` is the public project's `myopicRobots`; with lights, it runs the two-color algorithm. Robots never read $phi$: it only reaches `Observe.radius`.]
     ],
   )
 ]
 
-#slide(title: [A rule is a guard on the view])[
+#slide(title: [A rule])[
   #let config = (0, 4, 8, 9, 10, 12, 15)
   #grid(columns: (130pt, 1fr), align: horizon,
     text(size: 22pt, weight: "bold", fill: teal)[`lineView`],
@@ -312,7 +327,7 @@ algorithm ObliviousHPlusOne uses occupied where
 // ========================================================== 3. H + 1 =======
 #section-slide([03], [The $H + 1$ algorithm], [Merging three nodes into one, with myopic robots])
 
-#slide(title: [Where we stand: oblivious robots, odd $O_"init"$])[
+#slide(title: [Known results])[
   #grid(columns: (auto, 1fr), column-gutter: 46pt, align: horizon,
     results-map(focus: ((3, 1), (4, 1), (5, 1), (6, 1), (2, 2))),
     [
@@ -321,6 +336,7 @@ algorithm ObliviousHPlusOne uses occupied where
         [#pill(color: teal)[✓ solved] #pill(color: alert)[✕ impossible] #pill(color: amber)[? open]],
         [*Previous talk:* two colors at $phi = H$; oblivious at $phi = H + 3$.],
         [*This talk:* oblivious at $phi = max(4, H + 1)$, the framed cells.],
+        [Oblivious robots, $O_"init"$ odd.],
         [Without colors, $phi = H$ is impossible for $H in {2, 3}$.],
       )
     ],
@@ -329,7 +345,7 @@ algorithm ObliviousHPlusOne uses occupied where
   #note[$H$: largest gap between consecutive occupied nodes. $O_"init"$: number of occupied nodes.]
 ]
 
-#slide(title: [The key move: three nodes become one], id: "merge")[
+#slide(title: [Merging], id: "merge")[
   #run(3, duration: 1.0, stops: (1, 2, 3))
   #v(1fr)
   #context {
@@ -354,7 +370,7 @@ algorithm ObliviousHPlusOne uses occupied where
   #v(1fr)
 ]
 
-#slide(title: [Myopic robots misjudge borders])[
+#slide(title: [False borders])[
   #let config = (0, 4, 8, 9, 10, 12, 15)
   #v(1fr)
   #grid(columns: (210pt, 1fr), row-gutter: 20pt, column-gutter: 10pt, align: horizon,
@@ -372,7 +388,7 @@ algorithm ObliviousHPlusOne uses occupied where
   #v(1fr)
 ]
 
-#slide(title: [Merging blindly breaks the parity], id: "false-border-without")[
+#slide(title: [A false merge], id: "false-border-without")[
   #run(13, duration: 0.5, stops: (1, 13), loop: true)
   #v(1fr)
   #context {
@@ -396,7 +412,7 @@ algorithm ObliviousHPlusOne uses occupied where
   #v(1fr)
 ]
 
-#slide(title: [Trick 1: the middle robot steps aside], id: "false-border")[
+#slide(title: [Fix 1: swap], id: "false-border")[
   #run(12, duration: 0.5, stops: (1, 12))
   #v(1fr)
   #context {
@@ -429,16 +445,16 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
   #v(1fr)
 ]
 
-#slide(title: [Trick 2: the border waits one round], id: "border-wait")[
-  #run(5, duration: 0.8, stops: (2, 3, 5), loop: true)
+#slide(title: [Fix 2: wait], id: "border-wait")[
+  #run-phases(("without", 5, (2, 5), true), ("with", 4, (2, 4), false), duration: 0.8)
   #v(1fr)
   #context {
-    let t = a("t")
-    lane("border-wait-without", t, label: [border always moves], label-color: alert, badge: "symmetry",
-      tags: rule-tags("border-wait-without", t, (h1Border: ([moves], alert),), rounds: (2,)))
+    let (t1, t2) = (a("without"), a("with"))
+    lane("border-wait-without", t1, label: [border always moves], label-color: alert, badge: "symmetry",
+      tags: rule-tags("border-wait-without", t1, (h1Border: ([moves], alert),), rounds: (2,)))
     v(14pt)
-    lane("border-wait", t, label: [border waits], label-color: teal, badge: "symmetry",
-      tags: rule-tags("border-wait", t, (h1BorderIdle1: ([waits], teal),), rounds: (2,)))
+    lane("border-wait", t2, label: [border waits], label-color: teal, badge: "symmetry",
+      tags: rule-tags("border-wait", t2, (h1BorderIdle1: ([waits], teal),), rounds: (2,)))
   }
   #v(40pt)
   In $X X dot X$, a moving border lands next to its neighbor: $X X$ is edge-symmetric, a dead end. Waiting one round gives $X dot X$, which gathers in the middle.
@@ -447,16 +463,16 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
   #v(1fr)
 ]
 
-#slide(title: [Trick 3: long blocks split in two], id: "long-block")[
-  #run(4, duration: 0.9, stops: (1, 4), loop: true)
+#slide(title: [Fix 3: split long blocks], id: "long-block")[
+  #run-phases(("without", 2, (2,), false), ("with", 4, (1, 4), false), duration: 0.9)
   #v(1fr)
   #context {
-    let t = a("t")
-    lane("long-block-without", t, label: [no block rule], label-color: alert,
-      tags: rule-tags("long-block-without", t, (h1BorderIdle2: ([waits], alert),), rounds: (0,)))
+    let (t1, t2) = (a("without"), a("with"))
+    lane("long-block-without", t1, label: [no block rule], label-color: alert,
+      tags: rule-tags("long-block-without", t1, (h1BorderIdle2: ([waits], alert),), rounds: (0,)))
     v(14pt)
-    lane("long-block", t, label: [4-merge], label-color: teal,
-      tags: rule-tags("long-block", t, (h1FourMerge1: ([merge], teal),), rounds: (0,)))
+    lane("long-block", t2, label: [4-merge], label-color: teal,
+      tags: rule-tags("long-block", t2, (h1FourMerge1: ([merge], teal),), rounds: (0,)))
   }
   #v(40pt)
   Without a rule for long blocks, both borders wait forever. In blocks of four or more, the second and third robots move *outwards*: $dot X X X X dot -> dot X dot dot X dot$, again two nodes fewer.
@@ -465,7 +481,7 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
   #v(1fr)
 ]
 
-#slide(title: [Why it works])[
+#slide(title: [Correctness])[
   #card(fill: accent-soft, inset: 24pt)[
     *Theorem.* Oblivious robots solve stand-up indulgent gathering on a line if $phi >= max(4, H_"init" + 1)$ and $O_"init"$ is odd.
   ]
@@ -476,13 +492,13 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
     [*With crashes,* the diameter still shrinks to 3 or 4, and a case analysis on the crash position finishes.],
   )
   #v(1fr)
-  #note[The three tricks are guards of the public `h-plus-one.sim`. Each counterexample above is that file with one rule removed.]
+  #note[The three fixes are guards of the public `h-plus-one.sim`. Each counterexample above is that file with one rule removed.]
 ]
 
 // ===================================================== 4. Open problems ====
 #section-slide([04], [Open problems], [Two cells of the map are still empty])
 
-#slide(title: [Two open cases])[
+#slide(title: [Open problems])[
   #grid(columns: (auto, 1fr), column-gutter: 46pt, align: horizon,
     results-map(focus: ((4, 0), (5, 0), (6, 0), (2, 1)), dim-others: true),
     [
@@ -495,7 +511,7 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
   )
 ]
 
-#slide(title: [Open 1: visibility exactly $H$])[
+#slide(title: [Open problem 1: $phi = H$])[
   #grid(columns: (1fr, 1fr), column-gutter: 46pt,
     [
       #eyebrow(color: amber)[Crashes force rules]
@@ -517,7 +533,7 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
   The proofs for $H = 2, 3$ chain such forced rules by hand. For $H >= 4$ the views multiply, and we have no general construction yet.
 ]
 
-#slide(title: [Open 2: $H = 2$ with visibility 3])[
+#slide(title: [Open problem 2: $H = 2$, $phi = 3$])[
   The algorithm needs $phi >= 4$: for $H = 2$, two hops above the trivial bound. Is $phi = 3$ enough?
   #v(26pt)
   #grid(columns: (1fr, 1fr), column-gutter: 46pt,
@@ -542,7 +558,7 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
 ]
 
 // ============================================================ closing ======
-#slide(title: [Takeaways], section: [Conclusion])[
+#slide(title: [Conclusion], section: none)[
   #stack(spacing: 30pt,
     grid(columns: (64pt, 1fr), text(fill: accent, weight: "bold", size: 34pt)[1],
       [A paper's assumptions are the *arguments of one definition*; the same `.sim` file is simulated, explored and exported to Lean.]),
