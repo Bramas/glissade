@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Quiet light theme matching the talk's palette (theme.typ). -->
+<plist version="1.0">
+<dict>
+  <key>name</key><string>SUIG talk</string>
+  <key>settings</key>
+  <array>
+    <dict><key>settings</key><dict>
+      <key>foreground</key><string>#1B1F2A</string>
+      <key>background</key><string>#F6F7FA</string>
+    </dict></dict>
+    <dict><key>scope</key><string>comment</string><key>settings</key><dict>
+      <key>foreground</key><string>#8A94A3</string><key>fontStyle</key><string>italic</string>
+    </dict></dict>
+    <dict><key>scope</key><string>keyword.declaration, keyword.control</string><key>settings</key><dict>
+      <key>foreground</key><string>#2C5CC5</string><key>fontStyle</key><string>bold</string>
+    </dict></dict>
+    <dict><key>scope</key><string>keyword.operator</string><key>settings</key><dict>
+      <key>foreground</key><string>#5F6B7A</string>
+    </dict></dict>
+    <dict><key>scope</key><string>entity.name.function</string><key>settings</key><dict>
+      <key>foreground</key><string>#0F8B7D</string><key>fontStyle</key><string>bold</string>
+    </dict></dict>
+    <dict><key>scope</key><string>entity.name.type</string><key>settings</key><dict>
+      <key>foreground</key><string>#7A3EA8</string>
+    </dict></dict>
+    <dict><key>scope</key><string>constant, meta.annotation</string><key>settings</key><dict>
+      <key>foreground</key><string>#B4581C</string>
+    </dict></dict>
+    <dict><key>scope</key><string>string</string><key>settings</key><dict>
+      <key>foreground</key><string>#0F8B7D</string>
+    </dict></dict>
+  </array>
+</dict>
+</plist>

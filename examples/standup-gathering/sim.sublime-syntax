@@ -1,0 +1,48 @@
+%YAML 1.2
+---
+# Minimal highlighting for Simulant's .sim language, used by the talk's code blocks.
+name: Simulant
+file_extensions: [sim]
+scope: source.sim
+contexts:
+  main:
+    - match: '/-[-!]?'
+      scope: comment.block.sim
+      push: block-comment
+    - match: '--.*$'
+      scope: comment.line.sim
+    - match: '"'
+      scope: string.quoted.sim
+      push: string
+    - match: '@\[[^\]]*\]'
+      scope: meta.annotation.sim
+    - match: '\b(def|sensor|algorithm|experiment|task|goal|import|inductive|structure)\b'
+      scope: keyword.declaration.sim
+      push: declaration-name
+    - match: '\b(param|where|uses|let|if|then|else|fun|match|with|in|choose|such|that|labels|move|stay|main|eventually|always|raise)\b'
+      scope: keyword.control.sim
+    - match: '\b(true|false)\b'
+      scope: constant.language.sim
+    - match: '\b[0-9]+\b'
+      scope: constant.numeric.sim
+    - match: '\.[a-z][A-Za-z0-9]*\b'
+      scope: constant.other.sim
+    - match: '\b[A-Z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)*'
+      scope: entity.name.type.sim
+    - match: ':=|→|∧|∨|≥|≤|≠|¬'
+      scope: keyword.operator.sim
+  declaration-name:
+    - match: '\s+'
+    - match: '[A-Za-z_][A-Za-z0-9_.]*'
+      scope: entity.name.function.sim
+      pop: true
+    - match: '(?=\S)'
+      pop: true
+  block-comment:
+    - meta_scope: comment.block.sim
+    - match: '-/'
+      pop: true
+  string:
+    - meta_scope: string.quoted.sim
+    - match: '"'
+      pop: true

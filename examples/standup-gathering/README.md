@@ -1,162 +1,115 @@
-# Stand-Up Indulgent Gathering on Lines
+# Simulant and myopic stand-up indulgent gathering
 
-A 20-minute English conference example for an audience working on mobile robots
-and mobile agents. It uses a 16:9 layout, 27 main slides and five optional backup
-slides, using Touying’s simple theme, native `pause` overlays and embedded Glissade
-animations. The layout uses white paper, Libertinus Serif, unboxed definitions
-and restrained blue emphasis. A large opening title, light rules, shared result
-tables and fixed-width execution metrics keep the deck consistent. Blue denotes
-robots, green marks observations and movement, and red crosses mark crashes.
+A conference talk (16:9, about twenty minutes) built with Touying and Glissade.
+It follows a talk that presents stand-up indulgent gathering (SUIG) in the usual
+way, with the two-color algorithm and the oblivious $H + 3$ algorithm. This one:
 
-The opening first introduces Simulant's model–algorithm–experiment structure,
-then maps familiar literature assumptions to its space, frame, sensor, storage,
-scheduler and component declarations. It compares OBLOT, FSTA, FCOM and LUMI,
-plus persistent mobile agents and black-hole search. These are graph instances
-of the capability choices, not executions of planar paper algorithms.
-The talk reserves 90 seconds for a live demo, explains why reusable model
-components help formal verification, then focuses on the first two
-**oblivious** SUIG algorithms. The expanded introduction keeps the 20-minute
-slot by shortening the execution commentary; the notes total 18:45 plus a
-1:15 reserve, with the demo starting at 7:00.
-The two-color algorithm is intentionally outside its scope.
+1. introduces [Simulant](https://bramas.github.io/simulant/) and shows how the
+   usual assumptions of robot papers (space, visibility, orientation, memory,
+   multiplicity, synchrony, crashes) are arguments of one `.sim` definition;
+2. writes the whole SUIG setting with myopic robots as one block that reuses
+   those pieces, and the theorem's hypotheses as the experiment's domain;
+3. presents the oblivious algorithm for $\varphi \ge \max(4, H_{init} + 1)$:
+   why merging three occupied nodes into one is dangerous for myopic robots,
+   and the three small rules that repair it, each shown *without* and *with*;
+4. ends with two open problems: $\varphi = H$ for $H \ge 4$, and $H = 2$ with
+   $\varphi = 3$.
 
-## Build and present
+The theme (`theme.typ`) is written from scratch on top of Touying: white page,
+Lato with New Computer Modern math, a section label above each title, a thin
+progress line, and one meaning per color (blue robots, teal views and moves, red
+crashes and failures, amber open questions). `.sim` code is highlighted with
+`sim.sublime-syntax` and `sim.tmTheme`.
+
+## Build
 
 From the Glissade repository root:
 
 ```sh
-# Animated, self-contained presentation. Typst and Python 3.10+ are required.
-python3 bin/glissade.py --root . --timeout 300 \
+# Animated, self-contained presentation (about 1.5 minutes).
+python3 bin/glissade.py --root . --timeout 600 \
   examples/standup-gathering/talk.typ html --fps 12 \
-  --title 'Stand-Up Indulgent Gathering'
+  --title 'Simulant and myopic stand-up indulgent gathering'
 
-# One static final state per slide, including the backups.
-typst compile examples/standup-gathering/talk.typ \
-  examples/standup-gathering/handout.pdf --root . \
-  --input handout=true
-
-# Optional live editor.
-python3 bin/glissade.py --root . --timeout 300 \
-  examples/standup-gathering/talk.typ dev --fps 12
+# One static page per slide, with the final state of each animation.
+typst compile --root . examples/standup-gathering/talk.typ \
+  examples/standup-gathering/handout.pdf --input handout=true
 ```
 
-Open `talk.html` directly in a modern browser. Right/Page Down runs to the next
-speaker cut; Left goes back; O opens the overview; F toggles fullscreen.
-The incorrect border-only strategy on slide 17 loops; Right exits its loop.
-Intermediate robot positions are visual interpolation between atomic synchronous
-moves. The `handout=true` mode keeps Touying’s last overlay, removes the animation
-operations and retains one page per logical slide. Static explanations use
-Touying `#pause`; continuous robot motion uses `glissade.touying`.
+Open `talk.html` in a browser. Right or Page Down continues to the next stop,
+Left goes back, O opens the overview and F toggles fullscreen. The failing
+executions loop on their last round until you continue.
 
-A full 12-fps build lays out several hundred Touying subslides; the timeout
-allows for this. Use `--fps 2` for a faster draft while editing.
-
-This content has many outlined text glyphs. The HTML exporter shares repeated
-glyph definitions per slide and compresses delta patches together by default.
-Generated HTML/PDF outputs follow the repository's
-normal ignore rules; the sources and trace data are the reproducible example.
-
-The diagrams use CeTZ 0.5.1. Typst downloads it on the first build if necessary;
-the resulting presentation has no remote assets. Libertinus Serif and DejaVu Sans Mono
-are the intended fonts. Other fonts may change line wrapping, so rebuild and
-review the PDF after changing them.
+The deck needs Typst 0.14, Touying 0.7.3, CeTZ 0.5.1 and the Lato font.
 
 ## Files
 
-- `talk.typ`: Touying slides, pauses and the named animation segments.
-- `theme.typ`: Touying configuration, Glissade wrapper and line drawings.
-- `models.sim`: original, reusable graph-model compositions for the introduction;
-  imports the external Simulant standard library and is not needed to build the deck.
-- `traces.json`: recorded executions, chosen rules and public-source hashes.
-- `export-traces.mjs`: reproducibly reads the external public Simulant project.
-- `speaker-notes.md`: English narration, timing and technical qualifications.
-- `demo.md`: the 90-second demo and offline alternative.
+- `talk.typ`: the slides.
+- `theme.typ`: the Touying theme, the drawings of robots on a line, the rule
+  pictograms and the map of solved and open cases.
+- `models.sim`: the original model compositions shown in the first part. They
+  compile against the public Simulant standard library.
+- `traces.json`: the executions drawn in the talk, recorded by the simulator.
+- `export-traces.mjs`: regenerates or checks `traces.json`.
+- `sim.sublime-syntax`, `sim.tmTheme`: highlighting for `.sim` code.
 
-## Reproduce the traces
+## Reproduce the executions
 
-The example builds from its committed JSON without needing Simulant. To refresh
-or check the recordings against the external checkout:
+Every animation is a recorded run of the public Simulant engine on the public
+project `projects/standup-gathering`:
 
 ```sh
 node examples/standup-gathering/export-traces.mjs /path/to/simulant
 node examples/standup-gathering/export-traces.mjs /path/to/simulant --check
 ```
 
-Use a prepared Simulant checkout with Node 24+, its workspace dependencies and
-its `.sim` loader. The exporter reads only the public `projects/standup-gathering`
-project. It does not read or copy private projects or modify the simulator.
+Use a Simulant checkout with Node 24 or later and its dependencies installed
+(`pnpm install`). The traces were recorded from commit `bf63fcc`.
 
-It executes the actual engine with fixed physical tracks for drawing, chooses
-the specified crash branch, records the invoked rule, checks one-edge moves,
-checks the final gathering node and checks closure of the final configuration.
-Source hashes identify the three public `.sim` files. Track IDs, coordinates,
-multiplicity badges and crash marks are not observable by the robots.
+The “without” executions run a copy of `h-plus-one.sim` with exactly one rule
+removed (`neig, false-merge`, `border-idle,1`, or both `4-merge` rules). The
+copies are written to a temporary directory; the checkout is not modified. The
+exporter fails unless each complete algorithm gathers (at the crash node when
+there is a crash) and each variant enters a cycle.
 
-The intentionally incorrect border-only counterexample is separately generated
-and labelled. It is not attributed to either paper algorithm.
+| Execution | Initial nodes | $\varphi$ | Result |
+| --- | --- | --- | --- |
+| `false-border` | 0 4 8 9 10 12 15 | 5 | gathers in 12 rounds |
+| `false-border-without` | same | 5 | ends on two adjacent nodes, forever |
+| `border-wait` | 0 3 5 6 7 | 4 | gathers in 4 rounds |
+| `border-wait-without` | same | 4 | ends on two adjacent nodes, forever |
+| `long-block` | 0 2 3 4 5 | 4 | gathers in 4 rounds |
+| `long-block-without` | same | 4 | the block never moves |
+
+Coordinates, multiplicities, crash marks and rule labels in the drawings are
+for the audience; robots observe only occupancy within radius $\varphi$.
 
 ## Scientific scope
 
-The opening's model taxonomy follows Flocchini, Santoro and Wada,
-[OPODIS 2019, §2](https://doi.org/10.4230/LIPIcs.OPODIS.2019.25).
-The examples use the public Simulant library at
-[`bf63fcc`](https://github.com/bramas/simulant/tree/bf63fcc2784a23bbf8e1d15ed811743f0a72fea2/packages/stdlib/sim).
-OBLOT/FSTA/FCOM/LUMI share an oblivious algorithm core; finite light storage
-and the sensor list define the extra capabilities. `otherColors` is an original
-sensor that excludes the observer, including when robots share a node.
-The four robot compositions assume algorithm `Pub` and `Mem` are `Unit`, so no
-extra persistent algorithm state bypasses the finite-light construction.
-`agentsWithMemory` instead permits general persistent program state.
-
-The standard `.sim` engine executes graphs. `Euclidean.Plane` is an interface;
-continuous geometry, planar frame similarities and non-rigid planar motion are
-not supplied by these examples. Graph ASYNC separates Look/Compute/Move events
-but still uses atomic edge moves. No planar computational-power theorem or
-algorithm correctness result is claimed for the introductory compositions.
-See `speaker-notes.md` and backup B5 for the full source list.
-
-Algorithm numbering follows the local journal manuscript translated by the
-public Simulant project:
-
-| | Visibility | Initial condition |
-| --- | --- | --- |
-| Algorithm 1, oblivious | phi >= max(4, H_init + 3) | O_init odd or M_init odd |
-| Algorithm 2, oblivious | phi >= max(4, H_init + 1) | O_init odd |
-
-H_init is the maximum **edge distance** between consecutive occupied nodes;
-O_init counts distinct occupied nodes; M_init counts hull nodes including both
-borders. The robots do not know these parameters. Every crash is permanent and
-occurs at one common node, but crashes can occur at different times. A crash
-prevents that robot's movement; correct robots at the same node may still move.
-
-Two distinctions matter when presenting these examples:
-
-1. The Algorithm 2 figure's fourth successor differs from its formal rules.
-   From initial coordinates `[3,7,8,9,11,12,14,15,17]`, phi = 5, the rules give
-   occupied coordinates `[6,9,11,12,13]` at round 4. The simulator's documented
-   known issue identifies this discrepancy; these animations follow the rules.
-2. Do not claim odd occupied parity in every fault-free round of Algorithm 2.
-   Its actual five-node-block run has counts `5,3,3,2,1`; its terminal even state
-   has diameter 2. The main proof slide separates bulk arguments and endgames,
-   and backup B2 makes this explicit. This observation qualifies the
-   presentation's reasoning; it does not itself prove a universal bulk invariant.
-
-The formal-verification message is about factoring semantics and reusing
-component lemmas. Finite exploration, conformance tests and Lean generation are
-useful, distinct tools. Neither the code examples nor these recordings claim a
-machine-checked general correctness theorem for these two algorithms.
+- The algorithm, its rules and the theorem are those of the authors' journal
+  version of *A Visibility vs. Memory Trade-Off for Stand-Up Indulgent
+  Gathering on Lines* (SIROCCO 2025), as translated in the public Simulant
+  project. The variants are deliberately incomplete and are labelled as such.
+- In fault-free runs, merges remove occupied nodes in pairs while the
+  configuration is large; the last rounds may have an even number of occupied
+  nodes (for example `5 3 3 2 1`). The talk does not claim that parity is
+  invariant in every round.
+- The map of results is for oblivious robots with $O_{init}$ odd. The
+  impossibility of $\varphi = H$ is proved for $H \in \{2, 3\}$. The two open
+  cases are conjectures: the slides show forced rules from the proofs and
+  drafts, not complete arguments.
+- Simulant's exploration follows every adversary choice up to a bound, and its
+  Lean export gives definitions. Neither is presented as a machine-checked proof
+  of the theorem.
 
 ## References and attribution
 
-Quentin Bramas, Hirotsugu Kakugawa, Sayaka Kamei, Anissa Lamani, Fukuhito Ooshita,
-Masahiro Shibata, Sébastien Tixeuil. *A Visibility vs. Memory Trade-Off for Stand-Up
-Indulgent Gathering on Lines.* SIROCCO 2025, LNCS 15671, pp. 159–175.
-[Publisher / DOI](https://doi.org/10.1007/978-3-031-91736-3_10).
-The detailed rules were checked against the author's later local journal
-manuscript; no claim is made here about its publication status.
+Quentin Bramas, Hirotsugu Kakugawa, Sayaka Kamei, Anissa Lamani, Fukuhito
+Ooshita, Masahiro Shibata, Sébastien Tixeuil. *A Visibility vs. Memory
+Trade-Off for Stand-Up Indulgent Gathering on Lines.* SIROCCO 2025, LNCS 15671,
+pp. 159–175. [doi:10.1007/978-3-031-91736-3_10](https://doi.org/10.1007/978-3-031-91736-3_10)
 
-[Simulant](https://bramas.github.io/simulant/) and its
-[public stand-up gathering artifact](https://bramas.github.io/simulant/standup-gathering/)
-provide the executable source of the recordings. The `.sim` definition excerpts are
-attributed to that public CeCILL-B project. Its sources are not vendored here;
-this example adds original drawings, narration and execution data.
+The `.sim` excerpts on the slides come from the public Simulant project
+([`bf63fcc`](https://github.com/bramas/simulant/tree/bf63fcc2784a23bbf8e1d15ed811743f0a72fea2)),
+licensed CeCILL-B; its sources are not vendored here. `models.sim`, the
+drawings and the execution data are original to this example.

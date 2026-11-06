@@ -1,43 +1,26 @@
-/-! Original model-composition examples for the presentation's introduction.
-These are graph instances of capability choices from the robot literature,
-not translations or correctness proofs of the planar algorithms.
-For oblot/fsta/fcom/lumi, algorithms must leave Pub and Mem as Unit;
-the finite light component is their only persistent state.
-Checked against Simulant bf63fcc2784a23bbf8e1d15ed811743f0a72fea2.
-The imported standard library is CeCILL-B; it is not vendored here. -/
+/-! Original model compositions shown in the talk. Each one is the sentence a
+paper would write, as a Simulant declaration. They only compose the public
+Simulant standard library (CeCILL-B, not vendored here). -/
 
 import "std/models.sim"
 
+/-- "Oblivious anonymous robots on a ring of n nodes, with chirality, unlimited
+visibility and weak multiplicity detection, under an SSYNC scheduler." -/
 def ringRobots : Model :=
-  obliviousRobots (Graphs.Cycle (param N))
-    Observe.full Frames.isomorphisms [occupied]
+  obliviousRobots (Graphs.Cycle (param n))
+    Observe.full Frames.identity [occupied]
     (scheduler := Schedulers.SSync)
 
--- A finite light stores state; the sensors decide who can read it.
-def robotFamily (sensors : List Sensor) (storage : List Component := []) : Model :=
-  obliviousRobots (Graphs.Cycle (param N))
-    Observe.full Frames.isomorphisms sensors
-    (components := storage)
+/-- The same robots with a light of three colors that every robot can read. -/
+def luminousRobots : Model :=
+  obliviousRobots (Graphs.Cycle (param n))
+    Observe.full Frames.identity [colors, ownLight]
+    (components := [Storage.Lights 3])
+    (scheduler := Schedulers.SSync)
 
-sensor otherColors (L : Look) (l : Loc) : List Nat :=
-  (range L.world.colorCount).filter fun c =>
-    (L.occupants l).any fun a =>
-      present a ∧ a ≠ L.me ∧ a.light = c
-
-def oblot : Model := robotFamily [occupied]
-def fsta : Model := robotFamily [occupied, ownLight] [Storage.Lights 2]
-def fcom : Model := robotFamily [occupied, otherColors] [Storage.Lights 2]
-def lumi : Model := robotFamily [colors, ownLight] [Storage.Lights 2]
-
-def ringAgents : Model :=
-  blackHoleSearch (Graphs.Cycle (param N)) .initiallyPresent .unknown
-
-def dynamicRingAgents : Model :=
-  blackHoleSearch (Graphs.Dynamic (Graphs.Cycle (param N)) 1)
-    .initiallyPresent .unknown
-
-def lineRobots : Model :=
+/-- "Myopic disoriented robots on a line, under FSYNC, that may crash at one
+location": the setting of stand-up indulgent gathering. -/
+def myopicRobots : Model :=
   obliviousRobots Graphs.Line
-    (Observe.radius (param phi))
-    Frames.isomorphisms [occupied]
+    (Observe.radius (param phi)) Frames.isomorphisms [occupied]
     (components := [Faults.CrashAt])
