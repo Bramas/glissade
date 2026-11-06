@@ -8,6 +8,7 @@
     "check": "bun run web/build.mjs --check",
     "test": "bun test tests/runtime.test.js",
     "test:python": "python3 -m unittest discover -s tests -v",
-    "benchmark": "python3 bin/benchmark.py"
+    "benchmark": "python3 bin/benchmark.py",
+    "test:browser": "GLISSADE_BROWSER_TESTS=1 python3 -m unittest tests.test_browser -v"
   }
 }

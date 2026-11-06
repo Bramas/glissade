@@ -124,7 +124,9 @@
     }
     const pages = [...documentSvg.querySelectorAll(".typst-page")];
     const records = metadataRecords(metadata);
-    if (pages.length !== records.length) throw new Error("Expected one Glissade frame per page. Use a Glissade deck in the playground.");
+    if (pages.length !== records.length) {
+      throw new Error("The preview needs a Glissade deck: add `#show: deck` and put content inside `#slide[...]`.");
+    }
     const timelines = discovery.filter(value => value.glissade_timeline).map(value => value.glissade_timeline);
     const frames = records.map((record, index) => {
       const svg = documentSvg.cloneNode(true);
@@ -170,24 +172,47 @@
     return globalThis.GlissadeMorphRuntime.validateManifest({ schemaVersion: 1, scenes });
   }
 
-  async function compile(mainContent) {
+  class CompileError extends Error {
+    constructor(diagnostics) {
+      const first = diagnostics.find(item => item.severity === "error") || diagnostics[0];
+      super(first?.message || "Compilation failed");
+      this.name = "CompileError";
+      this.diagnostics = diagnostics;
+    }
+  }
+
+  function diagnosticsOf(result) {
+    const list = Array.isArray(result.diagnostics) ? result.diagnostics : [];
+    return list.length ? list : [{ severity: "error", message: "Compilation failed", path: "", range: "" }];
+  }
+
+  const shadowed = new Map();
+
+  // `files` maps absolute virtual paths (e.g. "/glissade.typ") to sources so
+  // that `#import "glissade.typ"` resolves like a real file and diagnostics
+  // keep the author's own line numbers.
+  async function compile(mainContent, { files = {}, mainFilePath = "/main.typ" } = {}) {
     const typst = globalThis.$typst;
-    const mainFilePath = "/glissade-playground.typ";
+    for (const [path, source] of Object.entries(files)) {
+      if (shadowed.get(path) === source) continue;
+      await typst.addSource(path, source);
+      shadowed.set(path, source);
+    }
     await typst.addSource(mainFilePath, mainContent);
     const compiler = await typst.getCompiler();
     const discovery = await compiler.runWithWorld({ mainFilePath, inputs: { query: "1" } }, async world => {
       const result = await world.compile();
-      if (result.hasError) throw new Error(JSON.stringify(result.diagnostics));
+      if (result.hasError) throw new CompileError(diagnosticsOf(result));
       return world.query({ selector: "metadata", field: "value" });
     });
     const { vector, metadata } = await compiler.runWithWorld({ mainFilePath, inputs: { query: "0" } }, async world => {
       const result = await world.compile();
-      if (result.hasError) throw new Error(JSON.stringify(result.diagnostics));
+      if (result.hasError) throw new CompileError(diagnosticsOf(result));
       return { vector: (await world.vector()).result, metadata: await world.query({ selector: "metadata", field: "value" }) };
     });
     const svg = await typst.svg({ vectorData: vector });
     return buildManifest(svg, metadata, discovery);
   }
 
-  globalThis.GlissadePlaygroundBridge = { compile, buildManifest, tagPage };
+  globalThis.GlissadePlaygroundBridge = { compile, buildManifest, tagPage, CompileError };
 })();

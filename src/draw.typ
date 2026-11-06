@@ -45,15 +45,52 @@
 
 /// Marks one independently matched part inside a formula.
 /// Identical bodies are matched automatically; `key` resolves ambiguities.
+#let _part-leaf(body, key) = {
+  metadata((
+    glissade-formula-part: true,
+    key: key,
+    body: math.equation(block: false, body),
+  ))
+  _wrap-part(body)
+}
+
+#let _attach-fields = ("t", "b", "tl", "bl", "tr", "br")
+
+// Typst flattens math layout, so a compound body such as `a^2` becomes several
+// sibling glyphs in the SVG. Split it into single-glyph parts that share the
+// part's key as a prefix: they are matched independently and move together.
+#let _part-tree(body, key) = {
+  if type(body) != content {
+    _part-leaf(body, key)
+  } else if body.func() == math.attach {
+    let fields = body.fields()
+    let attachments = (:)
+    for name in _attach-fields {
+      let value = fields.at(name, default: none)
+      if value != none { attachments.insert(name, _part-tree(value, key + "/" + name)) }
+    }
+    math.attach(_part-tree(fields.base, key + "/base"), ..attachments)
+  } else if body.has("children") and body.func() != math.equation {
+    let index = 0
+    let children = ()
+    for child in body.children {
+      if type(child) == content and child.func() == [ ].func() {
+        children.push(child)
+      } else {
+        children.push(_part-tree(child, key + "/" + str(index)))
+        index += 1
+      }
+    }
+    children.join()
+  } else {
+    _part-leaf(body, key)
+  }
+}
+
 #let part(body, key: auto) = {
     let rendered = math.equation(block: false, body)
     let effective-key = if key == auto { repr(rendered) } else { str(key) }
-    metadata((
-      glissade-formula-part: true,
-      key: effective-key,
-      body: rendered,
-    ))
-    _wrap-part(body)
+    _part-tree(body, effective-key)
   }
 
 #let _collect-parts(content) = {

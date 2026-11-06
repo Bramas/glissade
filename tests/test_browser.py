@@ -67,6 +67,93 @@ class BrowserTests(unittest.TestCase):
         )
         self.page.evaluate("GlissadeDebug.ready")
 
+    def manifest(self, name):
+        import json
+
+        text = (self.directory / f"{name}.html").read_text()
+        start = text.index("Promise.resolve({") + len("Promise.resolve(")
+        return json.JSONDecoder().raw_decode(text[start:])[0]
+
+    def render(self, frame, scene=0):
+        self.page.evaluate("([s, f]) => GlissadeDebug.renderFrame(s, f)", [scene, frame])
+
+    def box(self, selector):
+        return self.page.evaluate(
+            """(selector) => {
+                // Relative to the stage, so the comparison does not depend on
+                // when the player refits the stage to the window.
+                const element = document.querySelector(selector);
+                const stage = element?.closest(".glissade-stage-stack");
+                if (!element || !stage) return null;
+                const rect = element.getBoundingClientRect();
+                const frame = stage.getBoundingClientRect();
+                return [
+                    (rect.x - frame.x) / frame.width,
+                    (rect.y - frame.y) / frame.height,
+                    rect.width / frame.width,
+                    rect.height / frame.height,
+                ];
+            }""",
+            selector,
+        )
+
+    def assertBoxesClose(self, actual, expected, tolerance=0.004):
+        self.assertIsNotNone(actual)
+        self.assertIsNotNone(expected)
+        for got, want in zip(actual, expected):
+            self.assertAlmostEqual(got, want, delta=tolerance, msg=f"{actual} != {expected}")
+
+    def test_formula_overlays_stay_aligned_at_any_viewport(self):
+        # Regression: unmatched formula pieces (exponents, operators) are drawn
+        # in overlay layers that must coincide with the formula they fade from,
+        # whatever the stage size and the SVG's own units (Typst uses pt).
+        self.export("showcase")
+        blocks = self.manifest("showcase")["scenes"][0]["blocks"]
+        swap = next(block for block in blocks if block["index"] == 3)  # c^2 = a^2 + b^2
+        start = swap["start_frame"]
+        middle = (swap["start_frame"] + swap["end_frame"]) // 2
+        base_root = '.glissade-stage-base [data-glissade-morph-id="eq"]:not([data-glissade-composite-root] *)'
+        layer_root = '[data-glissade-composite-root="eq"] svg [data-glissade-morph-id="eq"]'
+        for width, height in [(480, 360), (1600, 1200)]:
+            with self.subTest(viewport=(width, height)):
+                self.page.set_viewport_size({"width": width, "height": height})
+                self.render(start)
+                expected = self.box(base_root)
+                self.render(middle)
+                self.assertGreater(self.page.locator(layer_root).count(), 0)
+                self.assertBoxesClose(self.box(layer_root), expected)
+        self.assertFalse(self.errors)
+
+    def test_unchanged_formula_is_not_crossfaded(self):
+        # While the triangle draws in, the formula does not change and must be
+        # drawn as-is rather than through the morph composite.
+        self.export("showcase")
+        create = self.manifest("showcase")["scenes"][0]["blocks"][0]
+        self.render((create["start_frame"] + create["end_frame"]) // 2)
+        self.assertGreater(self.page.locator("[data-glissade-generated-draw]").count(), 0)
+        self.assertEqual(self.page.locator('[data-glissade-composite-root="eq"]').count(), 0)
+        self.assertEqual(
+            self.page.locator('.glissade-stage-base [data-glissade-morph-id="eq"][visibility="hidden"]').count(), 0
+        )
+        self.assertFalse(self.errors)
+
+    def test_compound_parts_move_with_their_exponents(self):
+        # `part(a^2)` must track the exponent with its letter instead of only
+        # the last glyph, so the `2` glides rather than fades.
+        self.export("showcase")
+        blocks = self.manifest("showcase")["scenes"][0]["blocks"]
+        swap = next(block for block in blocks if block["index"] == 3)
+        self.render(swap["start_frame"])
+        exponents = self.page.locator('.glissade-stage-base [data-glissade-part-key$="/t"]')
+        self.assertEqual(exponents.count(), 3)
+        self.render((swap["start_frame"] + swap["end_frame"]) // 2)
+        generated = self.page.evaluate(
+            "[...document.querySelectorAll('[data-glissade-generated-morph]')].map(e => e.getAttribute('data-glissade-generated-morph'))"
+        )
+        self.assertTrue(any(item.endswith("/t") for item in generated), generated)
+        self.assertTrue(any(item.endswith("/base") for item in generated), generated)
+        self.assertFalse(self.errors)
+
     def test_morph_draw_and_external_frames(self):
         for name, options, attribute in [
             ("formula-morph", [], "data-glissade-generated-morph"),
@@ -92,49 +179,84 @@ class BrowserTests(unittest.TestCase):
                 )
                 self.assertFalse(self.errors)
 
+    def edit(self, source):
+        # Mark the current build stale so wait_compiled() sees the new one.
+        self.page.evaluate("document.querySelector('[data-status]').dataset.mode = 'stale'")
+        self.page.locator("#typst-source").fill(source)
+
+    def wait_compiled(self):
+        self.page.wait_for_function(
+            'document.querySelector("[data-status]").dataset.mode === "ok"',
+            timeout=90_000,
+        )
+
+    def scrub(self, frame):
+        self.page.evaluate(
+            """(frame) => {
+                const button = document.querySelector('[data-frame-action="play"]');
+                if (button.classList.contains("is-playing")) button.click();
+                const scrubber = document.querySelector("[data-frame-scrubber]");
+                scrubber.value = String(frame);
+                scrubber.dispatchEvent(new Event("input"));
+            }""",
+            frame,
+        )
+        self.page.wait_for_function(
+            '(frame) => document.querySelector("[data-frame-status]").textContent.includes("Frame " + (frame + 1) + "/")',
+            arg=frame,
+        )
+        self.page.wait_for_timeout(300)
+
     def test_playground_formula_morph_and_draw(self):
         self.page.goto(
             "https://glissade.test/site/playground.html", wait_until="domcontentloaded"
         )
+        self.wait_compiled()
+        self.page.locator("[data-example-select]").select_option("formula-morph")
         self.page.wait_for_function(
-            'document.querySelector("[data-status]").textContent === "Rendered"',
-            timeout=90_000,
+            'document.querySelector("#typst-source").value.includes("Move a term across")'
         )
-        self.page.locator('[data-action="morph-example"]').click()
-        self.page.wait_for_function(
-            'document.querySelector("[data-status]").textContent === "Rendered" && document.querySelector("#typst-source").value.includes("Formula morph")',
-            timeout=90_000,
-        )
-        for index in range(1, 7):
-            self.page.locator('[data-frame-action="next"]').click()
-            self.page.wait_for_function(
-                '(frame) => document.querySelector("[data-frame-status]").textContent.includes("Frame " + frame + " / ")',
-                arg=index + 1,
-            )
+        self.wait_compiled()
+        root = '#typst-preview .glissade-stage-base [data-glissade-morph-id="eq"]:not([data-glissade-composite-root] *)'
+        layer_root = '#typst-preview [data-glissade-composite-root="eq"] svg [data-glissade-morph-id="eq"]'
+        self.scrub(0)
+        expected = self.box(root)
+        self.scrub(6)
         self.assertGreater(
-            self.page.locator("#typst-preview [data-glissade-generated-morph]").count(),
-            0,
+            self.page.locator("#typst-preview [data-glissade-generated-morph]").count(), 0
         )
-        self.page.locator("#typst-source").fill("""#import "glissade.typ": *
-#set page(width: 128mm, height: 96mm)
-#show: deck.with(fps: 12)
-#slide[#create(card: rect(width: 45pt, height: 25pt, fill: blue))#context glissade-morph("card")]
-""")
-        self.page.locator('[data-action="compile"]').click()
+        self.assertBoxesClose(self.box(layer_root), expected)
+
+        self.page.locator("[data-example-select]").select_option("create")
         self.page.wait_for_function(
-            'document.querySelector("[data-status]").textContent === "Rendered" && document.querySelector("[data-frame-status]").textContent.includes("Frame 1 / ")',
-            timeout=90_000,
+            'document.querySelector("#typst-source").value.includes("Introduce content")'
         )
-        for index in range(1, 7):
-            self.page.locator('[data-frame-action="next"]').click()
-            self.page.wait_for_function(
-                '(frame) => document.querySelector("[data-frame-status]").textContent.includes("Frame " + frame + " / ")',
-                arg=index + 1,
-            )
+        self.wait_compiled()
+        self.scrub(6)
         self.assertGreater(
-            self.page.locator("#typst-preview [data-glissade-generated-draw]").count(),
-            0,
+            self.page.locator("#typst-preview [data-glissade-generated-draw]").count(), 0
         )
+
+        # Compound parts keep their exponent in the playground renderer too.
+        self.edit(
+            '#import "glissade.typ": *\n#show: deck.with(fps: 12)\n#slide[\n'
+            '#init(eq: formula($part(a^2) part(+) part(b)$))\n'
+            '#animate(eq: formula($part(b) part(+) part(a^2)$))\n'
+            '#context glissade-morph("eq")\n]\n'
+        )
+        self.wait_compiled()
+        self.scrub(6)
+        generated = self.page.evaluate(
+            "[...document.querySelectorAll('#typst-preview [data-glissade-generated-morph]')].map(e => e.getAttribute('data-glissade-generated-morph'))"
+        )
+        self.assertTrue(any("/t::" in item for item in generated), generated)
+
+        # Compile errors point at the author's own line, not the bundled library.
+        self.edit('#import "glissade.typ": *\n#show: deck\n#slide[#nope]\n')
+        self.page.wait_for_function(
+            'document.querySelector("[data-status]").dataset.mode === "error"', timeout=30_000
+        )
+        self.assertIn("main.typ:3:", self.page.locator("[data-diagnostics-list]").inner_text())
         self.assertFalse(self.errors)
 
     def test_shared_glyphs_and_compressed_deltas_match_original_pixels(self):

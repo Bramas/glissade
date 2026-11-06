@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Try Typst slide source in the browser with a live Glissade-style preview.">
+  <meta name="description" content="Edit a Glissade deck in the browser and play back its animation, formula morphs, and drawing effects.">
   <title>Playground — Glissade</title>
-  <link rel="stylesheet" href="styles.css?v=playground">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
+  <link rel="stylesheet" href="styles.css?v=3">
+  <link rel="icon" type="image/png" sizes="32x32" href="./favicon.png">
   <script
     type="module"
     src="https://cdn.jsdelivr.net/npm/@myriaddreamin/typst.ts@0.7.0/dist/esm/contrib/all-in-one-lite.bundle.js"
@@ -18,7 +18,7 @@
     <a class="wordmark" href="./" aria-label="Glissade home">glissade<span>.</span></a>
     <nav aria-label="Primary navigation">
       <a href="docs.html">Docs</a>
-      <a class="active" href="playground.html">Playground</a>
+      <a class="active" href="playground.html" aria-current="page">Playground</a>
       <a href="example.html">Example</a>
       <a class="github" href="https://github.com/Bramas/glissade">GitHub ↗</a>
     </nav>
@@ -26,44 +26,79 @@
 
   <main class="playground-shell">
     <section class="playground-toolbar" aria-label="Playground controls">
-      <div>
-        <h1>Edit source. See the slide.</h1>
+      <div class="playground-title">
+        <h1>Playground</h1>
+        <p>Edit the deck. The preview recompiles as you type.</p>
       </div>
       <div class="playground-actions">
-        <button class="button secondary" type="button" data-action="default-example">Load default example</button>
-        <button class="button secondary" type="button" data-action="morph-example">Try a formula morph</button>
-        <button class="button secondary" type="button" data-action="reset">Reset</button>
-        <button class="button primary" type="button" data-action="compile">Compile</button>
+        <label class="select-field">
+          <span>Example</span>
+          <select data-example-select aria-label="Load an example"></select>
+        </label>
+        <button class="button secondary small" type="button" data-action="reset" title="Restore the selected example">Reset</button>
+        <button class="button secondary small" type="button" data-action="share" title="Copy a link that contains this source">Copy link</button>
+        <button class="button secondary small" type="button" data-action="download" title="Download main.typ">Download .typ</button>
       </div>
     </section>
-
-    <p class="playground-warning">Try formulas with <code>glissade-morph</code> and <code>part</code>, or use <code>create</code> for drawing effects. Playback pauses at cuts.</p>
 
     <section class="playground-grid" aria-label="Typst editor and rendered preview">
       <div class="editor-pane">
-        <div class="example-bar">
-          <span>main.typ</span>
-          <b>imports bundled glissade.typ</b>
+        <div class="pane-bar">
+          <span class="pane-file">main.typ</span>
+          <span class="pane-hint"><kbd>Tab</kbd> indent · <kbd data-mod-key>Ctrl</kbd>+<kbd>Enter</kbd> compile</span>
         </div>
-        <div class="editor-stack">
-          <pre class="editor-highlight" aria-hidden="true"></pre>
-          <textarea id="typst-source" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+        <div class="editor-body">
+          <div class="editor-gutter" aria-hidden="true"><div class="editor-gutter-lines"></div></div>
+          <div class="editor-stack">
+            <pre class="editor-highlight highlighted-code" aria-hidden="true"></pre>
+            <textarea id="typst-source" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Typst source"></textarea>
+          </div>
         </div>
       </div>
+
       <div class="preview-pane">
-        <div class="example-bar"><span>Result</span><b data-status>Loading typst.ts…</b></div>
-        <div class="typst-preview" id="typst-preview">
-          <div class="preview-message">Waiting for the browser compiler…</div>
+        <div class="pane-bar">
+          <span class="pane-file">Preview</span>
+          <span class="status-pill" data-status data-mode="busy" role="status" aria-live="polite">Loading compiler…</span>
+        </div>
+        <div class="preview-body">
+          <div class="typst-preview" id="typst-preview" tabindex="0" aria-label="Rendered slide. Space plays, arrow keys step frames.">
+            <div class="preview-message">Loading the Typst compiler and fonts. The first load takes a few seconds.</div>
+          </div>
+          <div class="diagnostics" data-diagnostics hidden>
+            <div class="diagnostics-head">
+              <strong data-diagnostics-title>Compile error</strong>
+              <span>The preview shows the last successful build.</span>
+            </div>
+            <ol data-diagnostics-list></ol>
+          </div>
         </div>
         <div class="frame-controls" hidden>
-          <button type="button" data-frame-action="previous" title="Previous frame">&#8592;</button>
-          <button type="button" data-frame-action="play" title="Play or pause">&#9654;</button>
-          <button type="button" data-frame-action="next" title="Next frame">&#8594;</button>
-          <span data-frame-status>Frame 1 / 1</span>
+          <div class="frame-buttons">
+            <button type="button" data-frame-action="previous" title="Previous frame (←)" aria-label="Previous frame">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" /></svg>
+            </button>
+            <button type="button" class="play" data-frame-action="play" title="Play / pause (Space)" aria-label="Play">
+              <svg class="icon-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3v10l8-5z" /></svg>
+              <svg class="icon-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3v10M11 3v10" /></svg>
+            </button>
+            <button type="button" data-frame-action="next" title="Next frame (→)" aria-label="Next frame">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
+            </button>
+          </div>
+          <div class="scrubber">
+            <input type="range" min="0" max="0" value="0" step="1" data-frame-scrubber aria-label="Frame">
+            <div class="scrubber-marks" data-scrubber-marks aria-hidden="true"></div>
+          </div>
+          <span class="frame-status" data-frame-status>Slide 1 · 1 / 1</span>
         </div>
       </div>
     </section>
+
+    <p class="playground-note">Runs entirely in your browser with <a href="https://github.com/Myriad-Dreamin/typst.ts">typst.ts</a>. <code>#import "glissade.typ": *</code> loads the bundled library. Touying decks and local file imports need the <a href="docs.html#export">CLI</a>.</p>
   </main>
+
+  <div class="toast" data-toast role="status" aria-live="polite" hidden></div>
 
   <script src="highlight.js"></script>
   <script src="runtime.js"></script>

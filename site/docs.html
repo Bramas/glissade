@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Glissade documentation with focused Typst slide examples and live rendered results.">
   <title>Documentation — Glissade</title>
-  <link rel="stylesheet" href="styles.css?v=feature-catalog">
+  <link rel="stylesheet" href="styles.css?v=3">
   <link rel="icon" type="image/png" sizes="32x32" href="./favicon.png">
 </head>
 <body class="docs-page">
@@ -262,6 +262,7 @@ Another Touying reveal</code></pre>
       <section id="formula-morph" class="doc-section">
         <h2>Morph formulas by marking parts</h2>
         <p>Wrap a formula in <code>formula(...)</code>, mark the pieces that should be tracked with <code>part</code>, then render the state with <code>glissade-morph</code>. Matching parts move between frames, while unmatched pieces can fade in or out.</p>
+        <p>A compound part such as <code>part(a^2)</code> or <code>part(x+1)</code> moves as a whole: each of its glyphs is tracked under a key derived from the part's key (<code>…/base</code>, <code>…/t</code> for the exponent). Pass <code>key: "c"</code> to match parts whose bodies differ, for example <code>part(c^2, key: "c")</code> in one state and <code>part(c, key: "c/base")</code> in the next.</p>
         <div class="example-card">
           <div class="live-code">
             <div class="example-bar"><span>formula-morph.typ</span><b>semantic SVG</b></div>

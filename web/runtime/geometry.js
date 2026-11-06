@@ -209,8 +209,22 @@
     return planDrawElement(path, path);
   }
 
+  // Presentation attributes that SVG inherits from ancestors. Some renderers
+  // (typst.ts) set fill on an enclosing text group rather than on each glyph.
+  const INHERITED_PAINT = new Set([
+    "fill", "fill-rule", "fill-opacity",
+    "stroke", "stroke-width", "stroke-opacity",
+    "stroke-linecap", "stroke-linejoin", "stroke-miterlimit",
+  ]);
+
   function paintAttribute(element, referencedPath, name) {
-    return element.getAttribute(name) ?? referencedPath.getAttribute(name);
+    const own = element.getAttribute(name) ?? referencedPath.getAttribute(name);
+    if (own !== null || !INHERITED_PAINT.has(name)) return own;
+    for (let node = element.parentElement; node && node.localName !== "svg"; node = node.parentElement) {
+      const value = node.getAttribute(name);
+      if (value !== null && value !== "inherit") return value;
+    }
+    return null;
   }
 
   function drawElementTransform(element) {

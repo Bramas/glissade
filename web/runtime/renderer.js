@@ -10,6 +10,7 @@
     decompressGzip,
     intrinsicSize,
     inverseParentTransform,
+    matrixToAttribute,
     safeBBox,
     safeGlobalBBox,
     interpolateRect,
@@ -279,14 +280,41 @@
     }
   }
 
-  function appendSvgLayer(composite, svg, size) {
+  // Composites carry the inverse of their parent's getCTM(), so their content
+  // lives in the measuring viewport's pixel space. That space depends on how
+  // the page sizes the SVG (pt units, CSS width, letterboxing), so measure the
+  // root's own user-space-to-viewport matrix in the same place and wrap
+  // full-page layers with it.
+  function rootUserTransform(svg) {
+    if (!svg) return null;
+    const probe = document.createElementNS(SVG_NS, "g");
+    svg.appendChild(probe);
+    try {
+      const matrix = probe.getCTM();
+      const scale = matrix ? Math.hypot(matrix.a, matrix.b) : 0;
+      return scale > 0 && Number.isFinite(scale) ? matrixToAttribute(matrix) : null;
+    } catch {
+      return null;
+    } finally {
+      probe.remove();
+    }
+  }
+
+  function appendSvgLayer(composite, svg, size, layerTransform) {
     namespaceSvgIds(svg);
     svg.removeAttribute("class");
     svg.setAttribute("x", "0");
     svg.setAttribute("y", "0");
     svg.setAttribute("width", String(size.width));
     svg.setAttribute("height", String(size.height));
-    composite.appendChild(svg);
+    if (layerTransform) {
+      const wrapper = document.createElementNS(SVG_NS, "g");
+      wrapper.setAttribute("transform", layerTransform);
+      wrapper.appendChild(svg);
+      composite.appendChild(wrapper);
+    } else {
+      composite.appendChild(svg);
+    }
   }
 
   function splitFadeOpacities(progress) {
@@ -484,10 +512,17 @@
             this.analyzed(endSource, sandbox, frames, sharedSvg),
           ]);
           const morphEvents = collectMorphMatches(startData.analysis, endData.analysis);
-          const matches = morphEvents.matches;
           const startSvg = await this.instantiate(startSource, frames, sharedSvg);
           const endSvg = await this.instantiate(endSource, frames, sharedSvg);
+          // A root that does not change in this segment (e.g. a formula while
+          // another state animates) stays as drawn in the base frame.
+          const matches = morphEvents.matches.filter(match => {
+            const start = startSvg.querySelector(morphSelector(match.rootId));
+            const end = endSvg.querySelector(morphSelector(match.rootId));
+            return !(start && end && start.isEqualNode(end));
+          });
           sandbox.replaceChildren(startSvg, endSvg);
+          const layerTransform = rootUserTransform(startSvg);
           const geometryPlans = [];
           const drawPlans = [];
           const fallbackMatches = [];
@@ -551,6 +586,7 @@
             leavingFallbacks,
             partPlans,
             compositeTransforms,
+            layerTransform,
             allMatches: matches,
           };
       });
@@ -658,7 +694,7 @@
                   );
                 }
               }
-              if (composite) appendSvgLayer(composite, startOverlay, size);
+              if (composite) appendSvgLayer(composite, startOverlay, size, plan.layerTransform);
               else stack.append(startOverlay);
             }
           }
@@ -705,8 +741,8 @@
                 ? ensureRootComposite(baseSvg, plan, match.rootId)
                 : null;
               if (composite) {
-                appendSvgLayer(composite, startOverlay, size);
-                appendSvgLayer(composite, endOverlay, size);
+                appendSvgLayer(composite, startOverlay, size, plan.layerTransform);
+                appendSvgLayer(composite, endOverlay, size, plan.layerTransform);
               } else {
                 stack.append(startOverlay, endOverlay);
               }
