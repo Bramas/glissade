@@ -320,6 +320,30 @@
   #v(1fr)
 ]
 
+#slide(title: [The experiment])[
+  #let rows = (
+    ("experiment hPlusOne where", none),
+    ("  model := myopicRobots", none),
+    ("  algorithm := ObliviousHPlusOne", none),
+    ("  task := Gathering", none),
+    ("  param positions : List Int", none),
+    ("    where admissiblePositions positions true", [at least 2 robots, $O_"init"$ odd]),
+    ("  param phi : Nat", none),
+    ("    where phi ≥ requiredVisibility positions 1", [$phi >= max(4, H_"init" + 1)$]),
+    ("  param crashNode : Pos", [any node]),
+    ("  agents := positions.length", none),
+    ("  position i := pos (positions.at i)", none),
+  )
+  #let row = 38pt
+  #grid(columns: (auto, 1fr), column-gutter: 24pt,
+    block(radius: 12pt, fill: tint, inset: (x: 24pt, y: 12pt),
+      stack(..rows.map(((line, _)) => box(height: row, align(horizon, code(line, size: 23pt)))))),
+    block(inset: (y: 12pt), stack(..rows.enumerate().map(((i, (_, domain))) => box(height: row, align(horizon,
+      if i == 0 { eyebrow(color: teal)[domain, where the adversary chooses] }
+      else if domain != none { text(size: 24pt, fill: teal, weight: "bold", domain) }))))),
+  )
+]
+
 #slide(title: [The algorithm])[
   #grid(columns: (1.2fr, 1fr), column-gutter: 34pt, align: horizon,
     {
@@ -391,38 +415,6 @@ def h1Border (v : List Nat) : Bool :=
   )
   #v(1fr)
   #note[`lineView` reads the window through the sensor `occupied`; each rule of the paper is one guard on it, tried in the paper's priority order. The robot at node 10 does not know that nodes 0 and 4 exist.]
-]
-
-#slide(title: [The experiment])[
-  #grid(columns: (1.5fr, 1fr), column-gutter: 34pt, align: top,
-    [
-      #set text(size: 31pt)
-```sim
-experiment hPlusOne where
-  model := lineModel
-  algorithm := ObliviousHPlusOne
-  task := Gathering
-  param positions : List Int
-    where admissiblePositions positions true
-  param phi : Nat
-    where phi ≥ requiredVisibility positions 1
-  param crashNode : Pos
-  agents := positions.length
-  position i := pos (positions.at i)
-```
-    ],
-    [
-      #set text(size: 26pt)
-      #stack(spacing: 24pt,
-        [#pill(color: teal)[domain] #h(6pt) $O_"init"$ is odd],
-        [#pill(color: teal)[domain] #h(6pt) $phi >= max(4, H_"init" + 1)$],
-        [#pill(color: alert)[adversary] #h(6pt) any crash node],
-        [#pill(color: accent)[task] #h(6pt) all robots on one node],
-      )
-      #v(24pt)
-      #note[`lineModel` is the public project's `myopicRobots`; with lights, it runs the two-color algorithm. Robots never read $phi$: it only reaches `Observe.radius`.]
-    ],
-  )
 ]
 
 // ========================================================== 3. H + 1 =======

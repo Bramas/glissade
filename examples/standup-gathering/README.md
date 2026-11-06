@@ -12,9 +12,9 @@ way, with the two-color algorithm and the oblivious $H + 3$ algorithm. This one:
    library tasks (dispersion, exploration) show verdicts and goals;
 2. writes the SUIG setting with myopic robots as the same seven fields, its
    task (the library's `Gathering`: crashed robots stay present), the
-   algorithm's only needs (the sensors it `uses`, no memory; the compiler checks
-   them against the model), and the theorem's hypotheses as the experiment's
-   domain;
+   experiment, whose parameter domains are the theorem's hypotheses and within
+   which the adversary chooses, and the algorithm's only needs (the sensors it
+   `uses`, no memory; the compiler checks them against the model);
 3. presents the oblivious algorithm for $\varphi \ge \max(4, H_{init} + 1)$:
    why merging three occupied nodes into one is dangerous for myopic robots,
    and the three small rules that repair it, each shown *without* and *with*;
