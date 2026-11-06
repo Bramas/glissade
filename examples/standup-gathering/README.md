@@ -6,7 +6,7 @@ way, with the two-color algorithm and the oblivious $H + 3$ algorithm. This one:
 
 1. introduces [Simulant](https://bramas.github.io/simulant/) and builds a model
    one assumption at a time: each row of the usual list (topology, visibility,
-   orientation, multiplicity detection, memory, synchrony, faults) shows the
+   orientation, sensors, memory, synchrony, faults) shows the
    standard library definitions it can be, and the chosen one becomes a
    `field := value` line. Three variants then change a few fields;
 2. writes the SUIG setting with myopic robots as the same seven fields, and the
@@ -102,7 +102,8 @@ for the audience; robots observe only occupancy within radius $\varphi$.
   cases are conjectures: the slides show forced rules from the proofs and
   drafts, not complete arguments.
 - The standard library definitions on the option cards are excerpts: `…`
-  marks omitted lines, and the display labels of `choose` are left out.
+  marks omitted lines or parameters, and the display labels of `choose` are
+  left out.
 - Simulant's exploration follows every adversary choice up to a bound, and its
   Lean export gives definitions. Neither is presented as a machine-checked proof
   of the theorem.

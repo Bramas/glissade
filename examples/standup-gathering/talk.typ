@@ -111,12 +111,17 @@
     (value: "Frames.portPermutations .perRobot", caption: [built in: each robot permutes its ports once, for good]),
     (value: "Frames.isomorphisms", caption: [built in: any isomorphism of the view, chosen again at each Look]),
   )),
-  (label: [Multiplicity], prose: [none · weak · strong], field: "sensors", pick: 2, options: (
-    (value: "[occupied]", caption: [none],
-      source: "sensor occupied (L : Look) (l : Loc) : Bool :=\n  (L.occupants l).any present"),
-    (value: "[localMultiplicity]", caption: [weak, on the robot's own node only: one robot, or several]),
-    (value: "[count]", caption: [strong],
-      source: "sensor count (L : Look) (l : Loc) : Nat :=\n  (L.occupants l).count present"),
+  (label: [Sensors], prose: [multiplicity · states · edges · …], field: "sensors", pick: 2,
+    footnote: [A model lists its sensors; an algorithm declares the ones it uses.],
+    options: (
+    (value: "[occupied]", caption: [no multiplicity detection],
+      source: "sensor occupied … := (L.occupants l).any present"),
+    (value: "[localMultiplicity]", caption: [weak multiplicity detection, on the robot's own node]),
+    (value: "[count]", caption: [strong multiplicity detection],
+      source: "sensor count … := (L.occupants l).count present"),
+    (value: "[otherStates]", caption: [the public states of the other agents on the robot's node]),
+    (value: "[edgeTo]", caption: [is this edge present?],
+      source: "sensor edgeTo … := L.edgePresent L.here l"),
   )),
   (label: [Memory], prose: [oblivious · persistent · lights], field: "memory", pick: 0, options: (
     (value: ".oblivious", caption: [built in: nothing is kept between two activations]),
