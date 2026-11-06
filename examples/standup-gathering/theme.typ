@@ -39,8 +39,8 @@
 )
 
 // A soft panel that groups related content.
-#let card(body, fill: tint, stroke: none, inset: 22pt, width: 100%) = block(
-  width: width, inset: inset, radius: 12pt, fill: fill, stroke: stroke, body,
+#let card(body, fill: tint, stroke: none, inset: 22pt, width: 100%, height: auto) = block(
+  width: width, height: height, inset: inset, radius: 12pt, fill: fill, stroke: stroke, body,
 )
 
 // Small uppercase label used above titles and in cards.

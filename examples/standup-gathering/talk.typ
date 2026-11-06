@@ -220,6 +220,40 @@
   #context model-variants(variant-models, a("t"))
 ]
 
+#slide(title: [Tasks])[
+  A *task* gives each configuration a verdict; its *goal* says which executions succeed.
+  #v(18pt)
+  #grid(columns: (1fr, 270pt), column-gutter: 28pt, row-gutter: 18pt, align: horizon,
+    {
+      set text(size: 25pt)
+      ```sim
+      /-- Eventually, and forever, at most one present robot per position. -/
+      task Dispersion (C : Config) : Verdict :=
+        let robots := C.agents.filter present
+        if robots.all fun a => robots.count (fun b => b.pos = a.pos) = 1
+        then .success else .inProgress
+
+      goal Dispersion := eventually always .success
+      ```
+    },
+    stack(spacing: 14pt, pill(color: teal)[eventually always], note[from some point on, forever]),
+    {
+      set text(size: 25pt)
+      ```sim
+      /-- Every position has been visited, eventually. -/
+      task Exploration (C : Config) : Verdict :=
+        if C.positions.all fun p => C.world.visited.contains p
+        then .success else .inProgress
+
+      goal Exploration := eventually .success
+      ```
+    },
+    stack(spacing: 14pt, pill(color: teal)[eventually], note[`visited` is a field of the component `Monitors.Visited`]),
+  )
+  #v(1fr)
+  #note[Tasks read positions; robots never do. The third kind of goal is `always ¬ .failure`.]
+]
+
 // ================================================================ 2. SUIG ===
 #section-slide([02], [Stand-up indulgent gathering], [The setting of the previous talk, as one block of `.sim`])
 
@@ -262,6 +296,28 @@
 #slide(title: [The model], id: "suig-model")[
   #run(1, duration: 1.0)
   #context model-variants(suig-models, a("t"))
+]
+
+#slide(title: [The task])[
+  #{
+    set text(size: 27pt)
+    ```sim
+    /-- Every present robot is on the same position, eventually. -/
+    task Gathering (C : Config) : Verdict :=
+      let robots := C.agents.filter present
+      if robots.all fun a => robots.all fun b => a.pos = b.pos
+      then .success else .inProgress
+
+    goal Gathering := eventually .success
+    ```
+  }
+  #v(1fr)
+  #grid(columns: (1fr, 1fr, 1fr), column-gutter: 22pt,
+    card(inset: 20pt, height: 160pt)[#text(size: 24pt)[The library's `Gathering`, unchanged.]],
+    card(inset: 20pt, height: 160pt)[#text(size: 24pt)[`Faults.CrashAt` raises `flag crashed visible`: a crashed robot is not correct, but still *present*.]],
+    card(fill: accent-soft, inset: 20pt, height: 160pt)[#text(size: 24pt)[So with a crash, every robot on one node means #em-accent[at the crash node].]],
+  )
+  #v(1fr)
 ]
 
 #slide(title: [The experiment])[
