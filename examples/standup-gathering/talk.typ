@@ -320,6 +320,79 @@
   #v(1fr)
 ]
 
+#slide(title: [The algorithm])[
+  #grid(columns: (1.2fr, 1fr), column-gutter: 34pt, align: horizon,
+    {
+      set text(size: 25pt)
+      ```sim
+      algorithm ObliviousHPlusOne uses occupied where
+        main :=
+          let v := lineView
+          let vm := mirrored v
+          -- border-idle,1
+          if h1BorderIdle1 v ∨ h1BorderIdle1 vm then
+            stay
+          …
+          -- border
+          else if h1Border v then
+            move Ring.cw
+          …
+      ```
+    },
+    {
+      set text(size: 25pt)
+      grid(columns: (auto, 1fr), column-gutter: 14pt, row-gutter: 24pt, align: horizon,
+        pill(color: sense-c)[sensors], [`uses occupied`],
+        pill(color: state-c)[memory], [none: the current view decides],
+        pill(color: muted)[not named], [space, scheduler, faults, $phi$],
+      )
+    },
+  )
+  #pause
+  #v(1fr)
+  #card(inset: 20pt)[
+    #set text(size: 20pt)
+    #eyebrow(color: muted)[The compiler checks these needs against the model]
+    #v(10pt)
+    #grid(columns: (310pt, 1fr), row-gutter: 12pt, column-gutter: 16pt,
+      [`sensors := [count]`], text(fill: alert)[`uses sensor 'occupied', which the model does not provide`],
+      [two `move`s in a row], text(fill: alert)[`in an oblivious model, the algorithm cannot continue after this move (it would need memory)`],
+      [`scheduler := Schedulers.SSync`], text(fill: teal)[compiles unchanged],
+    )
+  ]
+  #v(1fr)
+]
+
+#slide(title: [A rule])[
+  #let config = (0, 4, 8, 9, 10, 12, 15)
+  #grid(columns: (130pt, 1fr), align: horizon,
+    text(size: 22pt, weight: "bold", fill: teal)[`lineView`],
+    line-view(config, low: -1, high: 16, width: 990, views: ((10, 5),), dim: (0, 4), bits: (10, 5), height: 120),
+  )
+  #v(14pt)
+  #v(1fr)
+  #grid(columns: (1fr, 1fr), column-gutter: 26pt,
+    [
+      #set text(size: 29pt)
+```sim
+def lineView : List Nat :=
+  Line.window.map fun l =>
+    if occupied l then 1 else 0
+```
+    ],
+    [
+      #set text(size: 29pt)
+```sim
+def h1Border (v : List Nat) : Bool :=
+  let p := v.length / 2
+  border v ∧ nonempty v (p + 1) p
+```
+    ],
+  )
+  #v(1fr)
+  #note[`lineView` reads the window through the sensor `occupied`; each rule of the paper is one guard on it, tried in the paper's priority order. The robot at node 10 does not know that nodes 0 and 4 exist.]
+]
+
 #slide(title: [The experiment])[
   #grid(columns: (1.5fr, 1fr), column-gutter: 34pt, align: top,
     [
@@ -350,39 +423,6 @@ experiment hPlusOne where
       #note[`lineModel` is the public project's `myopicRobots`; with lights, it runs the two-color algorithm. Robots never read $phi$: it only reaches `Observe.radius`.]
     ],
   )
-]
-
-#slide(title: [A rule])[
-  #let config = (0, 4, 8, 9, 10, 12, 15)
-  #grid(columns: (130pt, 1fr), align: horizon,
-    text(size: 22pt, weight: "bold", fill: teal)[`lineView`],
-    line-view(config, low: -1, high: 16, width: 990, views: ((10, 5),), dim: (0, 4), bits: (10, 5), height: 120),
-  )
-  #v(14pt)
-  #v(1fr)
-  #grid(columns: (1fr, 1.2fr), column-gutter: 26pt,
-    [
-      #set text(size: 29pt)
-```sim
-def h1Border (v : List Nat) : Bool :=
-  let p := v.length / 2
-  border v ∧ nonempty v (p + 1) p
-```
-    ],
-    [
-      #set text(size: 29pt)
-```sim
-algorithm ObliviousHPlusOne uses occupied where
-  main :=
-    let v := lineView
-    if h1BorderIdle1 v ∨ … then stay
-    else if h1Border v then move Ring.cw
-    …
-```
-    ],
-  )
-  #v(1fr)
-  #note[The robot at node 10 does not know that nodes 0 and 4 exist. Each rule of the paper is one guard, tried in the paper's priority order.]
 ]
 
 // ========================================================== 3. H + 1 =======
