@@ -45,6 +45,19 @@ describe("bounded caches", () => {
     await pending;
     expect(cache.size).toBe(0);
   });
+  test("optionally retains one oversized entry and evicts it when switching data", () => {
+    const cache = new BoundedCache(2, 10, { keepOversizedEntry: true });
+    cache.set("small", 1, 4).set("large", 2, 11);
+    expect(cache.size).toBe(1);
+    expect(cache.get("large")).toBe(2);
+    expect(cache.bytes).toBe(11);
+    cache.set("next", 3, 4);
+    expect(cache.has("large")).toBe(false);
+    expect(cache.get("next")).toBe(3);
+    expect(cache.bytes).toBe(4);
+    cache.clear();
+    expect(cache.bytes).toBe(0);
+  });
   test("frame text remains bounded after long playback", async () => {
     const store = new SvgFrameStore();
     for (let index = 0; index < 500; index++) {
@@ -96,6 +109,22 @@ test("shared frame caches keep scenes with identical placeholders separate", asy
   const framesA = [source], framesB = [source];
   expect(store.sourceKey(source, framesA, "a")).not.toBe(store.sourceKey(source, framesB, "b"));
   expect(store.sourceKey(source, framesA, "a")).toBe(store.sourceKey(source, framesA, "a"));
+});
+
+test("large compressed slide payloads are decoded once across consecutive frames", async () => {
+  const { gzipSync } = await import("node:zlib");
+  const shared = { glyphs: ["x".repeat(5 * 1024 * 1024)], patches: [] };
+  const source = "data:application/gzip;base64," + gzipSync(JSON.stringify(shared)).toString("base64");
+  const store = new SvgFrameStore();
+  const first = await store.sharedData(source);
+  expect(store.stats().sharedBytes).toBeGreaterThan(8 * 1024 * 1024);
+  expect(await store.sharedData(source)).toBe(first);
+  expect(await store.sharedData(source)).toBe(first);
+  expect(store.stats().sharedEntries).toBe(1);
+  await store.sharedData("data:application/json;base64," + btoa('{"glyphs":[],"patches":[]}'));
+  expect(store.stats().sharedBytes).toBeLessThan(8 * 1024 * 1024);
+  store.clear();
+  expect(store.stats().sharedBytes).toBe(0);
 });
 
 test("manifest accepts shared patches and rejects missing shared payloads", () => {

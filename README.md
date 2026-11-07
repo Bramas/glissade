@@ -234,7 +234,9 @@ The report records compilation time, export time, SVG/HTML size and, with
 64 and 32 entries. Reloading the live manifest clears these caches. These are
 cache budgets, not a limit on the whole browser's memory.
 Decoded shared glyph and delta data has a separate cache of at most 8 entries
-and 8 MiB.
+and 8 MiB, or a single larger slide payload. Keeping that payload avoids
+decompressing the same slide on every frame; it is evicted when other shared
+data is loaded.
 
 The exact-frame runtime inspector is useful when debugging morphs:
 

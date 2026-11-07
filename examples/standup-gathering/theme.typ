@@ -401,7 +401,8 @@
 // ----------------------------------------------------- results map ----------
 /// Solvability for oblivious robots when O_init is odd: columns H_init,
 /// rows phi - H_init. `focus` lists cells (h, extra) to emphasize.
-#let results-map(focus: (), dim-others: false, cell: 76pt) = {
+/// `reveal(h, extra, status)` controls each cell's opacity without moving it.
+#let results-map(focus: (), dim-others: false, cell: 76pt, reveal: (h, e, s) => 1) = {
   let status(h, e) = {
     if h == 1 { "solved" }
     else if e == 0 { if h <= 3 { "impossible" } else { "open" } }
@@ -424,10 +425,12 @@
       let (bg, fg, mark) = style.at(s)
       let focused = focus.contains((h, e))
       let faded = dim-others and not focused
+      if faded { bg = bg.lighten(55%); fg = fg.lighten(55%) }
+      let shown = calc.clamp(reveal(h, e, s), 0, 1)
       body.push(box(width: cell, height: cell * 0.7, radius: 8pt,
-        fill: if faded { bg.lighten(55%) } else { bg },
-        stroke: if focused { 2.5pt + fg } else { none },
-        align(center + horizon, text(size: 24pt, weight: "bold", fill: if faded { fg.lighten(55%) } else { fg }, mark))))
+        fill: if shown == 1 { bg } else { color.mix((tint, (1 - shown) * 100%), (bg, shown * 100%), space: rgb) },
+        stroke: if focused { 2.5pt + fg.transparentize((1 - shown) * 100%) } else { none },
+        align(center + horizon, text(size: 24pt, weight: "bold", fill: fg.transparentize((1 - shown) * 100%), mark))))
     }
   }
   body.push([])

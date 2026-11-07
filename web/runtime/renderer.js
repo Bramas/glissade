@@ -417,7 +417,9 @@
       this.textCache = new BoundedCache(120, 32 * 1024 * 1024);
       this.analysisCache = new BoundedCache(64);
       this.planCache = new BoundedCache(32);
-      this.sharedCache = new BoundedCache(8, 8 * 1024 * 1024);
+      // A slide's shared payload must be decoded as a whole. Keep a single
+      // oversized payload rather than decompressing it again on every frame.
+      this.sharedCache = new BoundedCache(8, 8 * 1024 * 1024, { keepOversizedEntry: true });
       this.frameContexts = new WeakMap();
       this.nextFrameContext = 0;
     }

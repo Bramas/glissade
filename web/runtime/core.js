@@ -3,10 +3,11 @@
   const SVG_NS = "http://www.w3.org/2000/svg";
 
   class BoundedCache {
-    constructor(maxEntries = 120, maxBytes = Infinity) {
+    constructor(maxEntries = 120, maxBytes = Infinity, { keepOversizedEntry = false } = {}) {
       this.entries = new Map();
       this.maxEntries = maxEntries;
       this.maxBytes = maxBytes;
+      this.keepOversizedEntry = keepOversizedEntry;
       this.bytes = 0;
     }
     get size() { return this.entries.size; }
@@ -22,7 +23,8 @@
       this.delete(key);
       this.entries.set(key, { value, bytes });
       this.bytes += bytes;
-      while (this.entries.size > this.maxEntries || this.bytes > this.maxBytes) {
+      while (this.entries.size > this.maxEntries
+          || (this.bytes > this.maxBytes && (!this.keepOversizedEntry || this.entries.size > 1))) {
         this.delete(this.entries.keys().next().value);
       }
       return this;

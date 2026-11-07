@@ -420,20 +420,32 @@ def h1Border (v : List Nat) : Bool :=
 // ========================================================== 3. H + 1 =======
 #section-slide([03], [The $H + 1$ algorithm], [Merging three nodes into one, with myopic robots])
 
-#slide(title: [Known results])[
-  #grid(columns: (auto, 1fr), column-gutter: 46pt, align: horizon,
-    results-map(focus: ((3, 1), (4, 1), (5, 1), (6, 1), (2, 2))),
-    [
-      #set text(size: 26pt)
-      #stack(spacing: 26pt,
-        [#pill(color: teal)[✓ solved] #pill(color: alert)[✕ impossible] #pill(color: amber)[? open]],
-        [*Previous talk:* two colors at $phi = H$; oblivious at $phi = H + 3$.],
-        [*This talk:* oblivious at $phi = max(4, H + 1)$, the framed cells.],
-        [Oblivious robots, $O_"init"$ odd.],
-        [Without colors, $phi = H$ is impossible for $H in {2, 3}$.],
-      )
-    ],
-  )
+#slide(title: [Known results], id: "known-results")[
+  #run(4, start: 1, duration: 0.3)
+  #context {
+    let t = a("t")
+    let shown(step) = calc.clamp(t - step + 1, 0, 1)
+    // The H = 1 column is already known; the earlier oblivious bound gives
+    // the H + 3 row. The new bound fills the remaining solved cells.
+    let reveal(h, e, status) = shown(
+      if status == "solved" { if h == 1 or e == 3 { 1 } else { 2 } }
+      else if status == "impossible" { 3 }
+      else { 4 }
+    )
+    grid(columns: (auto, 1fr), column-gutter: 46pt, align: horizon,
+      results-map(focus: ((3, 1), (4, 1), (5, 1), (6, 1), (2, 2)), reveal: reveal),
+      {
+        set text(size: 26pt)
+        stack(spacing: 26pt,
+          [#pill(color: teal)[✓ solved] #pill(color: alpha(alert, shown(3)), fill: alpha(alert-soft, shown(3)))[✕ impossible] #pill(color: alpha(amber, shown(4)), fill: alpha(amber-soft, shown(4)))[? open]],
+          [*Previous talk:* two colors at $phi = H$; oblivious at $phi = H + 3$.],
+          text(fill: alpha(ink, shown(2)))[*This talk:* oblivious at $phi = max(4, H + 1)$, the framed cells.],
+          [Oblivious robots, $O_"init"$ odd.],
+          text(fill: alpha(ink, shown(3)))[Without colors, $phi = H$ is impossible for $H in {2, 3}$.],
+        )
+      },
+    )
+  }
   #v(1fr)
   #note[$H$: largest gap between consecutive occupied nodes. $O_"init"$: number of occupied nodes.]
 ]
