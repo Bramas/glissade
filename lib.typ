@@ -3,4 +3,6 @@
 )
 #import "src/primitives.typ": animate, create, init, meanwhile, then, wait
 #import "src/draw.typ": cetz-shape, formula, glissade-morph, part
-#import "src/transitions.typ": circ, concat, cubic, linear, quad, quart, sin, smooth
+#import "src/transitions.typ": (
+  circ, concat, cubic, ease-in, ease-in-out, ease-out, linear, quad, quart, sin, smooth,
+)

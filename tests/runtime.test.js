@@ -15,6 +15,15 @@ describe("playback boundaries", () => {
     expect(advancePlaybackFrame(looping, 0, 12)).toEqual({ frame: 2 });
     expect(advancePlaybackFrame(looping, 5, 10).frame).toBe(10);
   });
+  test("loops over its own start when the cut gives one", () => {
+    const looping = { ...scene, cuts: [scene.cuts[0], { frame: 10, loop: true, loopStart: 8 }] };
+    // The lead-in plays once, then only frames 8 and 9 repeat.
+    expect(advancePlaybackFrame(looping, 5, 4)).toEqual({ frame: 9 });
+    expect(advancePlaybackFrame(looping, 5, 5)).toEqual({ frame: 8 });
+    expect(advancePlaybackFrame(looping, 5, 8)).toEqual({ frame: 9 });
+    expect(globalThis.GlissadeMorphRuntime.loopStartFrame(looping, looping.cuts[1])).toBe(8);
+    expect(globalThis.GlissadeMorphRuntime.loopStartFrame(scene, scene.cuts[1])).toBe(5);
+  });
   test("static slides terminate", () => {
     expect(advancePlaybackFrame({ frameCount: 1, cuts: [] }, 0, 10)).toEqual({ frame: 0, ended: true });
   });
@@ -125,6 +134,22 @@ test("large compressed slide payloads are decoded once across consecutive frames
   expect(store.stats().sharedBytes).toBeLessThan(8 * 1024 * 1024);
   store.clear();
   expect(store.stats().sharedBytes).toBe(0);
+});
+
+test("manifest accepts child-list patches and loop starts, and rejects malformed ones", () => {
+  const scene = patches => ({ id: "a", duration: 1, fps: 2, frameCount: 3,
+    frames: ["first.svg", { kind: "svg-delta-v1", base: 0, patches }, "last.svg"],
+    cuts: [{ frame: 2, loop: true, loopStart: 1 }], keyframes: [0, 2] });
+  expect(() => validateManifest({ scenes: [scene([{ path: [0, 1], children: [1, "<g/>", 0, 0] }])] })).not.toThrow();
+  for (const patch of [{ path: [0], children: [-1] }, { path: [0], children: [0.5] },
+    { path: [0], children: [0], svg: "<g/>" }, { path: [], children: [0] }, { path: [0] }]) {
+    expect(() => validateManifest({ scenes: [scene([patch])] })).toThrow("delta patch");
+  }
+  for (const loopStart of [2, 3, -1, 0.5, "1"]) {
+    const bad = scene([]);
+    bad.cuts[0].loopStart = loopStart;
+    expect(() => validateManifest({ scenes: [bad] })).toThrow("loop start");
+  }
 });
 
 test("manifest accepts shared patches and rejects missing shared payloads", () => {

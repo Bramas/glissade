@@ -18,8 +18,20 @@ duration, `frameCount`, `frames`, `blocks`, `cuts`, `keyframes` and
 
 Frame sources are SVG URLs, base64 SVG/gzip data URIs, or `svg-delta-v1` objects.
 A delta references an earlier frame of the **same scene** through its `base`
-index. Its patches replace SVG element subtrees addressed by child-index paths.
-The encoder anchors deltas at complete keyframes, avoiding unbounded chains.
+index. Each patch addresses one element of the base frame by a child-index
+`path` and takes one of two forms:
+
+- `{"path": [...], "svg": "<g>…</g>"}` replaces that element with new markup;
+- `{"path": [...], "children": [2, "<g>…</g>", 0]}` rebuilds that element's
+  child list. Numbers pick children of the base element by index (a child
+  picked twice is cloned), strings are new markup. Elements that appear or
+  leave between two frames are encoded this way, without resending their
+  unchanged siblings. An element rebuilt like this contains no text of its own.
+
+Patches of one delta never overlap, so their order does not matter. Patch
+markup carries no namespace declarations: it is parsed inside an `<svg>`
+element that declares the SVG and XLink namespaces. The encoder anchors deltas
+at complete keyframes, avoiding unbounded chains.
 
 An exported scene can additionally contain `sharedSvg`, a gzip or JSON base64
 data URI holding `{"glyphs": [...], "patches": [...]}`. `glyphs` contains SVG
@@ -28,7 +40,8 @@ can be either an inline array (the original format) or a nonnegative index into
 this shared patch table. The browser decodes shared data only when loading a
 frame of that scene, using a bounded cache (8 entries, 8 MiB of decoded JSON).
 
-Repeated Typst glyph symbols are stored once per scene. Frame SVGs and delta
+In scenes of more than one frame, each distinct Typst glyph symbol is stored
+once. Frame SVGs and delta
 fragments use `<symbol data-glissade-glyph="N"/>` placeholders in their place.
 The loader replaces each placeholder with `glyphs[N]` before rendering, analysis,
 or overview serialization. Each placeholder occupies exactly one SVG child,
@@ -56,8 +69,11 @@ decoder. Older exports without shared data remain readable by the runtime.
 - `duration` preserves source time. Playback uses `frameCount` and `fps`, so
   subframe durations are quantized to the available frame rate.
 - Cuts pause on their endpoint. Continuing starts from that endpoint. Loop
-  cuts repeat from the previous cut (or frame zero). Video segments include
-  both endpoints, so adjacent segments share their boundary frame.
+  cuts repeat from the previous cut (or frame zero), unless they carry
+  `loopStart`: playback then reaches the cut once from wherever it started and
+  repeats from that frame, which lies before the cut (`cut(loop: n)` in Typst
+  sets it to the start of the last `n` blocks). Video segments include both
+  endpoints, so adjacent segments share their boundary frame.
 - `fps=0` is reserved for direct Typst/PDF slideshow rendering. The CLI and
   browser require strictly positive FPS.
 

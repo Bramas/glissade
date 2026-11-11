@@ -131,7 +131,16 @@
   if duration == 0 or fps == 0 { 0 } else { calc.max(1, int(calc.round(fps * duration))) }
 }
 
-#let _timeline-blocks(variables, fps, cut-blocks: (), loop-blocks: ()) = {
+// The frame where a loop limited to its last `n` blocks starts again, as an
+// extra block field. `blocks` holds the blocks before block `b`.
+#let _loop-start(blocks, b, loop-spans, own-start) = {
+  let span = loop-spans.at(str(b), default: none)
+  if span == none { return (:) }
+  let first = calc.max(1, b - span + 1)
+  ("loop_start_frame": if first == b { own-start } else { blocks.at(first - 1).start_frame })
+}
+
+#let _timeline-blocks(variables, fps, cut-blocks: (), loop-blocks: (), loop-spans: (:)) = {
   let max-block = _max-block(variables)
   let effective-cuts = cut-blocks
   if max-block > 0 and not max-block in effective-cuts {
@@ -152,7 +161,7 @@
       "end_frame": total-frames + frames,
       "cut": b in effective-cuts,
       "loop": b in loop-blocks,
-    ))
+    ) + _loop-start(blocks, b, loop-spans, total-frames))
     elapsed += duration
     total-frames += frames
   }
@@ -175,6 +184,8 @@
   let max-block = _max-block(variables)
   let block-index = 1
   let time = 0
+  // Whether the frame starts a block or ends the animation.
+  let boundary = true
   if max-block > 0 {
     let offset = 0
     for b in range(1, max-block + 1) {
@@ -187,11 +198,16 @@
         } else {
           duration * calc.min(frames, frame - offset) / frames
         }
+        boundary = frame == offset or frame >= offset + frames
         break
       }
       offset += frames
     }
   }
+  // The discovery pass (`typst query`) only reads metadata: the page markers
+  // of every frame, and what the body declares. Laying out the body on the
+  // boundary frames is enough for the latter, and several times faster.
+  let discovery = int(sys.inputs.at("query", default: 0)) == 1
   [
     #active-slide.update(_ => id)
     #slide-scope(id)
@@ -202,7 +218,7 @@
       index: index,
     ))) <glissade-animation-scope>
     #if marker != none { metadata(marker) }
-    #body
+    #if boundary or not discovery { body }
   ]
 }
 
@@ -220,7 +236,7 @@
   }
 }
 
-#let _render-query-document(body, fps, id, index, title, autoplay, frozen-counters, variables, cut_blocks, loop_blocks) = context {
+#let _render-query-document(body, fps, id, index, title, autoplay, frozen-counters, variables, cut_blocks, loop_blocks, loop-spans) = context {
   let max_block = _max-block(variables)
   let effective-cuts = cut_blocks
   if not max_block in effective-cuts {
@@ -246,7 +262,7 @@
       "end_frame": total_frames + local_frames + frames,
       "cut": b in effective-cuts,
       "loop": b in loop_blocks,
-    ))
+    ) + _loop-start(blocks, b, loop-spans, total_frames + local_frames))
     elapsed += duration
     local_frames += frames
 
@@ -306,7 +322,7 @@
   let cut_blocks = built.cuts
   let loop_blocks = built.loops
   if int(sys.inputs.at("query", default: 0)) == 1 {
-    _render-query-document(body, fps, id, index, title, autoplay, frozen-counters, variables, cut_blocks, loop_blocks)
+    _render-query-document(body, fps, id, index, title, autoplay, frozen-counters, variables, cut_blocks, loop_blocks, built.loop-spans)
   } else if fps == 0 {
     _render-slideshow(body, id, index, variables, frozen-counters: frozen-counters)
   } else {
@@ -393,6 +409,7 @@
     fps,
     cut-blocks: built.cuts,
     loop-blocks: built.loops,
+    loop-spans: built.loop-spans,
   )
   let render(
     self: none,
@@ -460,10 +477,19 @@
 
 /// Add a cut at the end of the current block.
 #let cut(
-  /// Whether the pre-cut segment should loop during browser playback.
-  /// -> bool
+  /// Whether playback repeats before the cut until the presenter continues.
+  /// `true` repeats everything since the previous cut. An integer `n` plays
+  /// up to the cut once, then repeats only the last `n` animation blocks:
+  /// use it when the end of a longer animation settles into a cycle.
+  /// -> bool | int
   loop: false,
-) = metadata(("glissade_operation": (kind: "cut", loop: loop)))
+) = {
+  assert(
+    type(loop) == bool or (type(loop) == int and loop > 0),
+    message: "cut: loop must be true, false or a positive number of blocks",
+  )
+  metadata(("glissade_operation": (kind: "cut", loop: loop)))
+}
 
 /// Collects one logical slide for the `deck` show rule. The animation ends
 /// automatically at the end of the slide body.

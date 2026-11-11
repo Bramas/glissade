@@ -24,18 +24,34 @@ way, with the two-color algorithm and the oblivious $H + 3$ algorithm. This one:
 The theme (`theme.typ`) is written from scratch on top of Touying: white page,
 Lato with New Computer Modern math, short titles, the section name in the footer
 corner, a thin progress line, and one meaning per color (blue robots, teal views
-and moves, red crashes and failures, amber open questions). On slides with two
-executions, they play one after the other, never at the same time. `.sim` code is highlighted with
-`sim.sublime-syntax` and `sim.tmTheme`.
+and moves, red crashes and failures, amber open questions). Section dividers
+show the plan of the talk with the current part marked. `.sim` code is
+highlighted with `sim.sublime-syntax` and `sim.tmTheme`.
+
+The executions are the point of the talk, so they are drawn for the back of the
+room: the line spans the slide, and everything is placed with plain Typst
+shapes, which keeps a frame cheap to compile.
+
+- A round starts and stops gently (`ease-in-out`), so rounds can be counted.
+- The rule a robot applies is written under its node. The label fades in as the
+  previous round ends, is readable at the stop, and stays on the node as the
+  robot leaves.
+- Two robots that exchange their order pass above and below the line instead of
+  through each other, and a ring opens where robots merge.
+- On the failing execution, the number of occupied nodes at each past round
+  stays under the line, colored by parity.
+- On slides with two executions, they play one after the other, never at the
+  same time. A failing execution ends in a cycle of two rounds, which repeats
+  (`cut(loop: 2)`) until you continue.
 
 ## Build
 
 From the Glissade repository root:
 
 ```sh
-# Animated, self-contained presentation (about one minute).
+# Animated, self-contained presentation (about half a minute).
 python3 bin/glissade.py --root . --timeout 600 \
-  examples/standup-gathering/talk.typ html --fps 12 \
+  examples/standup-gathering/talk.typ html --fps 24 \
   --title 'Simulant and myopic stand-up indulgent gathering'
 
 # One static page per slide, with the final state of each animation.
@@ -45,9 +61,11 @@ typst compile --root . examples/standup-gathering/talk.typ \
 
 Open `talk.html` in a browser. Right or Page Down continues to the next stop,
 Left goes back, O opens the overview and F toggles fullscreen. The failing
-executions loop on their last round until you continue.
+executions loop on their last two rounds until you continue.
 
-The deck needs Typst 0.14, Touying 0.7.3, CeTZ 0.5.1 and the Lato font.
+The deck needs Typst 0.14, Touying 0.7.3 and the Lato font. `--fps 12` halves
+the export time and the number of frames; the motion is then visibly less
+smooth.
 
 ## Files
 

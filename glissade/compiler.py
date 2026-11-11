@@ -67,6 +67,12 @@ def _transition_function(name):
         return lambda t: 1 - math.cos(t * math.pi / 2)
     if name == "circ":
         return math.sqrt
+    if name == "ease-in":
+        return lambda t: t**3
+    if name == "ease-out":
+        return lambda t: 1 - (1 - t) ** 3
+    if name == "ease-in-out":
+        return lambda t: 4 * t**3 if t < 0.5 else 1 - (-2 * t + 2) ** 3 / 2
     return lambda t: t
 
 
@@ -319,6 +325,8 @@ def _tag_svg_frame(
     """Attach formula-part and morph identifiers to one rendered SVG frame."""
     try:
         content = frame_path.read_text(encoding="utf-8")
+        if not svg_tagger.needs_tagging(content):
+            return
         part_specs = _frame_formula_parts(variables, blocks, frame_index)
         active_morph_specs = []
         frame_block, frame_time = _frame_block_and_time(blocks, frame_index)
@@ -502,7 +510,7 @@ def _compile_touying_project(
                 f"-frame-{local_index + 1}.{extension}"
             )
             frame_path = output_directory / frame_name
-            frame_path.write_bytes(source_path.read_bytes())
+            os.replace(source_path, frame_path)
             frames.append(f"/frames/{frame_name}?v={manifest['version']}")
 
             if marker is None:
@@ -547,13 +555,18 @@ def _compile_touying_project(
                 if source_block.get("cut") and marker_frame == int(
                     source_block.get("end_frame", -1)
                 ):
-                    cuts.append(
-                        {
-                            "frame": local_index,
-                            "time": local_index / args.fps,
-                            "loop": bool(source_block.get("loop", False)),
-                        }
-                    )
+                    cut = {
+                        "frame": local_index,
+                        "time": local_index / args.fps,
+                        "loop": bool(source_block.get("loop", False)),
+                    }
+                    if "loop_start_frame" in source_block:
+                        cut["loopStart"] = (
+                            local_index
+                            - marker_frame
+                            + int(source_block["loop_start_frame"])
+                        )
+                    cuts.append(cut)
                     keyframes.add(local_index)
             if marker_frame == int(marker.get("frames", 1)) - 1 and (
                 not cuts or cuts[-1]["frame"] != local_index
@@ -596,8 +609,6 @@ def _compile_touying_project(
             }
         )
 
-    for source_path in source_paths:
-        source_path.unlink()
     log(f"Discovered {len(groups)} Touying slide(s)")
     return validate_manifest(manifest)
 
@@ -747,13 +758,14 @@ def compile_project(
         cuts = []
         for block in blocks:
             if block.get("cut"):
-                cuts.append(
-                    {
-                        "frame": min(block["end_frame"], max(0, len(frames) - 1)),
-                        "time": block["end"],
-                        "loop": block.get("loop", False),
-                    }
-                )
+                cut = {
+                    "frame": min(block["end_frame"], max(0, len(frames) - 1)),
+                    "time": block["end"],
+                    "loop": block.get("loop", False),
+                }
+                if "loop_start_frame" in block:
+                    cut["loopStart"] = int(block["loop_start_frame"])
+                cuts.append(cut)
 
         # Several instantaneous cuts can share a boundary. Keep one presenter
         # stop at that frame, using the final operation's loop preference.

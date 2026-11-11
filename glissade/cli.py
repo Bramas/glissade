@@ -2,26 +2,20 @@
 
 import argparse
 import base64
-import gzip
 import html
 import json
 import os
 import shutil
 import subprocess
 import tempfile
+from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 from pathlib import Path
 from string import Template
 from urllib.parse import quote
 
-from . import svg_tagger
 from .compiler import assert_installed, compile_project, compile_svg_project
-from .frames import (
-    _is_frame_delta,
-    _optimize_scene_frames,
-    _pack_scene_svg,
-    _share_scene_glyphs,
-    _source_frame_name,
-)
+from .frames import _is_frame_delta, _source_frame_name, encode_scene
 from .live import handle_dev
 from .manifest import validate_manifest
 
@@ -333,6 +327,26 @@ def render_editor_template(template_path, title, manifest_source, live_reload):
     )
 
 
+def _encode_scene(job):
+    scene, frame_directory, options = job
+    return encode_scene(scene, frame_directory, **options)
+
+
+def _encode_scenes(scenes, frame_directory, **options):
+    """Encode every scene's frames, on several cores when the deck is large."""
+    jobs = [(scene, str(frame_directory), options) for scene in scenes]
+    frame_count = sum(len(scene.get("frames", [])) for scene in scenes)
+    workers = min(len(jobs), os.cpu_count() or 1)
+    if workers > 1 and frame_count >= 64:
+        try:
+            with ProcessPoolExecutor(max_workers=workers) as pool:
+                return list(pool.map(_encode_scene, jobs))
+        except (OSError, BrokenProcessPool):
+            # Sandboxes without process or semaphore support still export.
+            pass
+    return [_encode_scene(job) for job in jobs]
+
+
 def handle_html(args):
     """Generate a standalone, dependency-free SVG presentation."""
     root_path, _ = os.path.splitext(args.input)
@@ -343,73 +357,40 @@ def handle_html(args):
         with tempfile.TemporaryDirectory() as temporary_directory:
             manifest = compile_svg_project(args, temporary_directory)
 
-            if args.minify_svg:
-                for frame_path in Path(temporary_directory).glob("slide-*-frame-*.svg"):
-                    frame_path.write_text(
-                        svg_tagger.minify_svg(frame_path.read_text(encoding="utf-8")),
-                        encoding="utf-8",
-                    )
-
-            for scene in manifest["scenes"]:
-                glyphs = (
-                    _share_scene_glyphs(scene, temporary_directory)
-                    if args.share_glyphs
-                    else []
-                )
-                if args.optimize_frames:
-                    _optimize_scene_frames(scene, temporary_directory)
-                _pack_scene_svg(scene, glyphs, args.compress_frames)
-
-            if args.embed_frames:
-                # Embed frames as base64
-                for scene in manifest["scenes"]:
-                    embedded_frames = []
-                    for frame_url in scene["frames"]:
-                        if _is_frame_delta(frame_url):
-                            embedded_frames.append(frame_url)
-                            continue
-                        frame_name = _source_frame_name(frame_url)
-                        frame_path = Path(temporary_directory) / frame_name
-                        frame_bytes = frame_path.read_bytes()
-                        if args.compress_frames:
-                            frame_bytes = gzip.compress(
-                                frame_bytes, compresslevel=9, mtime=0
-                            )
-                            media_type = "application/gzip"
-                        else:
-                            media_type = "image/svg+xml"
-                        encoded = base64.b64encode(frame_bytes).decode("ascii")
-                        embedded_frames.append(f"data:{media_type};base64," + encoded)
-                    scene["frames"] = embedded_frames
-            else:
-                # Copy SVG files to frames directory
+            encoded_scenes = _encode_scenes(
+                manifest["scenes"],
+                temporary_directory,
+                minify=args.minify_svg,
+                share_glyphs=args.share_glyphs,
+                optimize=args.optimize_frames,
+                compress=args.compress_frames,
+            )
+            media_type = "application/gzip" if args.compress_frames else "image/svg+xml"
+            if not args.embed_frames:
                 frames_dir.mkdir(parents=True, exist_ok=True)
-                for stale_frame in frames_dir.glob("slide-*-frame-*.svg"):
-                    stale_frame.unlink()
-                for stale_frame in frames_dir.glob("slide-*-frame-*.svg.gz"):
-                    stale_frame.unlink()
+                for pattern in ("slide-*-frame-*.svg", "slide-*-frame-*.svg.gz"):
+                    for stale_frame in frames_dir.glob(pattern):
+                        stale_frame.unlink()
 
-                for scene in manifest["scenes"]:
-                    external_frames = []
-                    for frame_url in scene["frames"]:
-                        if _is_frame_delta(frame_url):
-                            external_frames.append(frame_url)
-                            continue
-                        frame_name = _source_frame_name(frame_url)
-                        frame_path = Path(temporary_directory) / frame_name
+            manifest["scenes"] = []
+            for scene, sources in encoded_scenes:
+                frames = []
+                for source in sources:
+                    if _is_frame_delta(source):
+                        frames.append(source)
+                        continue
+                    frame_name, frame_bytes = source
+                    if args.embed_frames:
+                        encoded = base64.b64encode(frame_bytes).decode("ascii")
+                        frames.append(f"data:{media_type};base64," + encoded)
+                    else:
                         if args.compress_frames:
                             frame_name += ".gz"
-                        dest_path = frames_dir / frame_name
-                        # Copy SVG file
-                        frame_bytes = frame_path.read_bytes()
-                        if args.compress_frames:
-                            frame_bytes = gzip.compress(
-                                frame_bytes, compresslevel=9, mtime=0
-                            )
-                        dest_path.write_bytes(frame_bytes)
+                        (frames_dir / frame_name).write_bytes(frame_bytes)
                         # Use relative path from HTML file location
-                        external_frames.append(f"{quote(frames_dir.name)}/{frame_name}")
-                    scene["frames"] = external_frames
+                        frames.append(f"{quote(frames_dir.name)}/{frame_name}")
+                scene["frames"] = frames
+                manifest["scenes"].append(scene)
 
             validate_manifest(manifest)
             manifest_source = (

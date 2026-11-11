@@ -4,6 +4,7 @@
     SVG_NS,
     BoundedCache,
     memoizeAsync,
+    isSvgDeltaPatch,
     validateManifest,
     parseSvgMarkup,
     decodeDataUri,
@@ -19,6 +20,7 @@
     morphSelector,
     smoothRate,
     sceneKeyframes,
+    loopStartFrame,
     advancePlaybackFrame,
     segmentForFrame,
     planGeometryMorph,
@@ -58,10 +60,35 @@
     parent.replaceChild(replacement, current);
   }
 
+  // Rebuilds the child list of the element at `path`: numbers pick children of
+  // the base frame, strings are new markup.
+  function regroupSvgChildrenAtPath(svg, path, children) {
+    let element = svg;
+    for (const index of path) {
+      element = element.children[index];
+      if (!element) throw new Error("Invalid SVG delta path");
+    }
+    const originals = [...element.children];
+    const used = new Set();
+    element.replaceChildren(...children.map(child => {
+      if (typeof child === "string") {
+        const created = parseSvgFragment(child);
+        if (!created) throw new Error("Invalid SVG delta replacement");
+        return created;
+      }
+      const original = originals[child];
+      if (!original) throw new Error("Invalid SVG delta child");
+      if (used.has(child)) return original.cloneNode(true);
+      used.add(child);
+      return original;
+    }));
+  }
+
   function applySvgDelta(baseText, source) {
     const svg = parseSvgMarkup(baseText);
     for (const patch of source.patches || []) {
-      replaceSvgNodeAtPath(svg, patch.path || [], patch.svg || "");
+      if (Array.isArray(patch.children)) regroupSvgChildrenAtPath(svg, patch.path || [], patch.children);
+      else replaceSvgNodeAtPath(svg, patch.path || [], patch.svg || "");
     }
     return new XMLSerializer().serializeToString(svg);
   }
@@ -470,9 +497,9 @@
               throw new Error("Invalid Glissade SVG delta base");
             }
             const patches = Array.isArray(source.patches) ? source.patches : shared?.patches[source.patches];
-            if (!Array.isArray(patches) || patches.some(patch => !Array.isArray(patch?.path)
-                || !patch.path.length || patch.path.some(index => !Number.isInteger(index) || index < 0)
-                || typeof patch.svg !== "string")) throw new Error("Invalid SVG delta patches");
+            if (!Array.isArray(patches) || patches.some(patch => !isSvgDeltaPatch(patch))) {
+              throw new Error("Invalid SVG delta patches");
+            }
             text = applySvgDelta(await this.loadText(frames[source.base], frames, sharedSvg), { patches });
           } else {
             text = await decodeDataUri(source);
@@ -816,6 +843,7 @@
       return new StageRenderer(stage, options);
     },
     sceneKeyframes,
+    loopStartFrame,
     advancePlaybackFrame,
     segmentForFrame,
   };

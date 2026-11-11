@@ -5,189 +5,206 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Glissade turns Typst documents into animated, browser-native presentations.">
   <title>Glissade — Animated presentations in Typst</title>
-  <link rel="stylesheet" href="styles.css?v=3">
+  <link rel="preload" href="fonts/newcm-book.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/newcm-book-italic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css?v=4">
   <link rel="icon" type="image/png" sizes="32x32" href="./favicon.png">
 </head>
 <body class="home-page">
+  <a class="skip" href="#main">Skip to content</a>
   <header class="nav shell">
-    <a class="wordmark" href="./" aria-label="Glissade home">glissade<span>.</span></a>
+    <a class="wordmark" href="./" aria-label="Glissade home">glissade</a>
     <nav aria-label="Primary navigation">
       <a href="docs.html">Docs</a>
       <a href="playground.html">Playground</a>
-      <a href="example.html">Example</a>
-      <a class="github" href="https://github.com/Bramas/glissade">GitHub ↗</a>
+      <a class="optional" href="example.html">Example</a>
+      <a class="github" href="https://github.com/Bramas/glissade">GitHub <span aria-hidden="true">↗</span></a>
     </nav>
   </header>
 
-  <main>
+  <main id="main">
     <section class="hero shell">
-      <div class="hero-copy">
-        <div class="eyebrow">Typst presentations with motion</div>
-        <h1>Write slides in Typst.<br><em>Present them in motion.</em></h1>
-      </div>
-      <div class="hero-side">
+      <h1>Write slides in Typst.<br><em>Present them in motion.</em></h1>
+      <div class="hero-meta">
         <p class="lede">Glissade adds animation state, formula morphing, and draw-in effects to Typst slides, then exports a single portable HTML presentation with sharp vector frames.</p>
         <div class="actions">
           <a class="button primary" href="docs.html#getting-started">Get started</a>
-          <a class="button secondary" href="playground.html">Open the playground</a>
+          <a class="text-link" href="playground.html">Open the playground <span aria-hidden="true">→</span></a>
         </div>
       </div>
     </section>
 
-    <section class="showcase shell" aria-label="Live examples">
-      <div class="showcase-tabs" role="tablist" aria-label="Choose an example">
-        <button role="tab" type="button" aria-selected="true" data-example="showcase">Pythagoras</button>
-        <button role="tab" type="button" aria-selected="false" data-example="formula-morph">Formula morph</button>
-        <button role="tab" type="button" aria-selected="false" data-example="create-reveal">Draw-in</button>
-        <button role="tab" type="button" aria-selected="false" data-example="transitions">Transitions</button>
-      </div>
-      <div class="showcase-panel" role="tabpanel">
-        <div class="code-window">
-          <div class="code-bar"><span></span><span></span><span></span><b data-showcase-file>showcase.typ</b></div>
-          <pre><code class="language-typst" data-showcase-code>#create(tri: triangle, duration: 1.2)
+    <section class="instrument-wrap shell" aria-label="Live example">
+      <figure class="instrument">
+        <div class="ins-panel on-stage" data-instrument>
+          <div class="ins-bar">
+            <div class="ins-tabs" role="tablist" aria-label="Choose an example">
+              <button role="tab" type="button" aria-selected="true" data-example="showcase">Pythagoras</button>
+              <button role="tab" type="button" aria-selected="false" tabindex="-1" data-example="formula-morph">Formula morph</button>
+              <button role="tab" type="button" aria-selected="false" tabindex="-1" data-example="create-reveal">Draw-in</button>
+              <button role="tab" type="button" aria-selected="false" tabindex="-1" data-example="transitions">Transitions</button>
+            </div>
+            <div class="ins-links">
+              <a data-ins-edit href="playground.html">Edit in playground</a>
+              <a data-ins-open href="examples/showcase.html" target="_blank" rel="noopener">Open export <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+
+          <div class="ins-source">
+            <div class="ins-file" data-ins-file>showcase.typ</div>
+            <pre tabindex="0" aria-label="Typst source of the example"><code class="language-typst" data-ins-code>#create(tri: triangle, duration: 1.2)
 #animate(trace: 100%, duration: .7)
-#animate(eq: formula($part(c^2, key: "c") part(=) part(a^2) part(+) part(b^2)$))
-#animate(eq: formula($part(c^2, key: "c") part(=) 3^2 part(+) 4^2$))
-#animate(eq: formula($part(c, key: "c/base") part(=) 5$))</code></pre>
-        </div>
-        <div class="result-window">
-          <div class="result-bar">
-            <b>Exported HTML</b>
-            <span class="result-links">
-              <a data-showcase-edit href="playground.html">Edit in playground</a>
-              <a data-showcase-open href="examples/showcase.html" target="_blank" rel="noopener">Open ↗</a>
-            </span>
+#animate(eq: formula($part(c^2, key: "c") part(=) part(a^2) part(+) part(b^2)$), duration: 1)
+#animate(eq: formula($part(c^2, key: "c") part(=) 3^2 part(+) 4^2$), duration: .9)
+#animate(eq: formula($part(c, key: "c/base") part(=) 5$), duration: .9)
+#animate(trace: 0%, duration: 1.6)
+#cut(loop: true)</code></pre>
           </div>
-          <div class="result-frame">
-            <iframe data-showcase-frame src="examples/showcase.html" title="Exported Glissade example" loading="lazy"></iframe>
+
+          <div class="ins-stage">
+            <div class="ins-canvas" data-ins-canvas></div>
+            <p class="ins-status" data-ins-status>Loading the export…</p>
+          </div>
+
+          <div class="ins-timeline">
+            <div class="ins-transport">
+              <button class="ins-play" type="button" data-ins-play aria-label="Play">
+                <svg class="icon-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.4v11.2L13.6 8z" /></svg>
+                <svg class="icon-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h3.2v11H3.5zM9.3 2.5h3.2v11H9.3z" /></svg>
+              </button>
+              <div class="ins-readout" aria-hidden="true"><b data-ins-time>0.00 s</b><span data-ins-frame>frame 1 / 1</span></div>
+            </div>
+            <div class="ins-track" data-ins-track role="slider" tabindex="0" aria-label="Animation playhead" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+              <div class="ins-ruler" data-ins-ruler></div>
+              <div class="ins-blocks" data-ins-blocks></div>
+              <div data-ins-cuts></div>
+              <div class="ins-playhead" data-ins-playhead></div>
+            </div>
           </div>
         </div>
-      </div>
-      <p class="showcase-caption">Each preview is the real HTML export of the source beside it, generated by the Glissade CLI.</p>
+        <figcaption>The stage plays the frames of the real HTML export of this source, with the same browser runtime as a Glissade presentation. Drag the playhead to scrub, or click an animation line to jump to its block.</figcaption>
+      </figure>
     </section>
 
-    <section class="features shell" aria-labelledby="features-title">
-      <div class="section-heading">
-        <span>01 / What it does</span>
-        <h2 id="features-title">From Typst source to a presentation you control.</h2>
-      </div>
-      <div class="feature-grid">
-        <article>
-          <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M4 30h32M8 30V18M16 30V10M24 30V22M32 30V14" /></svg>
-          <b>Timeline as code</b>
-          <p>Declare values with <code>init</code>, change them with <code>animate</code>, <code>then</code>, and <code>meanwhile</code>, and read them with <code>a("name")</code> anywhere in the slide.</p>
-        </article>
-        <article>
-          <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M6 28c6-14 10-14 14 0s8 14 14 0" /><circle cx="6" cy="28" r="2.5" /><circle cx="34" cy="28" r="2.5" /></svg>
-          <b>Vector-native motion</b>
-          <p>Morph formulas part by part, interpolate SVG geometry, and draw shapes in. Frames stay resolution-independent at any screen size.</p>
-        </article>
-        <article>
-          <svg viewBox="0 0 40 40" aria-hidden="true"><rect x="5" y="8" width="30" height="22" rx="2" /><path d="M17 15v8l6-4z" /><path d="M13 35h14" /></svg>
-          <b>Presenter control</b>
-          <p>Playback pauses at every <code>cut</code>. Continue with keyboard, click, or touch, jump back to boundaries, and open a slide overview.</p>
-        </article>
-        <article>
-          <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M10 5h14l8 8v22H10z" /><path d="M24 5v8h8M15 22h12M15 27h8" /></svg>
-          <b>One portable file</b>
-          <p>Export a self-contained HTML file with compressed SVG frames and the browser runtime. It opens locally, no server needed.</p>
-        </article>
-        <article>
-          <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 8h24v24H8z" /><path d="M8 16h24M16 16v16" /></svg>
-          <b>Works with Touying</b>
-          <p>Keep Touying for layout and themes, and drop Glissade animation segments between its native pauses.</p>
-        </article>
-        <article>
-          <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="14" /><path d="M20 11v9l6 4" /></svg>
-          <b>Live editor</b>
-          <p>The <code>dev</code> command rebuilds on save and shows a draggable playhead, animation blocks, and cut markers.</p>
-        </article>
+    <section class="band" aria-labelledby="features-title">
+      <div class="shell">
+        <div class="band-grid">
+          <p class="band-label">capabilities</p>
+          <h2 id="features-title">From Typst source to a presentation <em>you control.</em></h2>
+        </div>
+        <div class="index">
+          <a class="index-row" href="docs.html#primitives">
+            <div class="index-terms"><code>init</code><code>animate</code><code>then</code><code>meanwhile</code><code>a("name")</code></div>
+            <div class="index-body">
+              <h3>Timeline as code</h3>
+              <span class="index-go" aria-hidden="true">Primitives →</span>
+              <p>Declare values with <code>init</code>, change them with <code>animate</code>, <code>then</code>, and <code>meanwhile</code>, and read them with <code>a("name")</code> anywhere in the slide.</p>
+            </div>
+          </a>
+          <a class="index-row" href="docs.html#formula-morph">
+            <div class="index-terms"><code>formula</code><code>part</code><code>glissade-morph</code><code>create</code></div>
+            <div class="index-body">
+              <h3>Vector-native motion</h3>
+              <span class="index-go" aria-hidden="true">Formula morphing →</span>
+              <p>Morph formulas part by part, interpolate SVG geometry, and draw shapes in. Frames stay resolution-independent at any screen size.</p>
+            </div>
+          </a>
+          <a class="index-row" href="docs.html#export">
+            <div class="index-terms"><code>glissade slides.typ html</code></div>
+            <div class="index-body">
+              <h3>One portable file</h3>
+              <span class="index-go" aria-hidden="true">Export →</span>
+              <p>Export a self-contained HTML file with compressed SVG frames and the browser runtime. It opens locally, no server needed.</p>
+            </div>
+          </a>
+          <a class="index-row" href="docs.html#touying">
+            <div class="index-terms"><code>glissade.touying(…)</code></div>
+            <div class="index-body">
+              <h3>Works with Touying</h3>
+              <span class="index-go" aria-hidden="true">Touying →</span>
+              <p>Keep Touying for layout and themes, and drop Glissade animation segments between its native pauses.</p>
+            </div>
+          </a>
+          <a class="index-row" href="docs.html#export">
+            <div class="index-terms"><code>glissade slides.typ dev</code></div>
+            <div class="index-body">
+              <h3>Live editor</h3>
+              <span class="index-go" aria-hidden="true">Preview →</span>
+              <p>The <code>dev</code> command rebuilds on save and shows a draggable playhead, animation blocks, and cut markers.</p>
+            </div>
+          </a>
+        </div>
       </div>
     </section>
 
-    <section class="workflow" aria-labelledby="quickstart-title">
-      <div class="shell workflow-inner">
-        <div class="section-heading light">
-          <span>02 / Quick start</span>
-          <h2 id="quickstart-title">Stay in Typst.<br>Test in the browser.</h2>
-          <p>Requires Python 3.10+ and Typst. Video export also needs FFmpeg.</p>
+    <section class="band" aria-labelledby="presenting-title">
+      <div class="shell band-grid">
+        <p class="band-label">presenting</p>
+        <div>
+          <h2 id="presenting-title">Playback pauses at every cut. <em>You decide when it continues.</em></h2>
+          <p class="band-intro">A <code>cut</code> is a boundary you place in the timeline. The animation plays up to it and waits for you, and a looping cut repeats its segment while you talk.</p>
+          <div class="cutline-wrap">
+            <div class="cutline" role="img" aria-label="A timeline of three segments. Playback stops at the first two cuts and waits for the presenter. The last cut loops its segment until the presenter continues.">
+              <span class="cut-seg first">plays</span>
+              <span class="cut-stop"><b>cut()</b><i>waits</i></span>
+              <span class="cut-seg">plays</span>
+              <span class="cut-stop"><b>cut()</b><i>waits</i></span>
+              <span class="cut-seg last">repeats ↻</span>
+              <span class="cut-stop at-end"><b>cut(loop: true)</b><i>until you continue</i></span>
+            </div>
+          </div>
+          <dl class="keys">
+            <div><dt><kbd>→</kbd><kbd>PgDn</kbd></dt><dd>Start or continue. Press rapidly to step through keyframes.</dd></div>
+            <div><dt><kbd>←</kbd><kbd>PgUp</kbd></dt><dd>Return to the current or previous animation boundary.</dd></div>
+            <div><dt><kbd>Space</kbd></dt><dd>Play or pause.</dd></div>
+            <div><dt><kbd>O</kbd><kbd>F</kbd></dt><dd>Open the slide overview, or enter fullscreen.</dd></div>
+            <div><dt><span class="gesture">click</span></dt><dd>Continue when paused. Double-click a playing animation to pause it.</dd></div>
+            <div><dt><span class="gesture">tap · swipe</span></dt><dd>Tap to play or pause, swipe left to continue, swipe right to go back.</dd></div>
+          </dl>
         </div>
-        <ol>
-          <li><span>1</span><div><b>Install</b><p>From a checkout of the repository:</p><pre><code class="language-bash">uv tool install .</code></pre></div></li>
-          <li><span>2</span><div><b>Preview</b><p>Rebuild on every save and scrub through frames:</p><pre><code class="language-bash">glissade slides.typ dev</code></pre></div></li>
-          <li><span>3</span><div><b>Export</b><p>Package everything into one HTML file, like the <a href="example.html">example deck</a>:</p><pre><code class="language-bash">glissade slides.typ html --fps 24</code></pre></div></li>
+      </div>
+    </section>
+
+    <section class="start on-stage" aria-labelledby="quickstart-title">
+      <div class="shell start-grid">
+        <div>
+          <p class="band-label">quick start</p>
+          <h2 id="quickstart-title">Stay in Typst.<br><em>Test in the browser.</em></h2>
+          <p class="start-note">Requires Python 3.10+ and Typst. Video export also needs FFmpeg.</p>
+          <a class="text-link" href="docs.html#getting-started">Read the guide <span aria-hidden="true">→</span></a>
+        </div>
+        <ol class="steps">
+          <li><div><b>Install</b><p>From a checkout of the repository:</p><pre data-copy><code class="language-bash">uv tool install .</code></pre></div></li>
+          <li><div><b>Preview</b><p>Rebuild on every save and scrub through frames:</p><pre data-copy><code class="language-bash">glissade slides.typ dev</code></pre></div></li>
+          <li><div><b>Export</b><p>Package everything into one HTML file, like the <a href="example.html">example deck</a>:</p><pre data-copy><code class="language-bash">glissade slides.typ html --fps 24</code></pre></div></li>
         </ol>
       </div>
     </section>
 
-    <section class="origin shell">
-      <div class="section-heading"><span>03 / Status</span><h2>Early version, open design.</h2></div>
-      <p>Glissade is experimental, so the Typst API and export format may change. It started from <a href="https://github.com/aualbert/kino">Kino</a> as its animation foundation and explores how that proof of concept fits a browser-focused presentation workflow. Feedback and issues are welcome on <a href="https://github.com/Bramas/glissade">GitHub</a>.</p>
+    <section class="band" aria-labelledby="status-title">
+      <div class="shell band-grid">
+        <p class="band-label">status</p>
+        <div>
+          <h2 id="status-title">Early version, open design.</h2>
+          <p class="band-intro">Glissade is experimental, so the Typst API and export format may change. It started from <a href="https://github.com/aualbert/kino">Kino</a> as its animation foundation and explores how that proof of concept fits a browser-focused presentation workflow. Feedback and issues are welcome on <a href="https://github.com/Bramas/glissade">GitHub</a>.</p>
+        </div>
+      </div>
     </section>
   </main>
 
-  <footer class="shell"><span>Glissade · MIT</span><a href="https://github.com/Bramas/glissade">Source on GitHub ↗</a></footer>
+  <footer class="site-footer shell">
+    <p><a class="wordmark" href="./">glissade</a></p>
+    <nav aria-label="Footer navigation">
+      <a href="docs.html">Docs</a>
+      <a href="playground.html">Playground</a>
+      <a href="example.html">Example deck</a>
+      <a href="https://github.com/Bramas/glissade">Source on GitHub ↗</a>
+    </nav>
+    <p>MIT licensed</p>
+  </footer>
+
   <script src="highlight.js"></script>
-  <script>
-    (() => {
-      const tabs = [...document.querySelectorAll(".showcase-tabs [data-example]")];
-      const code = document.querySelector("[data-showcase-code]");
-      const file = document.querySelector("[data-showcase-file]");
-      const frame = document.querySelector("[data-showcase-frame]");
-      const open = document.querySelector("[data-showcase-open]");
-      const edit = document.querySelector("[data-showcase-edit]");
-      const cache = new Map();
-
-      const toBase64Url = text => {
-        let binary = "";
-        for (const byte of new TextEncoder().encode(text)) binary += String.fromCharCode(byte);
-        return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
-      };
-
-      async function source(name) {
-        if (!cache.has(name)) {
-          cache.set(name, fetch(`examples/${name}.typ`).then(response => {
-            if (!response.ok) throw new Error(response.statusText);
-            return response.text();
-          }));
-        }
-        return cache.get(name);
-      }
-
-      async function select(tab) {
-        const name = tab.dataset.example;
-        for (const item of tabs) item.setAttribute("aria-selected", String(item === tab));
-        file.textContent = `${name}.typ`;
-        frame.src = `examples/${name}.html`;
-        open.href = `examples/${name}.html`;
-        try {
-          const text = (await source(name)).trim();
-          if (!tab.matches('[aria-selected="true"]')) return;
-          const shown = text.replace(/^#import "[^"]*lib\.typ": \*/m, '#import "@preview/glissade:0.1.0": *');
-          code.innerHTML = globalThis.GlissadeHighlight.typst(shown);
-          // Start at the slide body; the setup above it stays a scroll away.
-          const slideLine = shown.split("\n").findIndex(line => line.startsWith("#slide("));
-          const lineHeight = parseFloat(getComputedStyle(code.parentElement).lineHeight) || 21;
-          code.parentElement.scrollTop = Math.max(0, slideLine - 1) * lineHeight;
-          const playground = text.replace(/^#import "[^"]*lib\.typ": \*/m, '#import "glissade.typ": *');
-          edit.href = "playground.html#code=t:" + toBase64Url(playground);
-        } catch {
-          edit.href = "playground.html";
-        }
-      }
-
-      tabs.forEach((tab, index) => {
-        tab.addEventListener("click", () => select(tab));
-        tab.addEventListener("keydown", event => {
-          const delta = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-          if (!delta) return;
-          const next = tabs[(index + delta + tabs.length) % tabs.length];
-          next.focus();
-          select(next);
-        });
-      });
-      select(tabs[0]);
-    })();
-  </script>
+  <script src="runtime.js"></script>
+  <script src="home.js"></script>
 </body>
 </html>

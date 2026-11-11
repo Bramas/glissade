@@ -6,7 +6,7 @@
 
   const typstKeywords = new Set([
     "align", "animate", "circle", "context", "create", "cut", "deck",
-    "formula", "grid", "import", "init", "line", "meanwhile", "part", "place",
+    "formula", "grid", "import", "init", "let", "line", "meanwhile", "part", "place",
     "rect", "set", "show", "slide", "text", "then", "touying-animation", "v",
     "wait",
   ]);
@@ -30,10 +30,10 @@
   };
 
   const highlightShell = source => escapeHtml(source).replace(
-    /(#.*)|(\bpython3\b|\bglissade\.py\b|\bdev\b|\bhtml\b)|(--[\w-]+)|("[^"\n]*")/g,
-    (match, comment, command, flag, string) => {
+    /(#.*)|(^|\s)(python3|glissade(?:\.py)?|uv|pipx|bun|dev|html|video)(?=\s|$)|(--[\w-]+)|("[^"\n]*")/gm,
+    (match, comment, lead, command, flag, string) => {
       if (comment) return `<span class="tok-comment">${comment}</span>`;
-      if (command) return `<span class="tok-keyword">${command}</span>`;
+      if (command) return `${lead}<span class="tok-keyword">${command}</span>`;
       if (flag) return `<span class="tok-function">${flag}</span>`;
       if (string) return `<span class="tok-string">${string}</span>`;
       return match;
@@ -48,10 +48,47 @@
     return "typst";
   };
 
+  // Adds a copy button to every `pre[data-copy]`. The button sits in the
+  // closest `[data-copy-host]`, or in a wrapper created around the block.
+  const addCopyButtons = (root = document) => {
+    if (!navigator.clipboard) return;
+    for (const pre of root.querySelectorAll("pre[data-copy]")) {
+      let host = pre.closest("[data-copy-host]");
+      if (!host) {
+        host = document.createElement("div");
+        host.className = "copy-wrap";
+        pre.replaceWith(host);
+        host.append(pre);
+      }
+      if (host.querySelector(":scope > .copy-button")) continue;
+      host.classList.add("copyable");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "copy-button";
+      button.textContent = "Copy";
+      button.setAttribute("aria-label", "Copy code");
+      button.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(pre.textContent.trimEnd());
+        } catch {
+          return;
+        }
+        button.textContent = "Copied";
+        button.dataset.copied = "";
+        setTimeout(() => {
+          button.textContent = "Copy";
+          delete button.dataset.copied;
+        }, 1600);
+      });
+      host.append(button);
+    }
+  };
+
   globalThis.GlissadeHighlight = {
     typst: highlightTypst,
     shell: highlightShell,
     escapeHtml,
+    addCopyButtons,
   };
 
   for (const code of document.querySelectorAll("pre code")) {
@@ -61,4 +98,6 @@
       ? highlightShell(source)
       : highlightTypst(source);
   }
+
+  addCopyButtons();
 })();

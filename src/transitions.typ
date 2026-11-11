@@ -37,25 +37,35 @@
   }
 }
 
+/// Cubic ease-in: starts slowly, ends at full speed.
+#let ease-in(t) = calc.pow(t, 3)
+
+/// Cubic ease-out: starts at full speed, settles gently.
+#let ease-out(t) = 1 - calc.pow(1 - t, 3)
+
+/// Cubic ease-in-out: a gentler curve than `smooth`, which spends most of its
+/// time almost still and can look abrupt on short moves.
+#let ease-in-out(t) = if t < 0.5 { 4 * calc.pow(t, 3) } else { 1 - calc.pow(-2 * t + 2, 3) / 2 }
+
+#let _transitions = (
+  "linear": linear,
+  "smooth": smooth,
+  "quad": quad,
+  "cubic": cubic,
+  "quart": quart,
+  "sin": sin,
+  "circ": circ,
+  "ease-in": ease-in,
+  "ease-out": ease-out,
+  "ease-in-out": ease-in-out,
+)
+
+/// Resolves a transition given by name; functions are returned as they are.
 #let get_transition(tr) = {
-  if tr == "linear" {
-    return linear
-  } else if tr == "smooth" {
-    return smooth
-  } else if tr == "sin" {
-    return sin
-  } else if tr == "quad" {
-    return quad
-  } else if tr == "cubic" {
-    return cubic
-  } else if tr == "quart" {
-    return quart
-  } else if tr == "sin" {
-    return sin
-  } else if tr == "circ" {
-    return circ
+  if type(tr) == str {
+    assert(tr in _transitions, message: "unknown transition \"" + tr + "\"; expected one of " + _transitions.keys().join(", ") + ", or a function")
+    _transitions.at(tr)
   } else {
-    return tr
+    tr
   }
 }
-

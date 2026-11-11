@@ -20,6 +20,17 @@ def new_manifest(args):
     }
 
 
+def _valid_patch_content(patch):
+    """A patch replaces one element (`svg`) or rebuilds a child list (`children`)."""
+    if "children" not in patch:
+        return isinstance(patch.get("svg"), str)
+    children = patch["children"]
+    return "svg" not in patch and isinstance(children, list) and all(
+        isinstance(child, str) or (type(child) is int and child >= 0)
+        for child in children
+    )
+
+
 def validate_manifest(manifest):
     """Reject incomplete frames and invalid boundaries before publishing a build."""
     if manifest.get("schemaVersion") != SCHEMA_VERSION:
@@ -76,12 +87,18 @@ def validate_manifest(manifest):
                     not isinstance(patch, dict)
                     or not isinstance(patch.get("path"), list)
                     or not patch["path"]
-                    or not isinstance(patch.get("svg"), str)
+                    or not _valid_patch_content(patch)
                     or any(
                         not isinstance(item, int) or item < 0 for item in patch["path"]
                     )
                 ):
                     raise ValueError("Invalid SVG delta patch")
+        for cut in scene["cuts"]:
+            start = cut.get("loopStart")
+            if start is not None and (
+                not isinstance(start, int) or not 0 <= start < cut["frame"]
+            ):
+                raise ValueError("A loop must start before its cut")
         for boundaries in (scene["keyframes"], [cut["frame"] for cut in scene["cuts"]]):
             if boundaries != sorted(set(boundaries)):
                 raise ValueError("Frame boundaries must be ordered and unique")

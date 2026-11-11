@@ -51,6 +51,17 @@
     return promise;
   }
 
+  // A delta patch replaces the element at `path` with `svg`, or rebuilds that
+  // element's child list from `children`: numbers pick children of the base
+  // frame, strings are new markup.
+  function isSvgDeltaPatch(patch) {
+    if (!Array.isArray(patch?.path) || !patch.path.length
+        || patch.path.some(value => !Number.isInteger(value) || value < 0)) return false;
+    if (patch.children === undefined) return typeof patch.svg === "string";
+    return patch.svg === undefined && Array.isArray(patch.children)
+      && patch.children.every(child => typeof child === "string" || (Number.isInteger(child) && child >= 0));
+  }
+
   function validateManifest(manifest) {
     // Older standalone exports predate schemaVersion and remain readable.
     if ((manifest?.schemaVersion ?? 1) !== 1) throw new Error("Unsupported Glissade manifest schema");
@@ -72,8 +83,11 @@
             || source.base < 0 || source.base >= index) throw new Error("Invalid SVG delta base");
         if (Number.isInteger(source.patches) && source.patches >= 0 && scene.sharedSvg) continue;
         if (!Array.isArray(source.patches)) throw new Error("Invalid SVG delta patches");
-        if (source.patches.some(patch => !Array.isArray(patch?.path) || !patch.path.length
-            || typeof patch.svg !== "string" || patch.path.some(value => !Number.isInteger(value) || value < 0))) throw new Error("Invalid SVG delta patch");
+        if (source.patches.some(patch => !isSvgDeltaPatch(patch))) throw new Error("Invalid SVG delta patch");
+      }
+      if (scene.cuts?.some(cut => cut.loopStart !== undefined
+          && !(Number.isInteger(cut.loopStart) && cut.loopStart >= 0 && cut.loopStart < cut.frame))) {
+        throw new Error("Invalid loop start");
       }
       for (const boundaries of [scene.keyframes, scene.cuts?.map(cut => cut.frame)]) {
         if (!Array.isArray(boundaries) || boundaries.some((value, index) =>
@@ -275,6 +289,14 @@
     return ordered;
   }
 
+  // A loop cut repeats from its own `loopStart` when it has one, and otherwise
+  // from the previous cut (or the first frame).
+  function loopStartFrame(scene, cut) {
+    if (Number.isInteger(cut.loopStart)) return clamp(cut.loopStart, 0, cut.frame);
+    const previousCut = [...scene.cuts].reverse().find(item => item.frame < cut.frame);
+    return previousCut ? previousCut.frame : 0;
+  }
+
   function advancePlaybackFrame(scene, startFrame, steps) {
     let frame = startFrame;
     let remaining = Math.max(0, steps);
@@ -287,8 +309,7 @@
       remaining -= distance;
       if (!cut) return { frame, ended: true };
       if (!cut.loop) return { frame, cut };
-      const previousCut = [...scene.cuts].reverse().find(item => item.frame < cut.frame);
-      const loopStart = previousCut ? previousCut.frame : 0;
+      const loopStart = loopStartFrame(scene, cut);
       const loopLength = cut.frame - loopStart;
       if (loopLength <= 0) return { frame, cut };
       frame = loopStart;
@@ -319,6 +340,7 @@
     SVG_NS,
     BoundedCache,
     memoizeAsync,
+    isSvgDeltaPatch,
     validateManifest,
     clamp,
     lerp,
@@ -337,6 +359,7 @@
     rectTranslationForElement,
     morphSelector,
     sceneKeyframes,
+    loopStartFrame,
     advancePlaybackFrame,
     segmentForFrame,
   });

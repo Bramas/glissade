@@ -145,6 +145,27 @@ def _remove_old_formula_ids(root: ET.Element) -> None:
                 del element.attrib[attribute]
 
 
+_TAGGING_HINTS = (
+    START_FILL,
+    END_FILL,
+    MORPH_START_FILL,
+    MORPH_END_FILL,
+    PART_ID_PREFIX,
+    MORPH_ID_PREFIX,
+    "data-glissade-",
+)
+
+
+def needs_tagging(svg_content: str) -> bool:
+    """Whether a frame holds Glissade sentinels or identifiers from a past run.
+
+    Most frames of a presentation have neither, and are left as Typst wrote
+    them instead of being parsed and serialized again.
+    """
+    lowered = svg_content.lower()
+    return any(hint in lowered for hint in _TAGGING_HINTS)
+
+
 def tag_svg_groups(
     svg_content: str,
     part_specs: list[dict[str, str]] | None = None,

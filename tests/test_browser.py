@@ -124,6 +124,56 @@ class BrowserTests(unittest.TestCase):
                 self.assertBoxesClose(self.box(layer_root), expected)
         self.assertFalse(self.errors)
 
+    def test_deltas_draw_the_same_frames_when_elements_come_and_go(self):
+        # Elements that appear or leave between two frames are encoded as a
+        # rebuilt child list. The browser must draw what Typst rendered.
+        body = (
+            f'#import "{ROOT / "lib.typ"}": *\n'
+            "#set page(width: 80mm, height: 60mm)\n#show: deck\n"
+            '#slide(id: "demo")[#init(t: 0.0)#animate(t: 4.0, duration: 1, transition: "ease-in-out")'
+            '#context { let t = a("t")\n'
+            "  for k in range(4) { if t > k + 0.3 and t < k + 2.2 { place(dx: k * 12pt, circle(radius: 4pt, fill: blue)) } }\n"
+            "  place(dy: 20pt, dx: t * 9pt, rect(width: 6pt, height: 6pt, fill: red))\n"
+            "  place(dy: 34pt)[frame #calc.round(t, digits: 2)] }]"
+        )
+        drawn = {}
+        for name, options in [("deltas", ["--no-compress-frames"]), ("plain", ["--no-optimize-frames"])]:
+            source = self.directory / f"{name}.typ"
+            source.write_text(body)
+            args = create_parser().parse_args(
+                ["--root", "/", str(source), "html", "--fps", "12", *options]
+            )
+            self.assertEqual(handle_html(args), 0)
+            self.page.goto(
+                f"https://glissade.test/{name}.html?glissade-debug=1",
+                wait_until="domcontentloaded",
+            )
+            self.page.evaluate("GlissadeDebug.ready")
+            drawn[name] = []
+            for frame in range(self.manifest(name)["scenes"][0]["frameCount"]):
+                self.render(frame)
+                drawn[name].append(self.page.evaluate(
+                    """() => {
+                        const describe = element => [
+                            element.localName,
+                            [...element.attributes]
+                                .filter(attribute => !attribute.name.startsWith("xmlns") && attribute.name !== "class")
+                                .map(attribute => attribute.localName + "=" + attribute.value).sort(),
+                            element.children.length ? [...element.children].map(describe) : element.textContent,
+                        ];
+                        return JSON.stringify(describe(document.querySelector(".glissade-stage-base")));
+                    }"""
+                ))
+        frames = self.manifest("deltas")["scenes"][0]["frames"]
+        self.assertTrue(any(
+            "children" in patch
+            for frame in frames if isinstance(frame, dict)
+            for patch in frame["patches"]
+        ))
+        self.assertEqual(len(drawn["deltas"]), 13)
+        self.assertEqual(drawn["deltas"], drawn["plain"])
+        self.assertFalse(self.errors)
+
     def test_unchanged_formula_is_not_crossfaded(self):
         # While the triangle draws in, the formula does not change and must be
         # drawn as-is rather than through the morph composite.

@@ -111,6 +111,8 @@
   let maximum = 1
   let cuts = ()
   let loops = ()
+  // For loops limited to their last blocks: looping block -> number of blocks.
+  let loop-spans = (:)
   for operation in _collect-operations(body) {
     let kind = operation.kind
     if kind == "init" {
@@ -138,8 +140,9 @@
       timeline = _add(timeline, block, (builtin_pause_counter: 0%), 0, operation.duration, 0, "linear", none, "append")
     } else if kind == "cut" {
       cuts.push(current)
-      if operation.loop { loops.push(current) }
+      if operation.loop != false { loops.push(current) }
+      if type(operation.loop) == int { loop-spans.insert(str(current), operation.loop) }
     }
   }
-  (timeline: timeline, cuts: cuts, loops: loops)
+  (timeline: timeline, cuts: cuts, loops: loops, loop-spans: loop-spans)
 }

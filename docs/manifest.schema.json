@@ -27,15 +27,17 @@
           {"type": "string"},
           {"type": "object", "required": ["kind", "base", "patches"], "properties": {
             "kind": {"const": "svg-delta-v1"}, "base": {"$ref": "#/$defs/frame"},
-            "patches": {"oneOf": [{"$ref": "#/$defs/frame"}, {"type": "array", "items": {"type": "object", "required": ["path", "svg"], "properties": {
+            "patches": {"oneOf": [{"$ref": "#/$defs/frame"}, {"type": "array", "items": {"type": "object", "required": ["path"], "oneOf": [{"required": ["svg"]}, {"required": ["children"]}], "properties": {
               "path": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/frame"}},
-              "svg": {"type": "string"}
+              "svg": {"type": "string"},
+              "children": {"type": "array", "items": {"oneOf": [{"$ref": "#/$defs/frame"}, {"type": "string"}]}}
             }}}]}
           }}
         ]}},
         "keyframes": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/frame"}},
         "cuts": {"type": "array", "items": {"type": "object", "required": ["frame", "loop"], "properties": {
-          "frame": {"$ref": "#/$defs/frame"}, "loop": {"type": "boolean"}
+          "frame": {"$ref": "#/$defs/frame"}, "loop": {"type": "boolean"},
+          "loopStart": {"$ref": "#/$defs/frame"}
         }}},
         "blocks": {"type": "array"},
         "morphAnimations": {"type": "array"}

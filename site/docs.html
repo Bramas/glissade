@@ -5,41 +5,63 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Glissade documentation with focused Typst slide examples and live rendered results.">
   <title>Documentation — Glissade</title>
-  <link rel="stylesheet" href="styles.css?v=3">
+  <link rel="preload" href="fonts/newcm-book.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css?v=4">
   <link rel="icon" type="image/png" sizes="32x32" href="./favicon.png">
 </head>
 <body class="docs-page">
+  <a class="skip" href="#main">Skip to content</a>
   <header class="nav shell">
-    <a class="wordmark" href="./">glissade<span>.</span></a>
-    <nav><a class="active" href="docs.html">Docs</a><a href="playground.html">Playground</a><a href="example.html">Example</a><a class="github" href="https://github.com/Bramas/glissade">GitHub ↗</a></nav>
+    <a class="wordmark" href="./" aria-label="Glissade home">glissade</a>
+    <nav aria-label="Primary navigation">
+      <a class="active" href="docs.html" aria-current="page">Docs</a>
+      <a href="playground.html">Playground</a>
+      <a class="optional" href="example.html">Example</a>
+      <a class="github" href="https://github.com/Bramas/glissade">GitHub <span aria-hidden="true">↗</span></a>
+    </nav>
   </header>
-  <main class="docs shell">
-    <aside>
-      <span>Documentation</span>
-      <a href="#getting-started">Getting started</a>
-      <a href="#touying">Touying</a>
-      <a href="#state">Animation state</a>
-      <a href="#primitives">Primitive reference</a>
-      <a href="#animate">animate</a>
-      <a href="#meanwhile">meanwhile</a>
-      <a href="#sequence">then, wait, cut</a>
-      <a href="#loop">loop</a>
-      <a href="#transitions">transitions</a>
-      <a href="#formula-morph">formula morphing</a>
-      <a href="#create">create</a>
-      <a href="#metadata">slide metadata</a>
-      <a href="#playback">playback</a>
-      <a href="#export">export</a>
+  <div class="docs shell">
+    <aside class="toc" data-toc aria-label="On this page">
+      <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-list"><span>On this page</span><b data-toc-current>Getting started</b></button>
+      <div class="toc-list" id="toc-list">
+        <i class="toc-marker" data-toc-marker aria-hidden="true"></i>
+        <p class="toc-group">Start</p>
+        <a href="#getting-started">Getting started</a>
+        <a href="#touying">Touying</a>
+        <p class="toc-group">Timeline</p>
+        <a href="#state">State and interpolation</a>
+        <a href="#primitives">Primitives</a>
+        <a href="#animate"><code>animate</code></a>
+        <a href="#meanwhile"><code>meanwhile</code></a>
+        <a href="#sequence"><code>then</code>, <code>wait</code>, <code>cut</code></a>
+        <a href="#loop">Loops</a>
+        <a href="#transitions">Transitions</a>
+        <p class="toc-group">Browser motion</p>
+        <a href="#formula-morph">Formula morphing</a>
+        <a href="#create"><code>create</code></a>
+        <p class="toc-group">Presenting</p>
+        <a href="#metadata">Slide metadata</a>
+        <a href="#playback">Playback controls</a>
+        <p class="toc-group">Command line</p>
+        <a href="#export">Export and preview</a>
+      </div>
     </aside>
+    <main id="main">
     <article>
-      <div class="eyebrow">Documentation</div>
+      <div class="eyebrow">documentation</div>
       <h1>Small Typst examples, real rendered slides.</h1>
-      <p class="intro">Each feature below has a focused source snippet on the left and a rendered Glissade HTML slide on the right. The previews are exported from the matching files in <code>site/examples/</code>, so they exercise the same browser runtime used by actual presentations.</p>
+      <p class="intro">Each feature below has a focused source snippet beside a rendered Glissade HTML slide. The previews are exported from the matching files in <code>site/examples/</code>, so they exercise the same browser runtime used by actual presentations.</p>
 
-      <section id="getting-started" class="doc-section">
+      <section id="getting-started" class="doc-section" data-group="start">
         <h2>Getting started</h2>
+        <h3>Install</h3>
+        <p>Install the command from a checkout of the repository. It requires Python 3.10+ and Typst on your <code>PATH</code>; FFmpeg is needed only for video.</p>
+        <pre data-copy><code class="language-bash">uv tool install .</code></pre>
+        <p><code>pipx install .</code> works too. Without installing, run <code>python3 bin/glissade.py</code> wherever this page writes <code>glissade</code>.</p>
+
+        <h3>Write a deck</h3>
         <p>A Glissade deck is an ordinary Typst document with a <code>deck</code> show rule and one or more <code>slide</code> blocks. Inside a slide, animation state is declared with primitives such as <code>init</code>, <code>animate</code>, and <code>cut</code>, then read with <code>a("name")</code> inside <code>context</code>.</p>
-        <pre><code class="language-typst">#import "@preview/glissade:0.1.0": *
+        <pre data-copy><code class="language-typst">#import "@preview/glissade:0.1.0": *
 #set page(width: 128mm, height: 96mm)
 #show: deck.with(fps: 12)
 
@@ -54,12 +76,20 @@
   ]
 ]</code></pre>
         <p>The animation finishes automatically when the <code>slide</code> block closes. For ordinary Typst/PDF rendering, a slide-level <code>fps</code> overrides the deck FPS. The <code>html</code>, <code>dev</code>, and <code>video</code> commands instead use their command-line <code>--fps</code> value for every slide, defaulting to 30.</p>
+
+        <h3>Preview and export</h3>
+        <p>Use <code>dev</code> while authoring and <code>html</code> when you want a portable presentation. Every option is listed under <a href="#export">Export and preview</a>.</p>
+        <pre data-copy><code class="language-bash"># Live editor, rebuilt on every save
+glissade slides.typ dev
+
+# One self-contained HTML presentation
+glissade slides.typ html --fps 24</code></pre>
       </section>
 
-      <section id="touying" class="doc-section">
+      <section id="touying" class="doc-section" data-group="start">
         <h2>Use Glissade inside Touying</h2>
         <p>Touying can own slide layout, themes, and incremental reveals while Glissade supplies continuous animation segments. Bind Touying’s public <code>touying-fn-wrapper</code> once and place the resulting function between native <code>pause</code>, <code>uncover</code>, or <code>only</code> steps.</p>
-        <pre><code class="language-typst">#import "@preview/touying:0.7.3": *
+        <pre data-copy><code class="language-typst">#import "@preview/touying:0.7.3": *
 #import themes.simple: *
 #import "@preview/glissade:0.1.0" as glissade
 
@@ -85,14 +115,17 @@ Touying content
 #pause
 Another Touying reveal</code></pre>
         <p>The <code>html</code> and <code>dev</code> commands detect Touying metadata automatically. Native Touying subslides become presenter cuts; subslides reserved by <code>touying-animation</code> play continuously between those cuts. Glissade does not replace or wrap Touying’s <code>jump</code>, <code>pause</code>, or cover functions.</p>
-        <p>Do not add <code>#show: glissade.deck</code> to a Touying document: both functions are document-level renderers. <code>glissade.touying</code> sets the default FPS for every embedded animation in an ordinary <code>typst compile</code>. Pass <code>fps</code> directly to one <code>glissade-animation</code> call to override it locally. Glissade’s <code>html</code>, <code>dev</code>, and <code>video</code> commands use their command-line <code>--fps</code> value instead.</p>
+        <div class="note">
+          <p><strong>Do not add <code>#show: glissade.deck</code> to a Touying document:</strong> both functions are document-level renderers.</p>
+        </div>
+        <p><code>glissade.touying</code> sets the default FPS for every embedded animation in an ordinary <code>typst compile</code>. Pass <code>fps</code> directly to one <code>glissade-animation</code> call to override it locally. Glissade’s <code>html</code>, <code>dev</code>, and <code>video</code> commands use their command-line <code>--fps</code> value instead.</p>
       </section>
 
-      <section id="state" class="doc-section">
+      <section id="state" class="doc-section" data-group="timeline">
         <h2>Animation state and interpolation</h2>
         <p>State names are local to a slide. Declare an initial value with <code>init</code>, change it with an animation primitive, and read it with <code>a("name")</code> inside <code>context</code>. A state must keep a compatible type for its entire timeline.</p>
         <p>Glissade interpolates integers, floats, lengths, ratios, angles, arrays, and functions whose result has a supported type. Arrays must keep compatible element types. Content is held at its previous value until the transition completes; use <code>glissade-morph</code> when content should transform visually in the browser.</p>
-        <pre><code class="language-typst">#init(x: 0pt, opacity: 20%, samples: (0.0, 1.0))
+        <pre data-copy><code class="language-typst">#init(x: 0pt, opacity: 20%, samples: (0.0, 1.0))
 #animate(
   x: 8cm,
   opacity: 100%,
@@ -108,10 +141,24 @@ Another Touying reveal</code></pre>
         <p>If a state is first introduced by <code>animate</code>, Glissade infers a zero-like starting value. Explicit <code>init</code> is preferable when that inferred value would be unclear.</p>
       </section>
 
-      <section id="primitives" class="doc-section">
+      <section id="primitives" class="doc-section" data-group="timeline">
         <h2>Animation primitive reference</h2>
-        <p><code>animate</code> starts a new timeline block. <code>meanwhile</code> places another animation at the start of the current block, while <code>then</code> appends it after the current block’s existing content. <code>wait</code> extends a block without changing state, and <code>cut</code> creates a presenter boundary at its end.</p>
-        <pre><code class="language-typst">#animate(
+        <p>A slide’s timeline is a sequence of blocks. Each primitive either opens a block, adds to the current one, or marks its end.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Primitive</th><th>Effect on the timeline</th></tr></thead>
+            <tbody>
+              <tr><td><code>init</code></td><td>Declares the starting value of one or more states.</td></tr>
+              <tr><td><code>animate</code></td><td>Starts a new timeline block and interpolates states to new values.</td></tr>
+              <tr><td><code>meanwhile</code></td><td>Places another animation at the start of the current block.</td></tr>
+              <tr><td><code>then</code></td><td>Appends an animation after the current block’s existing content.</td></tr>
+              <tr><td><code>wait</code></td><td>Extends a block without changing state.</td></tr>
+              <tr><td><code>cut</code></td><td>Creates a presenter boundary at the end of the current block.</td></tr>
+              <tr><td><code>create</code></td><td>A convenience for content state: initializes it as empty and animates it in with <code>draw-border-then-fill</code> by default.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <pre data-copy><code class="language-typst">#animate(
   x: 8cm,
   hold: .2,        // delay before interpolation
   duration: .8,    // interpolation time
@@ -122,10 +169,41 @@ Another Touying reveal</code></pre>
 #then(color: blue, duration: .4)
 #wait(duration: .5)
 #cut(loop: false)</code></pre>
-        <p>Pass <code>block</code> to <code>animate</code> or <code>wait</code> only when you need explicit block placement. Most decks are clearer when they rely on the implicit sequence. <code>create</code> is a convenience for content state: it initializes the state as empty and animates it in with <code>draw-border-then-fill</code> by default.</p>
+
+        <h3>Timing</h3>
+        <p><code>animate</code>, <code>meanwhile</code>, <code>then</code>, and <code>create</code> share the same timing arguments, all in seconds.</p>
+        <figure class="timing">
+          <svg viewBox="0 0 620 150" role="img" aria-label="A value stays at its start during hold, moves to its target during duration, then stays at the target during dwell.">
+            <line class="axis" x1="0" y1="112" x2="620" y2="112" />
+            <line class="guide" x1="130" y1="14" x2="130" y2="112" />
+            <line class="guide" x1="460" y1="14" x2="460" y2="112" />
+            <path class="value" d="M0 96 H130 C250 96 340 30 460 30 H620" />
+            <line class="span" x1="0" y1="107" x2="0" y2="117" />
+            <line class="span" x1="130" y1="107" x2="130" y2="117" />
+            <line class="span" x1="460" y1="107" x2="460" y2="117" />
+            <line class="span" x1="620" y1="107" x2="620" y2="117" />
+            <text x="65" y="136" text-anchor="middle">hold</text>
+            <text x="295" y="136" text-anchor="middle">duration</text>
+            <text x="540" y="136" text-anchor="middle">dwell</text>
+            <text class="dim" x="8" y="84">previous value</text>
+            <text class="dim" x="612" y="20" text-anchor="end">new value</text>
+          </svg>
+        </figure>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Argument</th><th>Default</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td><code>hold</code></td><td><code>0</code></td><td>Delay before interpolation starts.</td></tr>
+              <tr><td><code>duration</code></td><td><code>1</code></td><td>Interpolation time. <code>wait</code> takes this argument too.</td></tr>
+              <tr><td><code>dwell</code></td><td><code>0</code></td><td>Time the final value is held before the block continues.</td></tr>
+              <tr><td><code>transition</code></td><td><code>"smooth"</code></td><td>The interpolation curve, as a function or its name. See <a href="#transitions">transitions</a>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Pass <code>block</code> to <code>animate</code> or <code>wait</code> only when you need explicit block placement. Most decks are clearer when they rely on the implicit sequence.</p>
       </section>
 
-      <section id="animate" class="doc-section">
+      <section id="animate" class="doc-section" data-group="timeline">
         <h2>Animate a value</h2>
         <p><code>init</code> gives a variable its starting value. <code>animate</code> creates the next timeline block and interpolates that variable to a new value. Use <code>a("width")</code> from a Typst context to read the value for the current frame.</p>
         <div class="example-card">
@@ -152,7 +230,7 @@ Another Touying reveal</code></pre>
         </div>
       </section>
 
-      <section id="meanwhile" class="doc-section">
+      <section id="meanwhile" class="doc-section" data-group="timeline">
         <h2>Coordinate variables with meanwhile</h2>
         <p><code>meanwhile</code> adds another variable animation to the current block. It is useful when several visual properties should change together: position and opacity, scale and color, or multiple diagram coordinates.</p>
         <div class="example-card">
@@ -180,7 +258,7 @@ Another Touying reveal</code></pre>
         </div>
       </section>
 
-      <section id="sequence" class="doc-section">
+      <section id="sequence" class="doc-section" data-group="timeline">
         <h2>Sequence steps with then, wait, and cut</h2>
         <p><code>then</code> appends an animation after the current block, <code>wait</code> holds state for a duration, and <code>cut</code> creates a playback boundary. In the browser, advancing moves through cuts before moving to the next slide.</p>
         <div class="example-card">
@@ -205,9 +283,10 @@ Another Touying reveal</code></pre>
         </div>
       </section>
 
-      <section id="loop" class="doc-section">
+      <section id="loop" class="doc-section" data-group="timeline">
         <h2>Loop a segment</h2>
         <p>Pass <code>loop: true</code> to <code>cut</code> when a segment should keep playing until the presenter advances. This is useful for ambient motion on title slides, waiting screens, or diagrams that should stay alive while you talk.</p>
+        <p>A loop normally repeats everything since the previous cut. Pass a number instead, as in <code>cut(loop: 2)</code>, when a longer animation ends in a cycle: the whole segment plays once, then only its last two <code>animate</code> blocks repeat.</p>
         <div class="example-card">
           <div class="live-code">
             <div class="example-bar"><span>loop.typ</span><b>looping cut</b></div>
@@ -233,9 +312,9 @@ Another Touying reveal</code></pre>
         </div>
       </section>
 
-      <section id="transitions" class="doc-section">
+      <section id="transitions" class="doc-section" data-group="timeline">
         <h2>Pick a transition function</h2>
-        <p>Animation primitives accept <code>transition</code>. Built-ins include <code>linear</code>, <code>smooth</code>, <code>quad</code>, <code>cubic</code>, <code>quart</code>, <code>sin</code>, and <code>circ</code>. You can also provide a custom function from <code>[0, 1]</code> to <code>[0, 1]</code>.</p>
+        <p>Animation primitives accept <code>transition</code>. Built-ins include <code>linear</code>, <code>smooth</code>, <code>quad</code>, <code>cubic</code>, <code>quart</code>, <code>sin</code>, <code>circ</code>, and the cubic <code>ease-in</code>, <code>ease-out</code> and <code>ease-in-out</code>. <code>smooth</code> stays almost still at both ends, which suits long moves; <code>ease-in-out</code> is gentler and reads better on moves shorter than a second. Each built-in can also be named by a string, such as <code>transition: "ease-in-out"</code>. You can also provide a custom function from <code>[0, 1]</code> to <code>[0, 1]</code>.</p>
         <div class="example-card">
           <div class="live-code">
             <div class="example-bar"><span>transitions.typ</span><b>curves</b></div>
@@ -259,7 +338,7 @@ Another Touying reveal</code></pre>
         </div>
       </section>
 
-      <section id="formula-morph" class="doc-section">
+      <section id="formula-morph" class="doc-section" data-group="browser motion">
         <h2>Morph formulas by marking parts</h2>
         <p>Wrap a formula in <code>formula(...)</code>, mark the pieces that should be tracked with <code>part</code>, then render the state with <code>glissade-morph</code>. Matching parts move between frames, while unmatched pieces can fade in or out.</p>
         <p>A compound part such as <code>part(a^2)</code> or <code>part(x+1)</code> moves as a whole: each of its glyphs is tracked under a key derived from the part's key (<code>…/base</code>, <code>…/t</code> for the exponent). Pass <code>key: "c"</code> to match parts whose bodies differ, for example <code>part(c^2, key: "c")</code> in one state and <code>part(c, key: "c/base")</code> in the next.</p>
@@ -287,7 +366,7 @@ Another Touying reveal</code></pre>
         </div>
       </section>
 
-      <section id="create" class="doc-section">
+      <section id="create" class="doc-section" data-group="browser motion">
         <h2>Create content with draw-border-then-fill</h2>
         <p><code>create</code> introduces content from an empty state. By default it attaches the <code>draw-border-then-fill</code> morph effect, so the browser runtime can draw the shape before filling it.</p>
         <div class="example-card">
@@ -316,7 +395,7 @@ Another Touying reveal</code></pre>
         </div>
       </section>
 
-      <section id="metadata" class="doc-section">
+      <section id="metadata" class="doc-section" data-group="presenting">
         <h2>Use slide metadata</h2>
         <p><code>slide</code> accepts an explicit <code>id</code>, a browser overview <code>title</code>, <code>autoplay</code>, and an <code>fps</code> used by ordinary Typst/PDF rendering. Glissade’s HTML, dev, and video exporters override source FPS settings with their command-line <code>--fps</code>. Use <code>slide-number()</code> when the rendered content should display its position in the deck.</p>
         <div class="example-card">
@@ -343,64 +422,79 @@ Another Touying reveal</code></pre>
         </div>
       </section>
 
-      <section id="playback" class="doc-section">
+      <section id="playback" class="doc-section" data-group="presenting">
         <h2>Present and navigate</h2>
         <p>The HTML viewer schedules logical frames from elapsed time. If the browser renders more slowly than the selected FPS, it skips intermediate frames instead of slowing the animation. It still stops exactly at non-looping cuts. Loop cuts repeat their preceding segment until you continue.</p>
-        <ul>
-          <li><strong>Right / Page Down:</strong> start or continue; press rapidly to step through keyframes.</li>
-          <li><strong>Left / Page Up:</strong> return to the current or previous animation boundary.</li>
-          <li><strong>Space:</strong> play or pause.</li>
-          <li><strong>Mouse:</strong> click the slide to continue when paused; double-click a playing animation to pause it.</li>
-          <li><strong>Touch:</strong> tap to play or pause, swipe left to continue, and swipe right to go back.</li>
-          <li><strong>O:</strong> open the slide overview and playback preferences.</li>
-          <li><strong>F:</strong> enter fullscreen.</li>
-        </ul>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Input</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td><kbd>→</kbd> <kbd>Page Down</kbd></td><td>Start or continue; press rapidly to step through keyframes.</td></tr>
+              <tr><td><kbd>←</kbd> <kbd>Page Up</kbd></td><td>Return to the current or previous animation boundary.</td></tr>
+              <tr><td><kbd>Space</kbd></td><td>Play or pause.</td></tr>
+              <tr><td><kbd>O</kbd></td><td>Open the slide overview and playback preferences.</td></tr>
+              <tr><td><kbd>F</kbd></td><td>Enter fullscreen.</td></tr>
+              <tr><td>Mouse</td><td>Click the slide to continue when paused; double-click a playing animation to pause it.</td></tr>
+              <tr><td>Touch</td><td>Tap to play or pause, swipe left to continue, and swipe right to go back.</td></tr>
+            </tbody>
+          </table>
+        </div>
         <p>The overview can pause playback when the tab is hidden or when the window loses focus. These preferences are stored in the browser. Generated manifests may provide defaults with <code>pauseWhenHidden</code> and <code>pauseWhenBlurred</code>.</p>
       </section>
 
-      <section id="export" class="doc-section">
+      <section id="export" class="doc-section" data-group="command line">
         <h2>Export and preview</h2>
-        <p>Install the command from a checkout with <code>uv tool install .</code> or <code>pipx install .</code>. It requires Python 3.10+ and Typst on your PATH; FFmpeg is needed for video. You can then use <code>glissade</code> in place of <code>python3 bin/glissade.py</code>.</p>
         <p>The command-line bridge compiles Typst, reads Glissade metadata, extracts SVG frames, and packages the browser runtime. Use <code>dev</code> while authoring and <code>html</code> when you want a portable presentation.</p>
-        <pre><code class="language-bash"># Live editor
-python3 bin/glissade.py --root . slides.typ dev --fps 12
+        <pre data-copy><code class="language-bash"># Live editor
+glissade --root . slides.typ dev --fps 12
 
 # Self-contained HTML presentation
-python3 bin/glissade.py --root . slides.typ html --fps 24 --title "My talk"
+glissade --root . slides.typ html --fps 24 --title "My talk"
 
 # MP4 video, split at every cut
-python3 bin/glissade.py --root . slides.typ video --fps 24 --cut all</code></pre>
-        <p><code>--root</code> sets the Typst project root and is important when slides import files outside their own directory. Both commands also accept <code>--ppi</code> and <code>--cut {all,scene,none}</code>; use <code>--host</code> and <code>--port</code> to change the dev server address.</p>
-        <p>HTML output embeds, minifies, gzip-compresses, and delta-optimizes SVG frames by default. Use <code>--no-embed-frames</code> for <code>slides.html</code> accompanied by its own <code>slides.frames/</code> directory (serve this variant over HTTP), <code>--no-compress-frames</code> or <code>--no-optimize-frames</code> while inspecting generated assets, and <code>--no-minify-svg</code> while debugging SVG markup. Run <code>python3 bin/glissade.py slides.typ html --help</code> for the complete current option list.</p>
-        <p>Video export requires FFmpeg. Use <code>--cut none</code> for one video containing the complete deck, <code>--cut scene</code> for one file per slide, or <code>--cut all</code> for one file per presenter segment. MP4 output uses H.264 with a browser-compatible pixel format. Video uses Typst raster frames; browser morph and drawing interpolation are available in HTML and the playground.</p>
+glissade --root . slides.typ video --fps 24 --cut all</code></pre>
+        <p><code>--root</code> sets the Typst project root and is important when slides import files outside their own directory. Run <code>glissade slides.typ html --help</code> for the complete current option list.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Option</th><th>Commands</th><th>Default</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td><code>--fps</code></td><td>all</td><td><code>30</code></td><td>Frames per second, for every slide.</td></tr>
+              <tr><td><code>--ppi</code></td><td>all</td><td><code>144</code></td><td>Pixels per inch.</td></tr>
+              <tr><td><code>--cut</code></td><td>all</td><td><code>all</code></td><td>Which cuts to consider: <code>all</code>, <code>scene</code>, or <code>none</code>.</td></tr>
+              <tr><td><code>--title</code></td><td><code>html</code></td><td></td><td>Title of the HTML presentation.</td></tr>
+              <tr><td><code>--progress</code></td><td><code>html</code></td><td>off</td><td>Display a progress bar.</td></tr>
+              <tr><td><code>--host</code>, <code>--port</code></td><td><code>dev</code></td><td><code>127.0.0.1</code>, <code>8765</code></td><td>Address of the live editor.</td></tr>
+              <tr><td><code>--format</code></td><td><code>video</code></td><td><code>mp4</code></td><td>Output video format.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>HTML output</h3>
+        <p>HTML output embeds, minifies, gzip-compresses, and delta-optimizes SVG frames by default. Use <code>--no-embed-frames</code> for <code>slides.html</code> accompanied by its own <code>slides.frames/</code> directory (serve this variant over HTTP), <code>--no-compress-frames</code> or <code>--no-optimize-frames</code> while inspecting generated assets, and <code>--no-minify-svg</code> while debugging SVG markup.</p>
+
+        <h3>Video</h3>
+        <p>Video export requires FFmpeg. Use <code>--cut none</code> for one video containing the complete deck, <code>--cut scene</code> for one file per slide, or <code>--cut all</code> for one file per presenter segment. MP4 output uses H.264 with a browser-compatible pixel format.</p>
+        <div class="note">
+          <p><strong>Video uses Typst raster frames.</strong> Browser morph and drawing interpolation are available in HTML and the playground.</p>
+        </div>
+
+        <h3>Live editor and playground</h3>
         <p>The live editor watches images, fonts and common data files alongside Typst sources, and retains the previous preview when compilation fails. The playground supports Glissade decks with <code>glissade-morph</code>, semantic <code>part</code> markers and <code>create</code>; Touying and arbitrary local imports remain CLI workflows.</p>
       </section>
     </article>
-  </main>
+    </main>
+  </div>
+  <footer class="site-footer shell">
+    <p><a class="wordmark" href="./">glissade</a></p>
+    <nav aria-label="Footer navigation">
+      <a href="docs.html">Docs</a>
+      <a href="playground.html">Playground</a>
+      <a href="example.html">Example deck</a>
+      <a href="https://github.com/Bramas/glissade">Source on GitHub ↗</a>
+    </nav>
+    <p>MIT licensed</p>
+  </footer>
   <script src="highlight.js"></script>
-  <script>
-    (() => {
-      const frames = [...document.querySelectorAll(".example-card iframe[data-src]")];
-      const replay = frame => {
-        const source = frame.dataset.src;
-        if (!source) return;
-        frame.src = source + "?loop=" + Date.now();
-      };
-      const observer = new IntersectionObserver(entries => {
-        for (const entry of entries) {
-          const frame = entry.target.querySelector("iframe[data-src]");
-          if (!frame) continue;
-          if (entry.isIntersecting) {
-            if (entry.target.dataset.visible !== "true") replay(frame);
-            entry.target.dataset.visible = "true";
-          } else {
-            entry.target.dataset.visible = "false";
-          }
-        }
-      }, { rootMargin: "-10% 0px -20% 0px", threshold: 0.35 });
-      for (const frame of frames) observer.observe(frame.closest(".example-card"));
-    })();
-  </script>
-  <footer class="shell"><span>Glissade · MIT</span><a href="https://github.com/Bramas/glissade">Source on GitHub ↗</a></footer>
+  <script src="docs.js"></script>
 </body>
 </html>

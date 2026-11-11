@@ -57,6 +57,38 @@ class ExportTests(unittest.TestCase):
                     (self.directory / f"frames-{duration}-{dwell}" / final).is_file()
                 )
 
+    def test_loops_over_the_last_blocks(self):
+        body = (
+            "#slide[#init(x: 0)#animate(x: 1)#cut()#animate(x: 2)#animate(x: 3)"
+            '#animate(x: 2)#cut(loop: 2)#animate(x: 5)#cut(loop: true)#context [#a("x")]]'
+        )
+        manifest = compile_project(self.args(self.source(body=body)), self.directory / "native")
+        self.assertEqual(
+            [(cut["frame"], cut["loop"], cut.get("loopStart")) for cut in manifest["scenes"][0]["cuts"]],
+            [(2, False, None), (8, True, 4), (10, True, None)],
+        )
+        touying = self.directory / "touying.typ"
+        touying.write_text(
+            (ROOT / "examples/touying.typ")
+            .read_text()
+            .replace('"../lib.typ"', f'"{ROOT / "lib.typ"}"')
+            .replace(
+                "#glissade.animate(duration: 1, x: 180pt)",
+                "#glissade.animate(x: 180pt)#glissade.animate(x: 0pt)"
+                "#glissade.animate(x: 180pt)#glissade.cut(loop: 2)",
+            )
+        )
+        self.assertIn("glissade.cut(loop: 2)", touying.read_text())
+        scenes = compile_project(self.args(touying), self.directory / "touying")["scenes"]
+        loops = [cut for scene in scenes for cut in scene["cuts"] if cut["loop"]]
+        self.assertEqual(len(loops), 1)
+        self.assertEqual(loops[0]["frame"] - loops[0]["loopStart"], 4)
+        with self.assertRaises(subprocess.CalledProcessError):
+            compile_project(
+                self.args(self.source("bad", "#slide[#init(x: 0)#animate(x: 1)#cut(loop: 0)]")),
+                self.directory / "bad",
+            )
+
     def test_title_is_used_and_escaped(self):
         path = self.source()
         self.assertEqual(

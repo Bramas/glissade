@@ -2,7 +2,26 @@
 #import "../../lib.typ": a
 #import "theme.typ": *
 
-#show: suig-theme.with(footer: [Quentin Bramas · Simulant and myopic stand-up indulgent gathering])
+// The four parts of the talk: the outline, the dividers and the footer use them.
+#let sections = (
+  (title: [Simulant],
+    note: [the usual robot assumptions, written as declarations],
+    summary: [Robot models as executable declarations]),
+  (title: [Stand-up indulgent gathering],
+    note: [the whole setting in one `.sim` block],
+    summary: [The setting of the previous talk, as one block of `.sim`]),
+  (title: [The $H + 1$ algorithm],
+    note: [merging three nodes into one, with myopic robots],
+    summary: [Merging three nodes into one, with myopic robots]),
+  (title: [Open problems],
+    note: [two cases we cannot settle yet],
+    summary: [Two open cases]),
+)
+
+#show: suig-theme.with(
+  footer: [Quentin Bramas · Simulant and myopic stand-up indulgent gathering],
+  sections: sections,
+)
 
 // ------------------------------------------------------------- helpers ------
 #let space-c = accent
@@ -13,58 +32,21 @@
 #let sched-c = rgb("#5f6b7a")
 #let fault-c = alert
 
-// Tags for the robots of a recorded round, from the rule each one applies.
-// `labels` maps a rule to (label, color) or (label, color, "above"); the arrow
-// shows the direction of the recorded move.
-#let rule-tags(name, t, labels, rounds: auto) = {
-  let frame = state-at(name, t)
-  if rounds != auto and frame.round not in rounds { return () }
-  if frame.round >= frame.last { return () }
-  let states = recordings.at(name).states
-  let before = states.at(frame.round).positions
-  let after = states.at(frame.round + 1).positions
-  let seen = ()
-  let tags = ()
-  for (i, rule) in frame.rules.enumerate() {
-    if rule in labels {
-      let entry = labels.at(rule)
-      let (label, color) = (entry.at(0), entry.at(1))
-      let side = if entry.len() > 2 { entry.at(2) } else { "below" }
-      let d = after.at(i) - before.at(i)
-      let shown = if d > 0 [#label →] else if d < 0 [← #label] else [#label]
-      let p = frame.positions.at(i)
-      let key = str(calc.round(p, digits: 2)) + rule
-      if key not in seen {
-        seen.push(key)
-        tags.push((p, shown, color, side))
-      }
-    }
-  }
-  tags
-}
-
 // ---------------------------------------------------------------- title -----
 #title-slide(
+  eyebrow: [Mobile robots · Formal models],
   title: [Simulant: Writing Down\ Robot Models],
   subtitle: [and myopic stand-up indulgent gathering on a line],
   author: [Quentin Bramas],
   affiliation: [University of Strasbourg · ICube],
-  collaborators: [Gathering results: joint work with H. Kakugawa, S. Kamei, A. Lamani, F. Ooshita, M. Shibata and S. Tixeuil.],
-  picture: line-view((0, 4, 8, 9, 10, 12, 15), low: -1, high: 16, width: 1000, views: ((10, 5),), dim: (0, 4)),
+  collaborators: [Gathering results: joint work with H. Kakugawa, S. Kamei,\ A. Lamani, F. Ooshita, M. Shibata and S. Tixeuil.],
+  picture: line-view((0, 4, 8, 9, 10, 12, 15), low: -1, high: 16, width: 1112, views: ((10, 5),), dim: (0, 4)),
 )
 
-#slide(title: [Outline])[
-  #v(20pt)
-  #grid(columns: (90pt, 1fr), row-gutter: 40pt,
-    text(size: 34pt, fill: accent, weight: "bold")[01], [*Simulant* \ #note[the usual robot assumptions, written as declarations]],
-    text(size: 34pt, fill: accent, weight: "bold")[02], [*Stand-up indulgent gathering* \ #note[the whole setting in one `.sim` block]],
-    text(size: 34pt, fill: accent, weight: "bold")[03], [*The $H + 1$ algorithm* \ #note[merging three nodes into one, with myopic robots]],
-    text(size: 34pt, fill: accent, weight: "bold")[04], [*Open problems* \ #note[two cases we cannot settle yet]],
-  )
-]
+#outline-slide()
 
 // =========================================================== 1. Simulant ====
-#section-slide([01], [Simulant], [Robot models as executable declarations])
+#section-slide(1)
 
 #slide(title: [Simulant])[
   Papers state their model in prose. Simulant states it in a `.sim` file.
@@ -223,9 +205,9 @@
 #slide(title: [Tasks])[
   A *task* gives each configuration a verdict; its *goal* says which executions succeed.
   #v(18pt)
-  #grid(columns: (1fr, 270pt), column-gutter: 28pt, row-gutter: 18pt, align: horizon,
+  #grid(columns: (1fr, 250pt), column-gutter: 26pt, row-gutter: 18pt, align: horizon,
     {
-      set text(size: 25pt)
+      set text(size: 29pt)
       ```sim
       /-- Eventually, and forever, at most one present robot per position. -/
       task Dispersion (C : Config) : Verdict :=
@@ -238,7 +220,7 @@
     },
     stack(spacing: 14pt, pill(color: teal)[eventually always], note[from some point on, forever]),
     {
-      set text(size: 25pt)
+      set text(size: 29pt)
       ```sim
       /-- Every position has been visited, eventually. -/
       task Exploration (C : Config) : Verdict :=
@@ -255,21 +237,20 @@
 ]
 
 // ================================================================ 2. SUIG ===
-#section-slide([02], [Stand-up indulgent gathering], [The setting of the previous talk, as one block of `.sim`])
+#section-slide(2)
 
 #slide(title: [The problem], id: "recap")[
-  #run-phases(("plain", 4, (4,), false), ("crash", 6, (6,), false), duration: 0.75)
-  #v(1fr)
+  #run-phases(("plain", 4, (4,), false), ("crash", 6, (6,), false), duration: 0.8)
   #context {
-    lane("gather", a("plain"), label: [no crash], label-color: accent, badge: "count")
-    v(14pt)
-    lane("gather-crash", a("crash"), label: [crash at one node], label-color: alert, badge: "count")
+    lane("gather", a("plain"), label: [No crash], label-color: accent, badge: "count")
+    v(4pt)
+    lane("gather-crash", a("crash"), label: [Crash at one node], label-color: alert, badge: "count")
   }
-  #v(40pt)
+  #v(1fr)
   Without crash, gather anywhere. With crashes, *all correct robots gather at the crash node*.
   #v(10pt)
   #note[FSYNC · oblivious · disoriented · visibility radius $phi$ · no multiplicity detection. Numbers in the discs are for us, not for the robots.]
-  #v(1fr)
+  #v(0.5fr)
 ]
 
 #let suig-models = (
@@ -300,7 +281,6 @@
 
 #slide(title: [The task])[
   #{
-    set text(size: 27pt)
     ```sim
     /-- Every present robot is on the same position, eventually. -/
     task Gathering (C : Config) : Verdict :=
@@ -339,7 +319,7 @@
     block(radius: 12pt, fill: tint, inset: (x: 24pt, y: 12pt),
       stack(..rows.map(((line, _)) => box(height: row, align(horizon, code(line, size: 23pt)))))),
     block(inset: (y: 12pt), stack(..rows.enumerate().map(((i, (_, domain))) => box(height: row, align(horizon,
-      if i == 0 { eyebrow(color: teal)[domain, where the adversary chooses] }
+      if i == 0 { eyebrow(color: teal, size: 16pt)[domain, where the adversary chooses] }
       else if domain != none { text(size: 24pt, fill: teal, weight: "bold", domain) }))))),
   )
 ]
@@ -347,7 +327,7 @@
 #slide(title: [The algorithm])[
   #grid(columns: (1.2fr, 1fr), column-gutter: 34pt, align: horizon,
     {
-      set text(size: 25pt)
+      set text(size: 28pt)
       ```sim
       algorithm ObliviousHPlusOne uses occupied where
         main :=
@@ -364,8 +344,8 @@
       ```
     },
     {
-      set text(size: 25pt)
-      grid(columns: (auto, 1fr), column-gutter: 14pt, row-gutter: 24pt, align: horizon,
+      set text(size: 26pt)
+      grid(columns: (auto, 1fr), column-gutter: 14pt, row-gutter: 26pt, align: horizon,
         pill(color: sense-c)[sensors], [`uses occupied`],
         pill(color: state-c)[memory], [none: the current view decides],
         pill(color: muted)[not named], [space, scheduler, faults, $phi$],
@@ -374,7 +354,7 @@
   )
   #pause
   #v(1fr)
-  #card(inset: 20pt)[
+  #card(inset: (x: 22pt, y: 18pt))[
     #set text(size: 20pt)
     #eyebrow(color: muted)[The compiler checks these needs against the model]
     #v(10pt)
@@ -391,9 +371,8 @@
   #let config = (0, 4, 8, 9, 10, 12, 15)
   #grid(columns: (130pt, 1fr), align: horizon,
     text(size: 22pt, weight: "bold", fill: teal)[`lineView`],
-    line-view(config, low: -1, high: 16, width: 990, views: ((10, 5),), dim: (0, 4), bits: (10, 5), height: 120),
+    line-view(config, low: -1, high: 16, width: 1000, views: ((10, 5),), dim: (0, 4), bits: (10, 5), height: 150),
   )
-  #v(14pt)
   #v(1fr)
   #grid(columns: (1fr, 1fr), column-gutter: 26pt,
     [
@@ -418,10 +397,11 @@ def h1Border (v : List Nat) : Bool :=
 ]
 
 // ========================================================== 3. H + 1 =======
-#section-slide([03], [The $H + 1$ algorithm], [Merging three nodes into one, with myopic robots])
+#section-slide(3)
 
 #slide(title: [Known results], id: "known-results")[
-  #run(4, start: 1, duration: 0.3)
+  #run(4, start: 1, duration: 0.4)
+  #v(1fr)
   #context {
     let t = a("t")
     let shown(step) = calc.clamp(t - step + 1, 0, 1)
@@ -432,27 +412,27 @@ def h1Border (v : List Nat) : Bool :=
       else if status == "impossible" { 3 }
       else { 4 }
     )
-    grid(columns: (auto, 1fr), column-gutter: 46pt, align: horizon,
-      results-map(focus: ((3, 1), (4, 1), (5, 1), (6, 1), (2, 2)), reveal: reveal),
+    grid(columns: (auto, 1fr), column-gutter: 40pt, align: horizon,
+      results-map(focus: ((3, 1), (4, 1), (5, 1), (6, 1), (2, 2)), reveal: reveal, cell: 80pt),
       {
         set text(size: 26pt)
         stack(spacing: 26pt,
-          [#pill(color: teal)[✓ solved] #pill(color: alpha(alert, shown(3)), fill: alpha(alert-soft, shown(3)))[✕ impossible] #pill(color: alpha(amber, shown(4)), fill: alpha(amber-soft, shown(4)))[? open]],
+          [#status-pill("solved")[solved] #status-pill("impossible", opacity: shown(3))[impossible] #status-pill("open", opacity: shown(4))[open]],
           [*Previous talk:* two colors at $phi = H$; oblivious at $phi = H + 3$.],
-          text(fill: alpha(ink, shown(2)))[*This talk:* oblivious at $phi = max(4, H + 1)$, the framed cells.],
+          text(fill: alpha(ink, shown(2)))[*This talk:* oblivious at\ $phi = max(4, H + 1)$, the framed cells.],
           [Oblivious robots, $O_"init"$ odd.],
           text(fill: alpha(ink, shown(3)))[Without colors, $phi = H$ is impossible for $H in {2, 3}$.],
         )
       },
     )
   }
-  #v(1fr)
+  #v(1.3fr)
   #note[$H$: largest gap between consecutive occupied nodes. $O_"init"$: number of occupied nodes.]
 ]
 
 #slide(title: [Merging], id: "merge")[
   #run(3, duration: 1.0, stops: (1, 2, 3))
-  #v(1fr)
+  #v(0.6fr)
   #context {
     let t = a("t")
     let tags = rule-tags("merge", t, (
@@ -461,7 +441,7 @@ def h1Border (v : List Nat) : Bool :=
     ), rounds: (1,))
     lane("merge", t, tags: tags)
   }
-  #v(50pt)
+  #v(1fr)
   #grid(columns: (1fr, 1fr), column-gutter: 44pt,
     [
       An *edge-symmetric* configuration is a dead end: two mirrored halves, forever.
@@ -477,16 +457,16 @@ def h1Border (v : List Nat) : Bool :=
 
 #slide(title: [False borders])[
   #let config = (0, 4, 8, 9, 10, 12, 15)
-  #v(1fr)
-  #grid(columns: (210pt, 1fr), row-gutter: 20pt, column-gutter: 10pt, align: horizon,
-    [#eyebrow(color: teal)[Robot at 10]\ #text(size: 24pt)[sees 5 to 15]],
-    line-view(config, low: -1, high: 16, width: 920, views: ((10, 5),), dim: (0, 4),
+  #v(0.5fr)
+  #grid(columns: (196pt, 1fr), row-gutter: 14pt, column-gutter: 10pt, align: horizon,
+    [#eyebrow(color: teal)[Robot at 10]\ #text(size: 25pt)[sees 5 to 15]],
+    line-view(config, low: -1, high: 16, width: 930, views: ((10, 5),), dim: (0, 4),
       tags: ((10, [me], teal), (8, [border?], alert))),
-    [#eyebrow(color: teal)[Robot at 9]\ #text(size: 24pt)[sees 4 to 14]],
-    line-view(config, low: -1, high: 16, width: 920, views: ((9, 5),), dim: (0,),
+    [#eyebrow(color: teal)[Robot at 9]\ #text(size: 25pt)[sees 4 to 14]],
+    line-view(config, low: -1, high: 16, width: 930, views: ((9, 5),), dim: (0,),
       tags: ((9, [me], teal), (4, [not a border], teal))),
   )
-  #v(40pt)
+  #v(1fr)
   From node 10, the block $8, 9, 10$ looks like a border 3-block: node 4 is one hop too far.
   #v(10pt)
   #note[$phi = 5$, $H = 4$. With $phi = H + 1$, a robot two hops into a block cannot always see past it.]
@@ -494,15 +474,15 @@ def h1Border (v : List Nat) : Bool :=
 ]
 
 #slide(title: [A false merge], id: "false-border-without")[
-  #run(13, duration: 0.5, stops: (1, 13), loop: true)
-  #v(1fr)
+  #run(13, duration: 0.6, stops: (1, 13), loop: 2)
+  #v(0.4fr)
   #context {
     let t = a("t")
     let tags = rule-tags("false-border-without", t, (
       h1SecondNeighborMerge: ([merge], alert),
     ), rounds: (0,))
-    lane("false-border-without", t, tags: tags)
-    v(50pt)
+    lane("false-border-without", t, tags: tags, history: true)
+    v(1fr)
     let round = state-at("false-border-without", t).round
     if round < 1 {
       lead[Node 10 merges into 9, but node 8 is not a border: it stays.]
@@ -514,12 +494,12 @@ def h1Border (v : List Nat) : Bool :=
   }
   #v(16pt)
   #note[Recorded with the public algorithm minus one rule, `neig, false-merge`.]
-  #v(1fr)
+  #v(0.6fr)
 ]
 
 #slide(title: [Fix 1: swap], id: "false-border")[
-  #run(12, duration: 0.5, stops: (1, 12))
-  #v(1fr)
+  #run(12, duration: 0.6, stops: (1, 12))
+  #v(0.4fr)
   #context {
     let t = a("t")
     let tags = rule-tags("false-border", t, (
@@ -528,7 +508,7 @@ def h1Border (v : List Nat) : Bool :=
     ), rounds: (0,))
     lane("false-border", t, tags: tags)
   }
-  #v(40pt)
+  #v(1fr)
   #grid(columns: (1fr, 1.45fr), column-gutter: 30pt, align: horizon,
     [
       Node 9 sees node 4: the merge is false. It swaps with the merging robot, so #em-teal[7 occupied nodes remain].
@@ -551,39 +531,37 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
 ]
 
 #slide(title: [Fix 2: wait], id: "border-wait")[
-  #run-phases(("without", 5, (2, 5), true), ("with", 4, (2, 4), false), duration: 0.8)
-  #v(1fr)
+  #run-phases(("without", 5, (2, 5), 2), ("with", 4, (2, 4), false), duration: 0.8)
   #context {
     let (t1, t2) = (a("without"), a("with"))
-    lane("border-wait-without", t1, label: [border always moves], label-color: alert, badge: "symmetry",
+    lane("border-wait-without", t1, label: [The border always moves], label-color: alert, badge: "symmetry",
       tags: rule-tags("border-wait-without", t1, (h1Border: ([moves], alert),), rounds: (2,)))
-    v(14pt)
-    lane("border-wait", t2, label: [border waits], label-color: teal, badge: "symmetry",
+    v(4pt)
+    lane("border-wait", t2, label: [The border waits], label-color: teal, badge: "symmetry",
       tags: rule-tags("border-wait", t2, (h1BorderIdle1: ([waits], teal),), rounds: (2,)))
   }
-  #v(40pt)
+  #v(1fr)
   In $X X dot X$, a moving border lands next to its neighbor: $X X$ is edge-symmetric, a dead end. Waiting one round gives $X dot X$, which gathers in the middle.
   #v(10pt)
   #note[Rule `border-idle,1`: a border followed by a robot, then an empty node, stays idle.]
-  #v(1fr)
+  #v(0.5fr)
 ]
 
 #slide(title: [Fix 3: split long blocks], id: "long-block")[
   #run-phases(("without", 2, (2,), false), ("with", 4, (1, 4), false), duration: 0.9)
-  #v(1fr)
   #context {
     let (t1, t2) = (a("without"), a("with"))
-    lane("long-block-without", t1, label: [no block rule], label-color: alert,
+    lane("long-block-without", t1, label: [No rule for long blocks], label-color: alert,
       tags: rule-tags("long-block-without", t1, (h1BorderIdle2: ([waits], alert),), rounds: (0,)))
-    v(14pt)
-    lane("long-block", t2, label: [4-merge], label-color: teal,
+    v(4pt)
+    lane("long-block", t2, label: [With the 4-merge rules], label-color: teal,
       tags: rule-tags("long-block", t2, (h1FourMerge1: ([merge], teal),), rounds: (0,)))
   }
-  #v(40pt)
+  #v(1fr)
   Without a rule for long blocks, both borders wait forever. In blocks of four or more, the second and third robots move *outwards*: $dot X X X X dot -> dot X dot dot X dot$, again two nodes fewer.
   #v(10pt)
   #note[Rules `4-merge,1` and `4-merge,2` apply anywhere in the configuration.]
-  #v(1fr)
+  #v(0.3fr)
 ]
 
 #slide(title: [Correctness])[
@@ -601,12 +579,12 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
 ]
 
 // ===================================================== 4. Open problems ====
-#section-slide([04], [Open problems], [Two open cases])
+#section-slide(4)
 
 #slide(title: [Open problems])[
   #v(1fr)
   #grid(columns: (auto, 1fr), column-gutter: 46pt, align: horizon,
-    results-map(focus: ((4, 0), (5, 0), (6, 0), (2, 1)), dim-others: true, cell: 88pt),
+    results-map(focus: ((4, 0), (5, 0), (6, 0), (2, 1)), dim-others: true, cell: 86pt),
     [
       #stack(spacing: 30pt,
         [#pill(color: amber)[1] #h(8pt) $phi = H$ for $H >= 4$ \ #note[impossible for $H in {2, 3}$, proved by hand]],
@@ -657,14 +635,14 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
     } else { () }
     let done = ease(t, last - 0.3, last)
     grid(columns: (1fr, 210pt), column-gutter: 10pt, align: horizon,
-      line-view(positions, low: -2, high: 9, width: 900, labels: true, height: 130,
+      line-view(positions, low: -2, high: 9, width: 900, labels: true, height: 136,
         views: if t < last - 1 + 0.05 { ((2, 3),) } else { () }, tags: tags,
         highlight: if done > 0 { (1, 6) } else { none }, highlight-color: alpha(alert, done)),
-      if done > 0.5 { symmetry-badge((1, 2, 5, 6)) } else { text(size: 19pt, weight: "bold", fill: muted)[$H = phi = 3$] },
+      if done > 0.5 { symmetry-badge((1, 2, 5, 6)) } else { text(size: 21pt, weight: "bold", fill: muted)[$H = phi = 3$] },
     )
-    v(12pt)
-    set text(size: 22pt)
-    grid(columns: (92pt, 1fr), row-gutter: 12pt, align: horizon,
+    v(8pt)
+    set text(size: 23pt)
+    grid(columns: (104pt, 1fr), row-gutter: 11pt, align: horizon,
       ..h3-steps.enumerate().map(((k, s)) => (
         pill(color: alpha(s.color, shown(k)), fill: alpha(s.color, shown(k) * 0.12))[node #s.node],
         text(fill: alpha(ink, shown(k)), s.reason),
@@ -717,13 +695,8 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
   )
 ]
 
-#touying-slide-wrapper(self => {
-  let self = utils.merge-dicts(self, config-common(freeze-slide-counter: true), config-page(footer: none))
-  touying-slide(self: self, align(center + horizon)[
-    #text(size: 64pt, weight: "bold")[Thank you]
-    #v(16pt)
-    #text(size: 30pt, fill: muted)[Questions?]
-    #v(44pt)
-    #line-view((8, 8, 8, 8, 8, 8, 8), low: 3, high: 13, width: 700)
-  ])
-})
+#closing-slide(
+  title: [Thank you],
+  subtitle: [Questions?],
+  picture: line-view((8, 8, 8, 8, 8, 8, 8), low: 3, high: 13, width: 760),
+)

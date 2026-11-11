@@ -156,12 +156,18 @@ shapes can use the same mechanism for geometry morphing or a
   to return to the previous animation boundary.
 - `O` opens the slide overview and `F` enters fullscreen.
 
-Playback pauses at every `cut()` and at the final frame. The generated HTML
-contains the runtime and compressed SVG frames in one portable file. By default,
-HTML export stores smaller SVG deltas for intermediate frames when that is more
-compact than keeping complete SVGs; use `--no-optimize-frames` to disable this.
-Repeated text glyphs are shared per slide, and delta patches are compressed
-together. Shared data is decoded only when the slide is needed. Use
+Playback pauses at every `cut()` and at the final frame. `cut(loop: true)`
+repeats the segment since the previous cut until you continue; `cut(loop: 2)`
+plays the segment once and then repeats only its last two `animate` blocks, for
+animations that settle into a cycle.
+
+The generated HTML contains the runtime and compressed SVG frames in one
+portable file. By default, HTML export stores smaller SVG deltas for
+intermediate frames when that is more compact than keeping complete SVGs; use
+`--no-optimize-frames` to disable this. A delta replaces the elements that
+changed and, where elements appear or leave, rebuilds a child list from the
+ones already there. Text glyphs are stored once per slide, and delta patches
+are compressed together. Shared data is decoded only when the slide is needed. Use
 `--no-share-glyphs` to disable glyph sharing or `--no-compress-frames` to disable
 gzip compression for both frames and shared data.
 
@@ -196,6 +202,12 @@ Python responsibilities are split between `glissade/compiler.py` (scene
 discovery and SVG/PNG compilation), `frames.py` (SVG deltas), `manifest.py`
 (format validation), `live.py` (preview server), and `cli.py` (exports).
 The `bin/` entry points remain available for repository use.
+
+An HTML export runs Typst twice: a discovery pass (`typst query`) that lays out
+animation bodies only on the frames where a block starts or ends, then the
+compilation of every frame. `frames.py` then reads each SVG once (minifying,
+sharing glyphs and encoding deltas on the same parsed tree), one slide per
+process on large decks.
 
 The readable browser sources live under `web/`. Bun bundles them into the
 checked-in templates under `glissade/assets/` and the playground assets:
