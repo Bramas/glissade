@@ -641,13 +641,20 @@
 /// The statuses are those of the SIROCCO 2025 paper. `updates` lists newer
 /// results as (h, extra, status): with `update` going from 0 to 1, these cells
 /// turn to their new status and get a "new" badge.
+/// `class: "odd-or"` gives the map for the wider class of the journal version:
+/// O_init or M_init odd, the robots not knowing which. Oblivious robots solve
+/// it with phi >= H + 3; impossibility for O_init odd carries over.
 #let results-map(focus: (), dim-others: false, cell: 92pt, reveal: (h, e, s) => 1,
-  updates: (), update: 0) = {
-  let status(h, e) = {
+  updates: (), update: 0, class: "odd", label-width: 118pt, label-size: 22pt, mark-size: 25) = {
+  let status(h, e) = if class == "odd" {
     if h == 1 { "solved" }
     else if e == 0 { if h <= 3 { "impossible" } else { "open" } }
     else if h == 2 and e == 1 { "open" }
     else { "solved" }
+  } else {
+    if h == 1 or e == 3 { "solved" }
+    else if e == 0 and h <= 3 { "impossible" }
+    else { "open" }
   }
   let style = (
     solved: (teal-soft, teal),
@@ -658,7 +665,7 @@
   let hs = (1, 2, 3, 4, 5, 6)
   let body = ()
   for e in heights.rev() {
-    body.push(align(right + horizon, text(size: 22pt, fill: muted,
+    body.push(align(right + horizon, text(size: label-size, fill: muted,
       if e == 0 { $phi = H$ } else { $phi = H + #e$ })))
     for h in hs {
       let s = status(h, e)
@@ -674,24 +681,24 @@
       let shown = calc.clamp(reveal(h, e, s), 0, 1)
       // The old mark fades out in the first half of the update, the new one
       // fades in during the second half.
-      let mark = if k < 0.5 { _mark(s, 25, alpha(fg, shown * (1 - 2 * k))) }
-        else { _mark(s2, 25, alpha(fg, shown * (2 * k - 1))) }
+      let mark = if k < 0.5 { _mark(s, mark-size, alpha(fg, shown * (1 - 2 * k))) }
+        else { _mark(s2, mark-size, alpha(fg, shown * (2 * k - 1))) }
       body.push(box(width: cell, height: cell * 0.68, radius: 9pt,
         fill: blend(tint, bg, shown),
         stroke: if focused { 3pt + alpha(fg, shown) } else { none },
         {
           align(center + horizon, mark)
-          if k > 0.001 {
+          if k * shown > 0.001 {
             place(top + right, dx: 10pt, dy: -11pt,
-              box(inset: (x: 6pt, y: 3pt), radius: 6pt, fill: alpha(fg2, k),
-                text(size: 13pt, weight: "bold", fill: alpha(paper, k))[NEW]))
+              box(inset: (x: 6pt, y: 3pt), radius: 6pt, fill: alpha(fg2, k * shown),
+                text(size: 13pt, weight: "bold", fill: alpha(paper, k * shown))[NEW]))
           }
         }))
     }
   }
   body.push([])
-  for h in hs { body.push(align(center, text(size: 22pt, fill: muted, if h == 6 { $H >= 6$ } else { $H = #h$ }))) }
-  grid(columns: (118pt,) + hs.map(_ => cell), column-gutter: 9pt, row-gutter: 9pt, ..body)
+  for h in hs { body.push(align(center, text(size: label-size, fill: muted, if h == 6 { $H >= 6$ } else { $H = #h$ }))) }
+  grid(columns: (label-width,) + hs.map(_ => cell), column-gutter: 9pt, row-gutter: 9pt, ..body)
 }
 
 // ------------------------------------------------------- model builder ------

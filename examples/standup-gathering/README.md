@@ -31,7 +31,10 @@ way, with the two-color algorithm and the oblivious $H + 3$ algorithm. This one:
    results obtained since (with a SAT solver and a search for failing
    executions; proofs under review, mentioned in one line only): $H = 2$ with $\varphi = 3$ is impossible, and
    $\varphi = H$ rules out gathering itself, not only SUIG, for
-   $H \in \{2, 3\}$. What remains is $\varphi = H$ for $H \ge 4$, for SUIG
+   $H \in \{2, 3\}$. A second map then shows the wider class $O_{init}$ or
+   $M_{init}$ odd: two colors are optimal ($\varphi \ge H$), oblivious robots
+   need $\varphi \ge H + 3$ and everything below is open apart from the
+   impossibilities inherited from $O_{init}$ odd. What remains is $\varphi = H$ for $H \ge 4$, for SUIG
    and for gathering: the intuition behind the conjecture, and a plan with its
    missing lemma. A last open problem is the general class of the journal
    version ($O_{init}$ or $M_{init}$ odd, the robots do not know which): two

@@ -606,33 +606,54 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
 // ===================================================== 4. Open problems ====
 #section-slide(4)
 
-// The map as the paper left it, then the results of this week (search over
-// every rule table, guided by a SAT solver; the proofs are under review).
+// The map as the paper left it, then the results of this week (one line on how
+// they were obtained), then the wider class O_init or M_init odd.
 #slide(title: [Open problems], id: "open")[
-  #run(1, duration: 1.2)
-  #v(1fr)
+  #run(2, duration: 1.1)
   #context {
-    let u = ease(a("t"), 0, 1)
-    grid(columns: (auto, 1fr), column-gutter: 46pt, align: horizon,
-      results-map(focus: ((4, 0), (5, 0), (6, 0), (2, 1)), dim-others: true, cell: 86pt,
+    let t = a("t")
+    let u = ease(t, 0, 1)
+    let w = ease(t, 1, 2)
+    let small = (cell: 60pt, label-width: 92pt, label-size: 18pt, mark-size: 20)
+    let line(color, n, body) = box(height: 34pt, align(horizon,
+      [#pill(color: color)[#n] #h(8pt) #body]))
+    v(0.4fr)
+    grid(columns: (1fr, 1fr), column-gutter: 34pt, row-gutter: 16pt,
+      text(size: 23pt, weight: "bold", fill: accent)[$O_"init"$ odd],
+      text(size: 23pt, weight: "bold", fill: alpha(accent, w))[$O_"init"$ or $M_"init"$ odd #text(weight: "regular", fill: alpha(muted, w))[(robots do not know which)]],
+      results-map(..small, focus: ((4, 0), (5, 0), (6, 0), (2, 1)), dim-others: true,
         updates: ((2, 1, "impossible"), (2, 0, "impossible"), (3, 0, "impossible")), update: u),
-      if u < 0.5 {
-        stack(spacing: 30pt,
-          [#pill(color: amber)[1] #h(8pt) $phi = H$ for $H >= 4$ \ #note[impossible for $H in {2, 3}$, proved by hand]],
-          [#pill(color: amber)[2] #h(8pt) $H = 2$ with $phi = 3$ \ #note[our algorithm needs $phi >= 4$]],
-          [We believe *both are impossible* for oblivious robots.],
-        )
-      } else {
-        stack(spacing: 30pt,
-          [#pill(color: alert)[2] #h(8pt) $H = 2$, $phi = 3$: #em-alert[impossible] \ #note[so $phi >= 4$ is optimal for $H = 2$]],
-          [#pill(color: alert)[+] #h(8pt) $phi = H <= 3$: #em-alert[no gathering] \ #note[even without crash, not only SUIG]],
-          [#pill(color: amber)[1] #h(8pt) $phi = H$, $H >= 4$: #em-amber[open] \ #note[for SUIG, and for gathering]],
+      {
+        let m = results-map(..small, class: "odd-or", reveal: (h, e, s) => w,
+          updates: ((2, 1, "impossible"),), update: u)
+        if w < 0.02 { hide(m) } else { m }
+      },
+      {
+        set text(size: 24pt)
+        if u < 0.5 {
+          stack(spacing: 6pt,
+            line(amber, [1], [$phi = H$, $H >= 4$: #em-amber[open]]),
+            line(amber, [2], [$H = 2$, $phi = 3$: #em-amber[open]]),
+          )
+        } else {
+          stack(spacing: 6pt,
+            line(alert, [2], [$H = 2$, $phi = 3$: #em-alert[impossible]]),
+            line(alert, [+], [$phi = H <= 3$: #em-alert[no gathering either]]),
+            line(amber, [1], [$phi = H$, $H >= 4$: #em-amber[open]]),
+          )
+        }
+      },
+      {
+        set text(size: 24pt, fill: alpha(ink, w))
+        stack(spacing: 6pt,
+          box(height: 34pt, align(horizon, [Two colors: $phi >= H$, #text(fill: alpha(teal, w), weight: "bold")[optimal]])),
+          box(height: 34pt, align(horizon, [Oblivious: $phi >= H + 3$, #text(fill: alpha(amber, w), weight: "bold")[open below]])),
         )
       },
     )
-    v(0.7fr)
+    v(0.6fr)
     text(size: 22pt, fill: alpha(muted, u))[New this week: a SAT solver and a search for failing executions, with the help of AI. The proofs are under review.]
-    v(0.3fr)
+    v(0.2fr)
   }
 ]
 
