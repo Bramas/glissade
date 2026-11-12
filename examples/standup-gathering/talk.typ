@@ -14,8 +14,8 @@
     note: [merging three nodes into one, with myopic robots],
     summary: [Merging three nodes into one, with myopic robots]),
   (title: [Open problems],
-    note: [two cases settled this week, one left],
-    summary: [Two cases settled this week, one left]),
+    note: [two cases settled this week, two still open],
+    summary: [Two cases settled this week, two still open]),
 )
 
 #show: suig-theme.with(
@@ -551,6 +551,58 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
   #v(0.5fr)
 ]
 
+// Why the H + 1 algorithm needs O_init odd (journal version, Section 5). With phi >= H + 3 the only
+// wait is rule `wait`, on the final configuration X.XX, which the border sees
+// whole. With phi = H + 1 the end cannot be recognized, so the waits are local
+// rules that also fire during the main stage.
+#slide(title: [Why not $M_"init"$ odd?], id: "when-wait")[
+  #grid(columns: (1fr, 1fr), column-gutter: 30pt,
+    card(inset: 24pt, height: 290pt)[
+      #eyebrow(color: teal)[$phi >= H + 3$: only at the end]
+      #v(14pt)
+      #rule-view((".", "[X]", ".", "X", "X", ".", "."), move: "stay", color: teal)
+      #v(10pt)
+      #set text(size: 23pt)
+      The border sees the whole configuration $X dot X X$ and waits once. Before that, borders always move: the span keeps its parity, so this also works when only $M_"init"$ is odd.
+    ],
+    card(fill: amber-soft, inset: 24pt, height: 290pt)[
+      #eyebrow(color: amber)[$phi = H + 1$: during the main stage]
+      #v(14pt)
+      #rule-view(("[X]", "X", ".", "¬∅", "*", "*", "*"), move: "stay", color: amber)
+      #v(10pt)
+      #set text(size: 23pt)
+      The end cannot be recognized: more robots may lie beyond sight. The wait is a local rule, which also fires mid-way. It changes the parity of the span: $O_"init"$ must be odd.
+    ],
+  )
+  #v(1fr)
+  When both borders move in, the span loses 2; when one waits, it loses 1. #em-alert[Only a wait changes the parity of the span], so an odd span cannot be kept odd.
+  #v(0.6fr)
+]
+
+// The H + 3 border merge applied to any block, with phi = H + 1 = 4. Found by
+// replaying the H + 1 table in the CEGIS checker with the merge allowed in any
+// block, the 4-block rules removed, and a rule keeping the neighbor of a sure
+// border idle (initial gaps <= 3, at most 9 robots, no crash). This is round 2
+// of the run from X..X..XXX.XX.
+#slide(title: [Why not merge as in $H + 3$?], id: "long-merge")[
+  #let names = (none, none, [a], [b], [c], [d], none)
+  #v(0.3fr)
+  #grid(columns: (130pt, 1fr, 190pt), column-gutter: 10pt, row-gutter: 4pt, align: horizon,
+    eyebrow(color: muted)[Before],
+    line-view((0, 2, 5, 6, 7, 8, 10), low: -1, high: 11, width: 770, views: ((7, 4),), names: names,
+      tags: ((0, [→], accent), (5, [border?], alert), (7, [←], alert), (10, [←], accent))),
+    parity-badge(7),
+    eyebrow(color: muted)[After],
+    line-view((1, 2, 5, 6, 6, 8, 9), low: -1, high: 11, width: 770, names: names),
+    parity-badge(6),
+  )
+  #v(0.5fr)
+  #rb[c] cannot see past #rb[a]: it takes #rb[a] for a border and merges onto #rb[b]. #rb[b] sees past #rb[a], but Fix 1 only catches $X X X dot X$: here #rb[d] follows. #em-alert[One node is lost.]
+  #v(10pt)
+  #note[$phi = 4$, $H = 3$. In $H + 3$, the merging robot sees that the border is real. So the $H + 1$ algorithm merges only blocks of exactly three, where Fix 1 can catch a false merge.]
+  #v(0.5fr)
+]
+
 #slide(title: [Fix 3: split long blocks], id: "long-block")[
   #run-phases(("without", 2, (2,), false), ("with", 4, (1, 4), false), duration: 0.9)
   #context {
@@ -562,9 +614,9 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
       tags: rule-tags("long-block", t2, (h1FourMerge1: ([merge], teal),), rounds: (0,)))
   }
   #v(1fr)
-  Without a rule for long blocks, both borders wait forever. In blocks of four or more, the second and third robots move *outwards*: $dot X X X X dot -> dot X dot dot X dot$, again two nodes fewer.
+  So the border of a longer block must wait: moving in alone would remove one node. Instead, the second and third robots move *outwards*: $dot X X X X dot -> dot X dot dot X dot$, two nodes fewer.
   #v(10pt)
-  #note[Rules `4-merge,1` and `4-merge,2` apply anywhere in the configuration.]
+  #note[Rule `border-idle,2`: the border of four or more robots waits. Rules `4-merge,1` and `4-merge,2` apply anywhere in the configuration.]
   #v(0.3fr)
 ]
 
@@ -667,6 +719,31 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
   #note[$C^k$: $k$ gaps of $H$, with an odd gap in the middle ($H - 1$ if $H$ is even); $overline(Q)$: $Q$ mirrored. With $phi = H$, the first robot of the chain cannot step towards the end, and the end cannot see past it.]
 ]
 
+// The general class of the journal version: the robots do not know whether
+// O_init or M_init is odd.
+#slide(title: [Open problem: $O_"init"$ or $M_"init"$ odd], id: "open-span")[
+  #lead[One of the two is odd, but the robots do not know which.]
+  #v(26pt)
+  #grid(columns: (1fr, 1fr), column-gutter: 30pt,
+    card(inset: 22pt, height: 150pt)[
+      #eyebrow(color: teal)[Known]
+      #v(10pt)
+      Two colors: $phi >= H$.\
+      Oblivious: $phi >= H + 3$.
+    ],
+    card(fill: amber-soft, inset: 22pt, height: 150pt)[
+      #eyebrow(color: amber)[Open]
+      #v(10pt)
+      Oblivious, with $phi = H + 1$ or $H + 2$?
+    ],
+  )
+  #v(1fr)
+  With $phi >= H + 3$, borders wait only at the end, which they see. With less, they cannot recognize the end. *Can a border wait only at the end without seeing it?* The parity it needs is one bit to remember, which is what the two colors store.
+  #v(14pt)
+  #note[The same intuition as for $phi = H$: memory is placement, and the borders are blind to each other.]
+  #v(1fr)
+]
+
 // ============================================================ closing ======
 #slide(title: [Conclusion], section: none)[
   #stack(spacing: 30pt,
@@ -675,7 +752,7 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
     grid(columns: (64pt, 1fr), text(fill: teal, weight: "bold", size: 34pt)[2],
       [Myopic oblivious robots gather with $phi = max(4, H + 1)$ when $O_"init"$ is odd. Blind $3 -> 1$ merges break the parity; *three small rules* repair them.]),
     grid(columns: (64pt, 1fr), text(fill: amber, weight: "bold", size: 34pt)[3],
-      [New, under review: $H = 2$ needs $phi >= 4$, and $phi = H in {2, 3}$ rules out gathering itself. Open: $phi = H$ for $H >= 4$.]),
+      [New, under review: $H = 2$ needs $phi >= 4$, and $phi = H in {2, 3}$ rules out gathering itself. Open: $phi = H$ for $H >= 4$, and an oblivious algorithm below $H + 3$ when $O_"init"$ or $M_"init"$ is odd.]),
   )
   #v(1fr)
   #grid(columns: (1fr, 1.2fr), column-gutter: 40pt,

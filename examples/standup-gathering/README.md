@@ -17,14 +17,25 @@ way, with the two-color algorithm and the oblivious $H + 3$ algorithm. This one:
    `uses`, no memory; the compiler checks them against the model);
 3. presents the oblivious algorithm for $\varphi \ge \max(4, H_{init} + 1)$:
    why merging three occupied nodes into one is dangerous for myopic robots,
-   and the three small rules that repair it, each shown *without* and *with*;
+   and the three small rules that repair it, each shown *without* and *with*.
+   After the second rule, one slide compares when borders wait: with
+   $\varphi \ge H + 3$ only on the final configuration, which they see whole;
+   with $\varphi = H + 1$ the wait is a local rule that also fires during the
+   main stage, which changes the parity of the span (so $O_{init}$ must be odd).
+   A slide before the third rule shows why the $H + 3$ border merge cannot
+   be used in longer blocks with $\varphi = H + 1$: a false merge inside a
+   block of four, which the first rule cannot catch (found by replaying the
+   $H + 1$ table with that rule relaxed in the CEGIS checker); hence the border
+   of a long block waits, and the block is split instead;
 4. ends with the open problems: the map as the paper left it, then two
    results obtained since (with a SAT solver and a search for failing
    executions; proofs under review, mentioned in one line only): $H = 2$ with $\varphi = 3$ is impossible, and
    $\varphi = H$ rules out gathering itself, not only SUIG, for
    $H \in \{2, 3\}$. What remains is $\varphi = H$ for $H \ge 4$, for SUIG
    and for gathering: the intuition behind the conjecture, and a plan with its
-   missing lemma.
+   missing lemma. A last open problem is the general class of the journal
+   version ($O_{init}$ or $M_{init}$ odd, the robots do not know which): two
+   colors need $\varphi \ge H$, oblivious robots $\varphi \ge H + 3$.
 
 The theme (`theme.typ`) is written from scratch on top of Touying: white page,
 Lato with New Computer Modern math, short titles, the section name in the footer
