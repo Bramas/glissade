@@ -18,8 +18,13 @@ way, with the two-color algorithm and the oblivious $H + 3$ algorithm. This one:
 3. presents the oblivious algorithm for $\varphi \ge \max(4, H_{init} + 1)$:
    why merging three occupied nodes into one is dangerous for myopic robots,
    and the three small rules that repair it, each shown *without* and *with*;
-4. ends with two open problems: $\varphi = H$ for $H \ge 4$, and $H = 2$ with
-   $\varphi = 3$.
+4. ends with the open problems: the map as the paper left it, then two
+   results obtained since (with a SAT solver and a search for failing
+   executions; proofs under review, mentioned in one line only): $H = 2$ with $\varphi = 3$ is impossible, and
+   $\varphi = H$ rules out gathering itself, not only SUIG, for
+   $H \in \{2, 3\}$. What remains is $\varphi = H$ for $H \ge 4$, for SUIG
+   and for gathering: the intuition behind the conjecture, and a plan with its
+   missing lemma.
 
 The theme (`theme.typ`) is written from scratch on top of Touying: white page,
 Lato with New Computer Modern math, short titles, the section name in the footer
@@ -120,9 +125,12 @@ for the audience; robots observe only occupancy within radius $\varphi$.
   nodes (for example `5 3 3 2 1`). The talk does not claim that parity is
   invariant in every round.
 - The map of results is for oblivious robots with $O_{init}$ odd. The
-  impossibility of $\varphi = H$ is proved for $H \in \{2, 3\}$. The two open
-  cases are conjectures: the slides show forced rules from the proofs and
-  drafts, not complete arguments.
+  impossibility of $\varphi = H$ for SUIG is proved by hand for
+  $H \in \{2, 3\}$. The newer results (no SUIG for $H = 2$, $\varphi = 3$; no
+  gathering for $\varphi = H \in \{2, 3\}$) come from a computer search and
+  are under review; the slides say so. $\varphi = H$ for $H \ge 4$ is a
+  conjecture, and the plan on the last slide is a sketch whose key lemma is
+  not proved.
 - The standard library definitions on the option cards are excerpts: `…`
   marks omitted lines or parameters, and the display labels of `choose` are
   left out.

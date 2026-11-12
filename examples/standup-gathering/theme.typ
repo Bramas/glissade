@@ -364,7 +364,7 @@
   positions, low: auto, high: auto, width: 1100, crashed: (),
   views: (), dim: (), tags: (), labels: false, height: 120, rail-y: auto,
   highlight: none, highlight-color: teal, bits: none,
-  lifts: (), pulses: (), radius: 22,
+  lifts: (), pulses: (), radius: 22, names: (),
 ) = {
   if low == auto { low = int(calc.floor(calc.min(..positions))) - 1 }
   if high == auto { high = int(calc.ceil(calc.max(..positions))) + 1 }
@@ -409,8 +409,10 @@
     for (i, p) in positions.enumerate() {
       let lift = lifts.at(i, default: 0)
       let key = str(calc.round(p, digits: 3)) + "/" + str(calc.round(lift, digits: 3))
-      let entry = groups.at(key, default: (p: p, lift: lift, n: 0, crashed: 0))
+      let entry = groups.at(key, default: (p: p, lift: lift, n: 0, crashed: 0, name: none))
       entry.n += 1
+      // `names` gives some robots a letter, so that the text can refer to them.
+      if entry.name == none { entry.name = names.at(i, default: none) }
       if crashed.at(i, default: false) { entry.crashed += 1 }
       groups.insert(key, entry)
     }
@@ -430,6 +432,8 @@
         _segment(cx - d, cy + d, cx + d, cy - d, stroke)
       } else if g.n > 1 {
         _centered(cx, cy, text(size: r * 0.95pt, weight: "bold", fill: paper)[#g.n])
+      } else if g.name != none {
+        _centered(cx, cy - r * 0.08, text(size: r * 0.95pt, weight: "bold", fill: paper, g.name))
       }
     }
     // A tag is (position, label, color) or (position, label, color, "above").
@@ -508,7 +512,7 @@
 /// the configuration is edge-symmetric (`"symmetry"`). `tags: none` leaves no
 /// room for tags; `history` adds the counts of the past rounds under the line.
 #let lane(name, t, low: auto, high: auto, label: none, label-color: muted,
-  tags: none, views: (), dim: (), stats: true, badge: "parity", history: false, width: 1136) = {
+  tags: none, views: (), dim: (), stats: true, badge: "parity", history: false, width: 1136, names: ()) = {
   let frame = state-at(name, t)
   let (lo, hi) = span-of(name)
   if low == auto { low = lo - 1 }
@@ -531,7 +535,7 @@
     )),
     line-view(frame.positions, low: low, high: high, width: width, crashed: frame.crashed,
       tags: if tags == none { () } else { tags }, views: views, dim: dim,
-      height: above + below, rail-y: above, lifts: frame.lifts, pulses: frame.pulses),
+      height: above + below, rail-y: above, lifts: frame.lifts, pulses: frame.pulses, names: names),
     if history { pad(top: 14pt, round-history(name, frame.settled)) },
   )
 }
@@ -634,7 +638,11 @@
 /// Solvability for oblivious robots when O_init is odd: columns H_init,
 /// rows phi - H_init. `focus` lists cells (h, extra) to emphasize.
 /// `reveal(h, extra, status)` controls each cell's opacity without moving it.
-#let results-map(focus: (), dim-others: false, cell: 92pt, reveal: (h, e, s) => 1) = {
+/// The statuses are those of the SIROCCO 2025 paper. `updates` lists newer
+/// results as (h, extra, status): with `update` going from 0 to 1, these cells
+/// turn to their new status and get a "new" badge.
+#let results-map(focus: (), dim-others: false, cell: 92pt, reveal: (h, e, s) => 1,
+  updates: (), update: 0) = {
   let status(h, e) = {
     if h == 1 { "solved" }
     else if e == 0 { if h <= 3 { "impossible" } else { "open" } }
@@ -654,14 +662,31 @@
       if e == 0 { $phi = H$ } else { $phi = H + #e$ })))
     for h in hs {
       let s = status(h, e)
+      let newer = updates.find(u => u.at(0) == h and u.at(1) == e)
+      let k = if newer == none { 0 } else { calc.clamp(update, 0, 1) }
+      let s2 = if newer == none { s } else { newer.at(2) }
       let (bg, fg) = style.at(s)
+      let (bg2, fg2) = style.at(s2)
+      bg = blend(bg, bg2, k)
+      fg = blend(fg, fg2, k)
       let focused = focus.contains((h, e))
       if dim-others and not focused { bg = bg.lighten(50%); fg = fg.lighten(58%) }
       let shown = calc.clamp(reveal(h, e, s), 0, 1)
+      // The old mark fades out in the first half of the update, the new one
+      // fades in during the second half.
+      let mark = if k < 0.5 { _mark(s, 25, alpha(fg, shown * (1 - 2 * k))) }
+        else { _mark(s2, 25, alpha(fg, shown * (2 * k - 1))) }
       body.push(box(width: cell, height: cell * 0.68, radius: 9pt,
         fill: blend(tint, bg, shown),
         stroke: if focused { 3pt + alpha(fg, shown) } else { none },
-        align(center + horizon, _mark(s, 25, alpha(fg, shown)))))
+        {
+          align(center + horizon, mark)
+          if k > 0.001 {
+            place(top + right, dx: 10pt, dy: -11pt,
+              box(inset: (x: 6pt, y: 3pt), radius: 6pt, fill: alpha(fg2, k),
+                text(size: 13pt, weight: "bold", fill: alpha(paper, k))[NEW]))
+          }
+        }))
     }
   }
   body.push([])

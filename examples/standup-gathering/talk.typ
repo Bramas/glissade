@@ -14,8 +14,8 @@
     note: [merging three nodes into one, with myopic robots],
     summary: [Merging three nodes into one, with myopic robots]),
   (title: [Open problems],
-    note: [two cases we cannot settle yet],
-    summary: [Two open cases]),
+    note: [two cases settled this week, one left],
+    summary: [Two cases settled this week, one left]),
 )
 
 #show: suig-theme.with(
@@ -31,6 +31,10 @@
 #let sense-c = rgb("#3a7d2c")
 #let sched-c = rgb("#5f6b7a")
 #let fault-c = alert
+// The robots at nodes 4, 8, 9, 10 of the false-border example, named so that
+// the text can point at them; the letters follow the robots when they move.
+#let abcd = (none, [a], [b], [c], [d])
+#let rb(name) = text(fill: accent, weight: "bold", name)
 
 // ---------------------------------------------------------------- title -----
 #title-slide(
@@ -371,7 +375,7 @@
   #let config = (0, 4, 8, 9, 10, 12, 15)
   #grid(columns: (130pt, 1fr), align: horizon,
     text(size: 22pt, weight: "bold", fill: teal)[`lineView`],
-    line-view(config, low: -1, high: 16, width: 1000, views: ((10, 5),), dim: (0, 4), bits: (10, 5), height: 150),
+    line-view(config, low: -1, high: 16, width: 1000, views: ((10, 5),), dim: (0, 4), bits: (10, 5), height: 150, names: abcd),
   )
   #v(1fr)
   #grid(columns: (1fr, 1fr), column-gutter: 26pt,
@@ -393,7 +397,7 @@ def h1Border (v : List Nat) : Bool :=
     ],
   )
   #v(1fr)
-  #note[`lineView` reads the window through the sensor `occupied`; each rule of the paper is one guard on it, tried in the paper's priority order. The robot at node 10 does not know that nodes 0 and 4 exist.]
+  #note[`lineView` reads the window through the sensor `occupied`; each rule of the paper is one guard on it, tried in the paper's priority order. Robot #rb[d] does not see the two faded robots.]
 ]
 
 // ========================================================== 3. H + 1 =======
@@ -459,15 +463,15 @@ def h1Border (v : List Nat) : Bool :=
   #let config = (0, 4, 8, 9, 10, 12, 15)
   #v(0.5fr)
   #grid(columns: (196pt, 1fr), row-gutter: 14pt, column-gutter: 10pt, align: horizon,
-    [#eyebrow(color: teal)[Robot at 10]\ #text(size: 25pt)[sees 5 to 15]],
-    line-view(config, low: -1, high: 16, width: 930, views: ((10, 5),), dim: (0, 4),
+    [#eyebrow(color: teal)[Robot d]\ #text(size: 25pt)[does not see #rb[a]]],
+    line-view(config, low: -1, high: 16, width: 930, views: ((10, 5),), dim: (0, 4), names: abcd,
       tags: ((10, [me], teal), (8, [border?], alert))),
-    [#eyebrow(color: teal)[Robot at 9]\ #text(size: 25pt)[sees 4 to 14]],
-    line-view(config, low: -1, high: 16, width: 930, views: ((9, 5),), dim: (0,),
+    [#eyebrow(color: teal)[Robot c]\ #text(size: 25pt)[sees #rb[a]]],
+    line-view(config, low: -1, high: 16, width: 930, views: ((9, 5),), dim: (0,), names: abcd,
       tags: ((9, [me], teal), (4, [not a border], teal))),
   )
   #v(1fr)
-  From node 10, the block $8, 9, 10$ looks like a border 3-block: node 4 is one hop too far.
+  For #rb[d], the block #rb[b]#rb[c]#rb[d] looks like a border 3-block: #rb[a] is one hop too far.
   #v(10pt)
   #note[$phi = 5$, $H = 4$. With $phi = H + 1$, a robot two hops into a block cannot always see past it.]
   #v(1fr)
@@ -481,11 +485,11 @@ def h1Border (v : List Nat) : Bool :=
     let tags = rule-tags("false-border-without", t, (
       h1SecondNeighborMerge: ([merge], alert),
     ), rounds: (0,))
-    lane("false-border-without", t, tags: tags, history: true)
+    lane("false-border-without", t, tags: tags, history: true, names: abcd)
     v(1fr)
     let round = state-at("false-border-without", t).round
     if round < 1 {
-      lead[Node 10 merges into 9, but node 8 is not a border: it stays.]
+      lead[#rb[d] merges into #rb[c], but #rb[b] is not a border: it stays.]
     } else if round < 11 {
       lead[Two occupied nodes instead of one: #em-alert[$7 -> 6$], the parity is lost.]
     } else {
@@ -506,14 +510,14 @@ def h1Border (v : List Nat) : Bool :=
       h1SecondNeighborMerge: ([merge], teal),
       h1NeighborFalseMerge: ([steps aside], accent, "above"),
     ), rounds: (0,))
-    lane("false-border", t, tags: tags)
+    lane("false-border", t, tags: tags, names: abcd)
   }
   #v(1fr)
   #grid(columns: (1fr, 1.45fr), column-gutter: 30pt, align: horizon,
     [
-      Node 9 sees node 4: the merge is false. It swaps with the merging robot, so #em-teal[7 occupied nodes remain].
+      #rb[c] sees #rb[a]: the merge is false. #rb[c] swaps with #rb[d], so #em-teal[7 occupied nodes remain].
       #v(10pt)
-      #note[It knows node 10 cannot see node 4.]
+      #note[#rb[c] knows that #rb[d] cannot see #rb[a].]
     ],
     [
       #set text(size: 28pt)
@@ -581,101 +585,86 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
 // ===================================================== 4. Open problems ====
 #section-slide(4)
 
-#slide(title: [Open problems])[
+// The map as the paper left it, then the results of this week (search over
+// every rule table, guided by a SAT solver; the proofs are under review).
+#slide(title: [Open problems], id: "open")[
+  #run(1, duration: 1.2)
   #v(1fr)
-  #grid(columns: (auto, 1fr), column-gutter: 46pt, align: horizon,
-    results-map(focus: ((4, 0), (5, 0), (6, 0), (2, 1)), dim-others: true, cell: 86pt),
-    [
-      #stack(spacing: 30pt,
-        [#pill(color: amber)[1] #h(8pt) $phi = H$ for $H >= 4$ \ #note[impossible for $H in {2, 3}$, proved by hand]],
-        [#pill(color: amber)[2] #h(8pt) $H = 2$ with $phi = 3$ \ #note[our algorithm needs $phi >= 4$]],
-        [We believe *both are impossible* for oblivious robots.],
-      )
-    ],
-  )
-  #v(1fr)
-]
-
-// The proof for H = phi = 3 (case "idle" of the paper): assume the robot at
-// node 2 stays; forced rules decide every other robot, and the next
-// configuration is edge-symmetric.
-#let h3-steps = (
-  (node: 2, tag: [stays?], color: amber, move: 0,
-    reason: [Assume it stays.]),
-  (node: 0, tag: [→], color: accent, move: 1,
-    reason: [Border of $X X X$: moves in, or $X X X$ with its middle crashed never gathers.]),
-  (node: 1, tag: [stays], color: accent, move: 0,
-    reason: [Middle of $X X X$: stays, or $X X X$ becomes $X X$, edge-symmetric.]),
-  (node: 5, tag: [stays], color: accent, move: 0,
-    reason: [Sees $X dot dot [X] dot X$: stays, or another configuration disconnects.]),
-  (node: 7, tag: [←], color: accent, move: -1,
-    reason: [Sees one robot, two hops away: moves to it, or $X dot X$ with its middle crashed never gathers.]),
-)
-
-#slide(title: [Open problem 1: $phi = H$], id: "open-h3")[
-  #let last = h3-steps.len()
-  #init(t: if handout { float(last) } else { 0.0 })
-  #if not handout {
-    for target in range(1, last + 1) {
-      animate(t: float(target), duration: if target == last { 1.0 } else { 0.5 }, transition: "linear")
-      cut()
-    }
-  }
   #context {
-    let t = a("t")
-    let travel = ease(t, last - 1, last)
-    let start = (0, 1, 2, 5, 7)
-    let positions = start.map(p => {
-      let step = h3-steps.find(s => s.node == p)
-      p + step.move * travel
-    })
-    let shown(k) = if k == 0 { 1 } else { ease(t, k - 1, k) }
-    let tags = if t < last - 1 + 0.05 {
-      h3-steps.enumerate().map(((k, s)) => (s.node, s.tag, alpha(s.color, shown(k)), "above"))
-    } else { () }
-    let done = ease(t, last - 0.3, last)
-    grid(columns: (1fr, 210pt), column-gutter: 10pt, align: horizon,
-      line-view(positions, low: -2, high: 9, width: 900, labels: true, height: 136,
-        views: if t < last - 1 + 0.05 { ((2, 3),) } else { () }, tags: tags,
-        highlight: if done > 0 { (1, 6) } else { none }, highlight-color: alpha(alert, done)),
-      if done > 0.5 { symmetry-badge((1, 2, 5, 6)) } else { text(size: 21pt, weight: "bold", fill: muted)[$H = phi = 3$] },
+    let u = ease(a("t"), 0, 1)
+    grid(columns: (auto, 1fr), column-gutter: 46pt, align: horizon,
+      results-map(focus: ((4, 0), (5, 0), (6, 0), (2, 1)), dim-others: true, cell: 86pt,
+        updates: ((2, 1, "impossible"), (2, 0, "impossible"), (3, 0, "impossible")), update: u),
+      if u < 0.5 {
+        stack(spacing: 30pt,
+          [#pill(color: amber)[1] #h(8pt) $phi = H$ for $H >= 4$ \ #note[impossible for $H in {2, 3}$, proved by hand]],
+          [#pill(color: amber)[2] #h(8pt) $H = 2$ with $phi = 3$ \ #note[our algorithm needs $phi >= 4$]],
+          [We believe *both are impossible* for oblivious robots.],
+        )
+      } else {
+        stack(spacing: 30pt,
+          [#pill(color: alert)[2] #h(8pt) $H = 2$, $phi = 3$: #em-alert[impossible] \ #note[so $phi >= 4$ is optimal for $H = 2$]],
+          [#pill(color: alert)[+] #h(8pt) $phi = H <= 3$: #em-alert[no gathering] \ #note[even without crash, not only SUIG]],
+          [#pill(color: amber)[1] #h(8pt) $phi = H$, $H >= 4$: #em-amber[open] \ #note[for SUIG, and for gathering]],
+        )
+      },
     )
-    v(8pt)
-    set text(size: 23pt)
-    grid(columns: (104pt, 1fr), row-gutter: 11pt, align: horizon,
-      ..h3-steps.enumerate().map(((k, s)) => (
-        pill(color: alpha(s.color, shown(k)), fill: alpha(s.color, shown(k) * 0.12))[node #s.node],
-        text(fill: alpha(ink, shown(k)), s.reason),
-      )).flatten(),
-      [], text(fill: alpha(alert, done), weight: "bold")[$X X dot dot X X$ is edge-symmetric: gathering fails. Moving left or right fails too.],
-    )
+    v(0.7fr)
+    text(size: 22pt, fill: alpha(muted, u))[New this week: a SAT solver and a search for failing executions, with the help of AI. The proofs are under review.]
+    v(0.3fr)
   }
-  #v(1fr)
-  #note[$H = 2, 3$: every choice ends this way, by hand. For $H >= 4$ some rules are still forced (a robot that sees only one robot, farther than $phi slash 2$, must move to it), but we have no general chain.]
 ]
 
-#slide(title: [Open problem 2: $H = 2$, $phi = 3$])[
-  The algorithm needs $phi >= 4$: for $H = 2$, two hops above the trivial bound. Is $phi = 3$ enough?
-  #v(26pt)
-  #grid(columns: (1fr, 1fr), column-gutter: 46pt,
-    card(inset: 26pt)[
-      #eyebrow(color: amber)[Forced rules]
-      #v(18pt)
-      #grid(columns: (auto, 1fr), column-gutter: 24pt, row-gutter: 30pt, align: horizon,
-        rule-view((".", ".", ".", "[X]", "X", "X", "."), move: "right"),
-        text(size: 23pt)[border of $X X X$: move in],
-        rule-view((".", ".", ".", "[X]", ".", "X", "."), move: "right"),
-        text(size: 23pt)[one robot in view: move towards it],
-      )
+#slide(title: [Open problem: $phi = H$, $H >= 4$], id: "open-h4")[
+  #grid(columns: (1.25fr, 1fr), column-gutter: 26pt,
+    card(fill: amber-soft, inset: 22pt, height: 150pt)[
+      #eyebrow(color: amber)[Two questions in one]
+      #v(10pt)
+      #text(size: 24pt)[Can oblivious robots *gather* with $phi = H$? If not, no SUIG either: a SUIG algorithm gathers when nothing crashes.]
     ],
-    [
-      Crash scenarios force these rules, and each forced rule removes options for the others.
-      #v(16pt)
-      #em-amber[Conjecture:] no oblivious algorithm for $H = 2$ and $phi = 3$.
-      #v(16pt)
-      #note[The case analysis is not complete. Searching rule tables with the forced rules fixed could be a job for Simulant.]
+    card(inset: 22pt, height: 150pt)[
+      #eyebrow(color: amber)[Conjecture]
+      #v(10pt)
+      #text(size: 24pt)[For every $H >= 2$, $phi = H$ is not enough, *even to gather*.]
     ],
   )
+  #v(1fr)
+  #align(center, line-view((0, 4, 8, 12, 16, 20), low: -1, high: 21, width: 1060, height: 110,
+    views: ((8, 4),), tags: ((8, [me], teal), (4, [border?], amber), (12, [border?], amber))))
+  #v(1fr)
+  #grid(columns: (1fr, 1fr, 1fr), column-gutter: 20pt,
+    ..(
+      ([Memory is placement],
+        [Oblivious robots pass nothing to the next round but their positions. Yet something must pass, like the parity of the occupied nodes: an even count can turn edge-symmetric.]),
+      ([No slack],
+        [Across a gap of $H$, a robot sees its neighbor at the edge of its view and nothing beyond: is it a border? Stepping away disconnects.]),
+      ([Two blind borders],
+        [Both ends must keep the count odd together, yet neither sees what the other did, and the middle cannot relay it without disconnecting.]),
+    ).map(((head, body)) => card(inset: 18pt, height: 205pt)[
+      #eyebrow(color: amber, size: 15pt)[#head]
+      #v(8pt)
+      #text(size: 20pt, body)
+    ])
+  )
+]
+
+// A sketch, not a proof: steps 1 to 3 hold for any phi >= H, so the missing
+// lemma is where phi = H must be used.
+#slide(title: [A plan for $phi = H$], id: "plan")[
+  #set text(size: 23pt)
+  #grid(columns: (48pt, 1fr), row-gutter: 18pt, align: (center + top, left + top),
+    pill[1], [*Gathering suffices.* If gathering is impossible, so is SUIG.],
+    pill[2], [*Frozen middle.* With every gap equal to $H$, an inner robot has a symmetric view: if it moved, the adversary would send two neighbors apart, to distance $H + 2$. So the middle waits, and the two ends evolve independently.],
+    pill[3], [*Gluing.* If two ends $P$ and $Q$ of opposite parity reach the same state, start from $P thin C^k thin overline(Q)$, an odd count: the ends meet as mirror images around the frozen middle, edge-symmetric.],
+  )
+  #v(1fr)
+  #card(fill: amber-soft, inset: 20pt)[
+    #eyebrow(color: amber)[The missing lemma]
+    #v(8pt)
+    Periodic ends are not enough: one bit of state can hold the parity. Steps 1 to 3 also hold for $phi = H + 1$, where our algorithm keeps the parity by merging in pairs. So the lemma must use $phi = H$: *two ends of opposite parity reach the same state.*
+  ]
+  #v(12pt)
+  #note[$C^k$: $k$ gaps of $H$, with an odd gap in the middle ($H - 1$ if $H$ is even); $overline(Q)$: $Q$ mirrored. With $phi = H$, the first robot of the chain cannot step towards the end, and the end cannot see past it.]
 ]
 
 // ============================================================ closing ======
@@ -686,7 +675,7 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
     grid(columns: (64pt, 1fr), text(fill: teal, weight: "bold", size: 34pt)[2],
       [Myopic oblivious robots gather with $phi = max(4, H + 1)$ when $O_"init"$ is odd. Blind $3 -> 1$ merges break the parity; *three small rules* repair them.]),
     grid(columns: (64pt, 1fr), text(fill: amber, weight: "bold", size: 34pt)[3],
-      [Open: $phi = H$ for $H >= 4$, and $H = 2$ with $phi = 3$.]),
+      [New, under review: $H = 2$ needs $phi >= 4$, and $phi = H in {2, 3}$ rules out gathering itself. Open: $phi = H$ for $H >= 4$.]),
   )
   #v(1fr)
   #grid(columns: (1fr, 1.2fr), column-gutter: 40pt,
