@@ -74,7 +74,6 @@
     ),
   )
   #v(1fr)
-  #note[Open source · #link("https://bramas.github.io/simulant/")[bramas.github.io/simulant] · every execution in this talk is recorded from the simulator.]
 ]
 
 // The assumptions of a model, as a paper lists them, with the standard
@@ -134,8 +133,6 @@
 
 #let ring-sentence = [
   #text(size: 28pt)[“Oblivious robots on a ring of $n$ nodes, with chirality, full visibility and strong multiplicity detection, under SSYNC.”]
-  #v(20pt)
-  #note[One declaration: simulated, explored and exported to Lean.]
 ]
 
 #slide(title: [Building a model], id: "build")[
@@ -150,8 +147,6 @@
   #context model-builder(choices, a("t"), name: "ringRobots",
     intro: [
       #lead[A paper fixes these choices in its model section.]
-      #v(18pt)
-      #note[Simulant has a definition for each option. We pick one per row.]
     ],
     outro: ring-sentence,
   )
@@ -178,13 +173,9 @@
   ring-model,
   (name: "asyncRingRobots", rows: async-rows, side: [
     #lead[The same robots, asynchronous.]
-    #v(18pt)
-    #note[Look, Compute and Move become separate events.]
   ]),
   (name: "luminousRobots", rows: with-rows(async-rows, sensors: "[count, colors, ownLight]", components: "[Storage.Lights 3]"), side: [
     #lead[… with a light of three colors.]
-    #v(18pt)
-    #note[A light is a component; two sensors read the colors.]
   ]),
   (name: "dynamicRingAgents", rows: (
     ("space", "Graphs.Dynamic (Graphs.Cycle (param n)) 1"),
@@ -196,8 +187,6 @@
     ("components", "[]"),
   ), side: [
     #lead[Mobile agents with memory, on a ring that may miss one edge per round.]
-    #v(18pt)
-    #note[They read the states of the agents on their node, and which edges are present.]
   ]),
 )
 
@@ -234,10 +223,9 @@
       goal Exploration := eventually .success
       ```
     },
-    stack(spacing: 14pt, pill(color: teal)[eventually], note[`visited` is a field of the component `Monitors.Visited`]),
+    stack(spacing: 14pt, pill(color: teal)[eventually], note[at some point]),
   )
   #v(1fr)
-  #note[Tasks read positions; robots never do. The third kind of goal is `always ¬ .failure`.]
 ]
 
 // ================================================================ 2. SUIG ===
@@ -252,8 +240,6 @@
   }
   #v(1fr)
   Without crash, gather anywhere. With crashes, *all correct robots gather at the crash node*.
-  #v(10pt)
-  #note[FSYNC · oblivious · disoriented · visibility radius $phi$ · no multiplicity detection. Numbers in the discs are for us, not for the robots.]
   #v(0.5fr)
 ]
 
@@ -397,7 +383,6 @@ def h1Border (v : List Nat) : Bool :=
     ],
   )
   #v(1fr)
-  #note[`lineView` reads the window through the sensor `occupied`; each rule of the paper is one guard on it, tried in the paper's priority order. Robot #rb[d] does not see the two faded robots.]
 ]
 
 // ========================================================== 3. H + 1 =======
@@ -431,7 +416,6 @@ def h1Border (v : List Nat) : Bool :=
     )
   }
   #v(1.3fr)
-  #note[$H$: largest gap between consecutive occupied nodes. $O_"init"$: number of occupied nodes.]
 ]
 
 #slide(title: [Merging], id: "merge")[
@@ -448,9 +432,7 @@ def h1Border (v : List Nat) : Bool :=
   #v(1fr)
   #grid(columns: (1fr, 1fr), column-gutter: 44pt,
     [
-      An *edge-symmetric* configuration is a dead end: two mirrored halves, forever.
-      #v(8pt)
-      #note[An odd number of occupied nodes is never edge-symmetric.]
+      An *edge-symmetric* configuration is a dead end: two mirrored halves, forever. An odd number of occupied nodes never is.
     ],
     [
       So merges remove occupied nodes *in pairs*. At a border, a 3-block merges into its middle node: $3 -> 1$.
@@ -472,8 +454,6 @@ def h1Border (v : List Nat) : Bool :=
   )
   #v(1fr)
   For #rb[d], the block #rb[b]#rb[c]#rb[d] looks like a border 3-block: #rb[a] is one hop too far.
-  #v(10pt)
-  #note[$phi = 5$, $H = 4$. With $phi = H + 1$, a robot two hops into a block cannot always see past it.]
   #v(1fr)
 ]
 
@@ -496,8 +476,6 @@ def h1Border (v : List Nat) : Bool :=
       lead[Two adjacent nodes swap forever: #em-alert[gathering fails].]
     }
   }
-  #v(16pt)
-  #note[Recorded with the public algorithm minus one rule, `neig, false-merge`.]
   #v(0.6fr)
 ]
 
@@ -516,8 +494,6 @@ def h1Border (v : List Nat) : Bool :=
   #grid(columns: (1fr, 1.45fr), column-gutter: 30pt, align: horizon,
     [
       #rb[c] sees #rb[a]: the merge is false. #rb[c] swaps with #rb[d], so #em-teal[7 occupied nodes remain].
-      #v(10pt)
-      #note[#rb[c] knows that #rb[d] cannot see #rb[a].]
     ],
     [
       #set text(size: 28pt)
@@ -546,8 +522,6 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
   }
   #v(1fr)
   In $X X dot X$, a moving border lands next to its neighbor: $X X$ is edge-symmetric, a dead end. Waiting one round gives $X dot X$, which gathers in the middle.
-  #v(10pt)
-  #note[Rule `border-idle,1`: a border followed by a robot, then an empty node, stays idle.]
   #v(0.5fr)
 ]
 
@@ -557,21 +531,21 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
 // rules that also fire during the main stage.
 #slide(title: [Why not $M_"init"$ odd?], id: "when-wait")[
   #grid(columns: (1fr, 1fr), column-gutter: 30pt,
-    card(inset: 24pt, height: 290pt)[
+    card(inset: 24pt, height: 265pt)[
       #eyebrow(color: teal)[$phi >= H + 3$: only at the end]
       #v(14pt)
       #rule-view((".", "[X]", ".", "X", "X", ".", "."), move: "stay", color: teal)
       #v(10pt)
       #set text(size: 23pt)
-      The border sees the whole configuration $X dot X X$ and waits once. Before that, borders always move: the span keeps its parity, so this also works when only $M_"init"$ is odd.
+      Borders always move, and wait once on $X dot X X$, which they see whole. This also works with $M_"init"$ odd.
     ],
-    card(fill: amber-soft, inset: 24pt, height: 290pt)[
+    card(fill: amber-soft, inset: 24pt, height: 265pt)[
       #eyebrow(color: amber)[$phi = H + 1$: during the main stage]
       #v(14pt)
       #rule-view(("[X]", "X", ".", "¬∅", "*", "*", "*"), move: "stay", color: amber)
       #v(10pt)
       #set text(size: 23pt)
-      The end cannot be recognized: more robots may lie beyond sight. The wait is a local rule, which also fires mid-way. It changes the parity of the span: $O_"init"$ must be odd.
+      The end is out of sight, so the wait is a local rule that also fires mid-way. $O_"init"$ must be odd.
     ],
   )
   #v(1fr)
@@ -597,9 +571,7 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
     parity-badge(6),
   )
   #v(0.5fr)
-  #rb[c] cannot see past #rb[a]: it takes #rb[a] for a border and merges onto #rb[b]. #rb[b] sees past #rb[a], but Fix 1 only catches $X X X dot X$: here #rb[d] follows. #em-alert[One node is lost.]
-  #v(10pt)
-  #note[$phi = 4$, $H = 3$. In $H + 3$, the merging robot sees that the border is real. So the $H + 1$ algorithm merges only blocks of exactly three, where Fix 1 can catch a false merge.]
+  #rb[c] cannot see past #rb[a]: it takes #rb[a] for a border and merges onto #rb[b]. #rb[b] sees past #rb[a], but Fix 1 only catches $X X X dot X$: here #rb[d] follows. #em-alert[One node is lost.] So the $H + 1$ algorithm merges only blocks of exactly three.
   #v(0.5fr)
 ]
 
@@ -615,8 +587,6 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
   }
   #v(1fr)
   So the border of a longer block must wait: moving in alone would remove one node. Instead, the second and third robots move *outwards*: $dot X X X X dot -> dot X dot dot X dot$, two nodes fewer.
-  #v(10pt)
-  #note[Rule `border-idle,2`: the border of four or more robots waits. Rules `4-merge,1` and `4-merge,2` apply anywhere in the configuration.]
   #v(0.3fr)
 ]
 
@@ -631,7 +601,6 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
     [*With crashes,* the diameter still shrinks to 3 or 4, and a case analysis on the crash position finishes.],
   )
   #v(1fr)
-  #note[The three fixes are guards of the public `h-plus-one.sim`. Each counterexample above is that file with one rule removed.]
 ]
 
 // ===================================================== 4. Open problems ====
@@ -707,7 +676,7 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
   #grid(columns: (48pt, 1fr), row-gutter: 18pt, align: (center + top, left + top),
     pill[1], [*Gathering suffices.* If gathering is impossible, so is SUIG.],
     pill[2], [*Frozen middle.* With every gap equal to $H$, an inner robot has a symmetric view: if it moved, the adversary would send two neighbors apart, to distance $H + 2$. So the middle waits, and the two ends evolve independently.],
-    pill[3], [*Gluing.* If two ends $P$ and $Q$ of opposite parity reach the same state, start from $P thin C^k thin overline(Q)$, an odd count: the ends meet as mirror images around the frozen middle, edge-symmetric.],
+    pill[3], [*Gluing.* If two ends $P$ and $Q$ of opposite parity reach the same state, put $P$ and a mirrored $Q$ at the two ends of a long chain: an odd count, yet the ends meet as mirror images, edge-symmetric.],
   )
   #v(1fr)
   #card(fill: amber-soft, inset: 20pt)[
@@ -715,8 +684,6 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
     #v(8pt)
     Periodic ends are not enough: one bit of state can hold the parity. Steps 1 to 3 also hold for $phi = H + 1$, where our algorithm keeps the parity by merging in pairs. So the lemma must use $phi = H$: *two ends of opposite parity reach the same state.*
   ]
-  #v(12pt)
-  #note[$C^k$: $k$ gaps of $H$, with an odd gap in the middle ($H - 1$ if $H$ is even); $overline(Q)$: $Q$ mirrored. With $phi = H$, the first robot of the chain cannot step towards the end, and the end cannot see past it.]
 ]
 
 // The general class of the journal version: the robots do not know whether
@@ -739,8 +706,6 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
   )
   #v(1fr)
   With $phi >= H + 3$, borders wait only at the end, which they see. With less, they cannot recognize the end. *Can a border wait only at the end without seeing it?* The parity it needs is one bit to remember, which is what the two colors store.
-  #v(14pt)
-  #note[The same intuition as for $phi = H$: memory is placement, and the borders are blind to each other.]
   #v(1fr)
 ]
 
