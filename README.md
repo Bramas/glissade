@@ -147,8 +147,9 @@ shapes can use the same mechanism for geometry morphing or a
 
 ## Presentation controls
 
-- Right or Page Down starts or continues an animation. Double-tap to step
-  through keyframes.
+- Right or Page Down starts or continues an animation. Press rapidly or hold
+  the key to step through keyframes. After 400 ms without advancing, the next
+  press plays the animation normally.
 - Left or Page Up returns to the current or previous animation boundary.
 - Space toggles playback and advances to the next animation at the end.
 - Clicking the slide continues when paused; double-clicking pauses an animation.

@@ -660,7 +660,7 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
 #slide(title: [Open problem: $phi = H$, $H >= 4$], id: "open-h4")[
   #grid(columns: (1.25fr, 1fr), column-gutter: 26pt,
     card(fill: amber-soft, inset: 22pt, height: 150pt)[
-      #eyebrow(color: amber)[Two questions in one]
+      #eyebrow(color: amber)[Question]
       #v(10pt)
       #text(size: 24pt)[Can oblivious robots *gather* with $phi = H$? If not, no SUIG either: a SUIG algorithm gathers when nothing crashes.]
     ],
@@ -673,21 +673,6 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
   #v(1fr)
   #align(center, line-view((0, 4, 8, 12, 16, 20), low: -1, high: 21, width: 1060, height: 110,
     views: ((8, 4),), tags: ((8, [me], teal), (4, [border?], amber), (12, [border?], amber))))
-  #v(1fr)
-  #grid(columns: (1fr, 1fr, 1fr), column-gutter: 20pt,
-    ..(
-      ([Memory is placement],
-        [Oblivious robots pass nothing to the next round but their positions. Yet something must pass, like the parity of the occupied nodes: an even count can turn edge-symmetric.]),
-      ([No slack],
-        [Across a gap of $H$, a robot sees its neighbor at the edge of its view and nothing beyond: is it a border? Stepping away disconnects.]),
-      ([Two blind borders],
-        [Both ends must keep the count odd together, yet neither sees what the other did, and the middle cannot relay it without disconnecting.]),
-    ).map(((head, body)) => card(inset: 18pt, height: 205pt)[
-      #eyebrow(color: amber, size: 15pt)[#head]
-      #v(8pt)
-      #text(size: 20pt, body)
-    ])
-  )
 ]
 
 // A sketch, not a proof: steps 1 to 3 hold for any phi >= H, so the missing
@@ -699,12 +684,6 @@ def h1NeighborFalseMerge (v : List Nat) : Bool :=
     pill[2], [*Frozen middle.* With every gap equal to $H$, an inner robot has a symmetric view: if it moved, the adversary would send two neighbors apart, to distance $H + 2$. So the middle waits, and the two ends evolve independently.],
     pill[3], [*Gluing.* If two ends $P$ and $Q$ of opposite parity reach the same state, put $P$ and a mirrored $Q$ at the two ends of a long chain: an odd count, yet the ends meet as mirror images, edge-symmetric.],
   )
-  #v(1fr)
-  #card(fill: amber-soft, inset: 20pt)[
-    #eyebrow(color: amber)[The missing lemma]
-    #v(8pt)
-    Periodic ends are not enough: one bit of state can hold the parity. Steps 1 to 3 also hold for $phi = H + 1$, where our algorithm keeps the parity by merging in pairs. So the lemma must use $phi = H$: *two ends of opposite parity reach the same state.*
-  ]
 ]
 
 // The general class of the journal version: the robots do not know whether

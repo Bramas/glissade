@@ -124,10 +124,7 @@
       let pauseWhenHidden = true;
       let pauseWhenBlurred = false;
       let lastForwardAt = -Infinity;
-      let rapidForward = false;
-      let rapidForwardReset = 0;
       const rapidForwardThreshold = 400;
-      const rapidForwardTimeout = 2000;
       let scrubbing = false;
       let timelineRevealed = false;
       let mouseStart = null;
@@ -243,13 +240,7 @@
         animationHandle = requestAnimationFrame(tick);
       }
       function resetRapidForward() {
-        clearTimeout(rapidForwardReset);
         lastForwardAt = -Infinity;
-        rapidForward = false;
-      }
-      function scheduleRapidForwardReset() {
-        clearTimeout(rapidForwardReset);
-        rapidForwardReset = setTimeout(resetRapidForward, rapidForwardTimeout);
       }
       function stepToNextKeyframe() {
         pause();
@@ -261,13 +252,11 @@
           selectScene(sceneIndex + 1);
         }
       }
-      function continueForward() {
+      function continueForward(repeated = false) {
         const now = performance.now();
-        const isRapid = rapidForward || now - lastForwardAt <= rapidForwardThreshold;
+        const isRapid = repeated === true || now - lastForwardAt <= rapidForwardThreshold;
         lastForwardAt = now;
-        scheduleRapidForwardReset();
         if (isRapid) {
-          rapidForward = true;
           stepToNextKeyframe();
         } else if (playing) {
           const loopCut = activeLoopCut(scene(), frameIndex);
@@ -401,9 +390,9 @@
       });
       timelineTrack.addEventListener("pointercancel", () => { scrubbing = false; });
       document.addEventListener("keydown", event => {
-        if (event.repeat) return;
+        if (event.repeat && !["ArrowRight", "PageDown"].includes(event.key)) return;
         if (event.key === " ") { event.preventDefault(); togglePlayback(); }
-        else if (["ArrowRight", "PageDown"].includes(event.key)) { event.preventDefault(); continueForward(); }
+        else if (["ArrowRight", "PageDown"].includes(event.key)) { event.preventDefault(); continueForward(event.repeat); }
         else if (["ArrowLeft", "PageUp"].includes(event.key)) { event.preventDefault(); goBackToKeyframe(); }
         else if (event.key.toLowerCase() === "o") toggleOverview();
         else if (event.key === "Escape" && !overview.hidden) overview.hidden = true;
